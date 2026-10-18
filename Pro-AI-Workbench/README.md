@@ -1,6 +1,6 @@
 # Multi-AI Workbench
 
-本機多 AI 專案控制台，以 OpenCreator 的深色工作台作為介面參考。支援 GPT 規劃、Perplexity 查證、Gemini 實作、Grok 複核、GPT 終審的自動套娃流程。
+本機多 AI 專案控制台，以 OpenCreator 的深色工作台作為介面參考。支援 GPT 規劃、Perplexity 查證、Gemini 實作、Sub2API 模型複核、GPT 終審的自動套娃流程；另可從 Sub2API 管理 API 讀取多個已配置帳號的狀態。
 
 ## 支援的真實連線
 
@@ -21,9 +21,11 @@ Perplexity Pro 不等同於無限 Computer 用量。請先在 Perplexity 帳戶�
    - Gemini：在終端執行 `agy`，依提示以 Google 帳號登入。成功進入 CLI 後可按 `Ctrl+C` 結束。
    - Perplexity：程式會加入官方 MCP URL，再執行 `codex mcp login perplexity-computer`；在瀏覽器完成 Perplexity OAuth。
 5. 回到工作台按「更新連線狀態」。GPT 由 `codex login status` 確認；Gemini 顯示 CLI 是否存在（Google 登入在首次任務由官方 CLI 驗證）；Perplexity 要等首次成功 Computer 呼叫才會標示已驗證。
-6. 在「Grok」卡片設定 Sub2API Gateway 網址（預設 `http://127.0.0.1:8080/v1`）、Sub2API 使用者 Gateway Key，以及 Sub2API 模型清單中的 Grok 模型名稱。按測試後，工作台會送出一則極短模型請求；成功才保存設定。這會消耗該路由帳號少量包含額度，不會呼叫付費 API。
-7. 請先確認 Sub2API 後台該模型路由使用的是你自己的 Grok/SuperGrok OAuth 訂閱帳號，而不是 xAI API Key 帳號。工作台能驗證 Gateway 和模型請求成功，但 Sub2API 不一定在相容 API 回應中提供上游帳號類型；上游帳號來源請在 Sub2API 後台確認。多個帳號的池化、分組與輪替由 Sub2API 管理。
-8. 輸入專案資料夾完整路徑，建立套娃任務。流程為 GPT 拆解 → Perplexity Computer 查證 → Gemini 在資料夾實作 → Grok 複核 → GPT 只讀終審。任一階段失敗就停止，不會改用 API 金鑰或付費 API。
+6. 按「連結帳號池」，輸入 Sub2API 管理頁網址與管理員 API Key，工作台會驗證並只讀載入帳號清單。管理 Key 權限可能很高，請勿放進 Git 或分享；目前存在本機 `data/sub2api.json`。
+7. 按「開啟 Sub2API」，在 Sub2API 自己的管理介面新增每個上游帳號並完成該平台提供的 OAuth/登入授權。完成後回工作台「更新帳號」，確認清單有出現各帳號、平台、狀態與分組。工作台不會代替 Sub2API 保管供應商密碼，也不會自動替你登入尚未授權的帳號。
+8. 要讓模型參與任務，另填 Sub2API Gateway URL、一般使用者 Gateway Key 和模型名稱。按測試會送一則短訊息並消耗少量路由額度；成功才保存。管理帳號清單和模型 Gateway 是兩個不同連線。
+9. Sub2API 能回報帳號狀態/分組，不代表所有供應商都授權第三方 OAuth 轉接或允許共享訂閱額度。Sub2API 專案也要求部署者自行確認上游服務條款。是否能將各 Pro 訂閱用於這種 Gateway，請依各供應商當前條款及帳號頁確認；工作台不會把「OAuth 成功」冒稱為官方支援，也不會顯示 API 未提供的真實剩餘 Pro 額度。
+10. 輸入專案資料夾完整路徑，建立套娃任務。流程為 GPT 拆解 → Perplexity Computer 查證 → Gemini 在資料夾實作 → Sub2API 模型複核 → GPT 只讀終審。任一階段失敗就停止，不會改用供應商 API 金鑰或付費 API。
 
 `setup.bat` 只安裝免費 CLI 程式並啟動本機服務；不登入帳號、不建立供應商 API Key、不設定付款，也不會把專案上傳 GitHub。各官方帳號授權仍須由使用者完成。安裝 Node.js 會使用 Windows `winget`；若電腦沒有 winget，請先安裝 Node.js LTS，再重跑設定檔。
 
@@ -32,7 +34,7 @@ Perplexity Pro 不等同於無限 Computer 用量。請先在 Perplexity 帳戶�
 - Codex 實作使用 `workspace-write` 沙箱；GPT 審查使用 `read-only` 沙箱。
 - Antigravity headless 預設使用 CLI 的工具權限設定；讀寫目前工作區會放行，其他需要核准的命令可能被略過或拒絕。請只交辦可信任的專案。
 - 任務提示、執行記錄和結果保存在 `data/tasks.json`。請勿把密碼或 API key 寫進任務提示。
-- Sub2API Gateway Key 保存在本機忽略資料夾 `data/sub2api.json`，不會寫入 Git；請使用 Sub2API 的一般使用者 Gateway Key，不要填供應商 API Key。
+- Sub2API Gateway Key 與管理員 API Key 保存在本機忽略資料夾 `data/sub2api.json`，不會寫入 Git；管理員 Key 權限較高，請限制本機使用者存取與備份範圍。
 - 伺服器只監聽本機 `127.0.0.1`，不會公開到網際網路。
 - `git status --short` 用來顯示產生的檔案變更；程式不會自動 commit 或 push。
 
@@ -43,4 +45,4 @@ npm run check
 node --check public/app.js
 ```
 
-目前驗證範圍：語法檢查與本機假 Gateway 的連線流程測試。尚未在你的 Windows 電腦、實際 Sub2API 帳號池或四家服務帳號上完成端到端驗證；首次使用仍需在你的電腦登入並確認 Sub2API 路由來源。
+目前驗證範圍：語法檢查與本機假 Gateway 的連線流程測試。尚未在你的 Windows 電腦或實際 Sub2API 帳號池完成端到端驗證；首次使用需由你在 Sub2API 管理介面完成每個帳號的授權，然後回工作台驗證。
