@@ -51,6 +51,8 @@ function renderTasks() {
   taskList.querySelectorAll('.tree-root-head').forEach(head=>head.addEventListener('click',()=>head.parentElement.classList.toggle('collapsed')));
 }
 async function loadTasks(){try{taskCache=await fetch('/api/tasks').then(r=>r.json());renderTasks();}catch{taskList.innerHTML='<div class="empty-state">無法讀取任務記錄。</div>';}}
+async function loadAccounts(){const box=$('#accountList');try{const r=await fetch('/api/sub2api/accounts'),d=await r.json();if(!r.ok)throw new Error(d.error||'無法讀取帳號');if(!d.accounts.length){box.innerHTML='<div class="empty-state">Sub2API 已連接，但目前沒有帳號。請到管理頁新增帳號並完成 OAuth 授權。</div>';return;}box.innerHTML=`<div class="account-summary">讀取到 ${esc(d.total)} 個帳號。此清單只顯示 Sub2API 回報的授權紀錄；實際供應商剩餘額度需以該服務可查資料為準。</div><div class="account-grid">${d.accounts.map(a=>`<div class="account-row"><strong>${esc(a.name||`${a.platform||'AI'} 帳號 #${a.id}`)}</strong><span>${esc(a.platform)} · ${esc(a.type||'')}</span><span class="account-state">${esc(a.status||'未知')}${a.schedulable===true?' · 可排程':a.schedulable===false?' · 暫不可排程':''}</span><small>帳號 ID ${esc(a.id)}${Array.isArray(a.groupIds)&&a.groupIds.length?` · 群組 ${esc(a.groupIds.join(', '))}`:''}</small>${a.error?`<small class="account-error">${esc(a.error)}</small>`:''}</div>`).join('')}</div>`;}catch(e){box.innerHTML=`<div class="empty-state">${esc(e.message)}<br><button class="text-btn" id="configurePool">設定 Sub2API 管理授權</button></div>`;$('#configurePool')?.addEventListener('click',()=>$('#sub2apiDialog').showModal());}}
+async function loadPoolConfig(){try{const c=await fetch('/api/sub2api/config').then(r=>r.json());if(c.adminBaseUrl)$('#sub2apiAdminBase').value=c.adminBaseUrl;}catch{}}
 
 async function createTask() {
   const prompt=promptBox.value.trim(), workspace=workspaceInput.value.trim();
@@ -97,6 +99,9 @@ $('#refreshBtn').addEventListener('click',()=>{checkHealth();loadTasks();notify(
 $('#clearView').addEventListener('click',()=>{onlyActive=!onlyActive;$('#clearView').textContent=onlyActive?'顯示全部主任務':'只看進行中';renderTasks();});
 $('#settingsBtn').addEventListener('click',()=>notify('權限設定與啟動方式請看 README。'));
 $('#sub2apiBtn').addEventListener('click',()=>$('#sub2apiDialog').showModal());
+$('#refreshAccounts').addEventListener('click',loadAccounts);
+$('#openSub2apiAdmin').addEventListener('click',async()=>{const c=await fetch('/api/sub2api/config').then(r=>r.json());window.open(c.adminBaseUrl||'http://127.0.0.1:8080','_blank','noopener');});
+$('#saveSub2apiAdmin').addEventListener('click',async()=>{const b=$('#saveSub2apiAdmin');b.disabled=true;try{const r=await fetch('/api/sub2api/admin-config',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({baseUrl:$('#sub2apiAdminBase').value,adminKey:$('#sub2apiAdminKey').value})}),d=await r.json();if(!r.ok)throw new Error(d.error||'驗證失敗');$('#sub2apiAdminKey').value='';notify(`管理 API 驗證成功，讀取到 ${d.total} 個帳號。`);loadAccounts();}catch(e){notify(e.message);}finally{b.disabled=false;}});
 $('#testSub2api').addEventListener('click',async()=>{
   const button=$('#testSub2api');button.disabled=true;button.querySelector('b').textContent='…';
   try{
@@ -107,4 +112,4 @@ $('#testSub2api').addEventListener('click',async()=>{
   }catch(error){notify(error.message);}finally{button.disabled=false;button.querySelector('b').textContent='↗';}
 });
 workspaceInput.value=localStorage.getItem('pro-ai-workbench-workspace')||'';workspaceInput.addEventListener('change',()=>localStorage.setItem('pro-ai-workbench-workspace',workspaceInput.value.trim()));
-checkHealth();loadTasks();setInterval(()=>{loadTasks();checkHealth();},3500);
+checkHealth();loadTasks();loadAccounts();loadPoolConfig();setInterval(()=>{loadTasks();checkHealth();},3500);
