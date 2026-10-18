@@ -35,6 +35,15 @@ function loadSub2Api() {
 function saveSub2Api(config) {
   writeFileSync(SUB2API_FILE, JSON.stringify(config, null, 2), { encoding: 'utf8', mode: 0o600 });
 }
+function publicSub2ApiConfig() {
+  const c = loadSub2Api() || {};
+  return { gatewayConfigured: Boolean(c.baseUrl && c.apiKey && c.model), adminConfigured: Boolean(c.adminBaseUrl && c.adminKey), adminBaseUrl: c.adminBaseUrl || '' };
+}
+function safeAccount(a) {
+  // Never send Sub2API credentials/tokens or arbitrary account metadata to the browser.
+  const pick = (...keys) => { for (const key of keys) if (a?.[key] !== undefined && a[key] !== null) return a[key]; return ''; };
+  return { id: pick('id'), name: pick('name','account_name','email'), platform: pick('platform'), type: pick('type','account_type'), status: pick('status'), schedulable: pick('schedulable'), groupIds: pick('group_ids','groupIds'), lastUsedAt: pick('last_used_at','lastUsedAt'), error: pick('error_message','errorMessage') };
+}
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -319,11 +328,40 @@ const server = http.createServer(async (req, res) => {
     try { parsedUrl = new URL(baseUrl); } catch { return json(res, 400, { error: '請輸入有效網址，例如 http://127.0.0.1:8080/v1。' }); }
     if (!['http:', 'https:'].includes(parsedUrl.protocol)) return json(res, 400, { error: 'Gateway 網址必須使用 HTTP 或 HTTPS。' });
     if (!apiKey || !model) return json(res, 400, { error: '請輸入 Sub2API Gateway Key 和模型名稱。' });
-    const config = { baseUrl, apiKey, model };
+    const previous = loadSub2Api() || {};
+    const config = { ...previous, baseUrl, apiKey, model };
     const status = await testSub2Api(config, { probe: true });
     if (!status.connected) return json(res, 502, { error: status.detail, models: status.models || [] });
     saveSub2Api(config);
     return json(res, 200, { ok: true, message: status.detail, models: status.models || [] });
+  }
+  if (req.method === 'GET' && url.pathname === '/api/sub2api/config') return json(res, 200, publicSub2ApiConfig());
+  if (req.method === 'POST' && url.pathname === '/api/sub2api/admin-config') {
+    let body; try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+    let adminBaseUrl; try { adminBaseUrl = new URL(String(body.baseUrl || '')).toString().replace(/\/$/, ''); } catch { return json(res, 400, { error: '請輸入 Sub2API 管理介面的網址。' }); }
+    const adminKey = String(body.adminKey || '').trim();
+    if (!['http:','https:'].includes(new URL(adminBaseUrl).protocol) || !adminKey) return json(res, 400, { error: '請輸入有效網址與管理員 API Key。' });
+    const prev = loadSub2Api() || {};
+    const probe = await fetch(`${adminBaseUrl}/api/v1/admin/accounts?page=1&page_size=100`, { headers: { 'x-api-key': adminKey }, signal: AbortSignal.timeout(10000) });
+    const result = await probe.json().catch(() => ({}));
+    if (!probe.ok) return json(res, 502, { error: `Sub2API 管理 API 回應 HTTP ${probe.status}；確認管理員 API Key 與網址。` });
+    const data = result.data ?? result;
+    const accounts = Array.isArray(data) ? data : data.items || data.accounts || data.list || [];
+    if (!Array.isArray(accounts)) return json(res, 502, { error: '管理 API 有回應，但無法辨識帳號清單格式。' });
+    saveSub2Api({ ...prev, adminBaseUrl, adminKey });
+    return json(res, 200, { ok: true, total: data.total ?? data.pagination?.total ?? accounts.length, accounts: accounts.map(safeAccount) });
+  }
+  if (req.method === 'GET' && url.pathname === '/api/sub2api/accounts') {
+    const c = loadSub2Api() || {};
+    if (!c.adminBaseUrl || !c.adminKey) return json(res, 409, { error: '尚未設定 Sub2API 管理員唯讀入口。' });
+    try {
+      const upstream = await fetch(`${c.adminBaseUrl}/api/v1/admin/accounts?page=1&page_size=100`, { headers: { 'x-api-key': c.adminKey }, signal: AbortSignal.timeout(10000) });
+      const result = await upstream.json().catch(() => ({}));
+      if (!upstream.ok) return json(res, 502, { error: `Sub2API 管理 API 回應 HTTP ${upstream.status}。` });
+      const data = result.data ?? result;
+      const accounts = Array.isArray(data) ? data : data.items || data.accounts || data.list || [];
+      return json(res, 200, { total: data.total ?? data.pagination?.total ?? accounts.length, accounts: accounts.map(safeAccount) });
+    } catch (e) { return json(res, 502, { error: `無法讀取 Sub2API 帳號：${e.message}` }); }
   }
   const connectMatch = url.pathname.match(/^\/api\/connect\/(gemini|gpt|perplexity)$/);
   if (req.method === 'POST' && connectMatch) {
