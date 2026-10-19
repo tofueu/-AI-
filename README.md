@@ -31,6 +31,13 @@ Perplexity Pro 不等同於無限 Computer 用量。請先在 Perplexity 帳戶�
 
 `setup.bat` 只安裝免費 CLI 程式並啟動本機服務；不登入帳號、不建立供應商 API Key、不設定付款，也不會把專案上傳 GitHub。各官方帳號授權仍須由使用者完成。安裝 Node.js 會使用 Windows `winget`；若電腦沒有 winget，請先安裝 Node.js LTS，再重跑設定檔。
 
+## 本機個人帳號
+
+- 第一次開啟工作台時，先建立一組本機帳號：顯示名稱、電子郵件和密碼。電子郵件只當登入名稱使用，不會寄驗證信，也不會登入任何 AI 服務。
+- 目前限定一台電腦一個本機帳號。密碼使用 Node.js `scrypt` 雜湊後存在 `data/local-account.json`，不會以明文保存；登入 Cookie 為 HttpOnly，工作台 API 未登入時會拒絕存取。
+- 登入有效期最長 12 小時，伺服器重啟後需要重新登入。這是本機存取鎖，不是雲端帳號或跨裝置同步；伺服器仍只監聽 `127.0.0.1`。
+- 忘記密碼時，目前沒有郵件重設功能。可先關閉工作台，刪除 `data/local-account.json` 再重新啟動並註冊；任務資料 `data/tasks.json` 不會因此刪除。
+
 ## 執行權限與本機資料
 
 - Codex 實作使用 `workspace-write` 沙箱；GPT 審查使用 `read-only` 沙箱。
