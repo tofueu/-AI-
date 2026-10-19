@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -9,9 +9,10 @@ import { fileURLToPath } from 'node:url';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const DATA_DIR = path.join(ROOT, 'data');
+const DATA_DIR = path.resolve(process.env.AI_WORKBENCH_DATA_DIR || path.join(ROOT, 'data'));
 const DATA_FILE = path.join(DATA_DIR, 'tasks.json');
 const SUB2API_FILE = path.join(DATA_DIR, 'sub2api.json');
+const ACCOUNT_FILE = path.join(DATA_DIR, 'local-account.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
@@ -20,6 +21,8 @@ const CURSOR = process.env.CURSOR_AGENT_CLI || 'agent';
 const PPLX_MCP = 'perplexity-computer';
 const PPLX_URL = 'https://www.perplexity.ai/rest/computer/mcp';
 const PUBLIC_DIR = path.join(ROOT, 'public');
+const sessions = new Map();
+const SESSION_COOKIE = 'aiwb_session';
 
 mkdirSync(DATA_DIR, { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
@@ -48,6 +51,37 @@ function safeAccount(a) {
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
+}
+function readLocalAccount() {
+  try { return JSON.parse(readFileSync(ACCOUNT_FILE, 'utf8')); } catch { return null; }
+}
+function writeLocalAccount(account) {
+  writeFileSync(ACCOUNT_FILE, JSON.stringify(account, null, 2), { encoding: 'utf8', mode: 0o600 });
+}
+function cookieValue(req, name) {
+  const cookies = String(req.headers.cookie || '').split(';');
+  for (const cookie of cookies) {
+    const [key, ...value] = cookie.trim().split('=');
+    if (key === name) return value.join('=');
+  }
+  return '';
+}
+function currentSession(req) {
+  const token = cookieValue(req, SESSION_COOKIE);
+  const session = sessions.get(token);
+  if (!session) return null;
+  if (session.expiresAt <= Date.now()) { sessions.delete(token); return null; }
+  return { token, ...session };
+}
+function setSessionCookie(res, token, maxAge) {
+  res.setHeader('set-cookie', `${SESSION_COOKIE}=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=${maxAge}`);
+}
+function passwordMatches(password, account) {
+  try {
+    const actual = scryptSync(password, Buffer.from(account.salt, 'hex'), 64);
+    const expected = Buffer.from(account.passwordHash, 'hex');
+    return actual.length === expected.length && timingSafeEqual(actual, expected);
+  } catch { return false; }
 }
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -348,6 +382,47 @@ function sendFile(res, filePath) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
+  if (req.method === 'GET' && url.pathname === '/api/auth/state') {
+    const account = readLocalAccount();
+    const session = currentSession(req);
+    return json(res, 200, { accountExists: Boolean(account), signedIn: Boolean(session), user: session ? { name: session.name, email: session.email } : null });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/auth/register') {
+    let body; try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+    if (readLocalAccount()) return json(res, 409, { error: '這台電腦已建立本機帳號，請改用登入。' });
+    const name = typeof body.name === 'string' ? body.name.trim() : '';
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (name.length < 1 || name.length > 40) return json(res, 400, { error: '名稱請輸入 1 到 40 個字。' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) || email.length > 254) return json(res, 400, { error: '請輸入有效的電子郵件格式。這是本機登入帳號，不會寄送驗證信。' });
+    if (password.length < 8 || password.length > 128) return json(res, 400, { error: '密碼長度需為 8 到 128 個字元。' });
+    const salt = randomBytes(16);
+    writeLocalAccount({ name, email, salt: salt.toString('hex'), passwordHash: scryptSync(password, salt, 64).toString('hex'), createdAt: new Date().toISOString() });
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = Date.now() + 12 * 60 * 60 * 1000;
+    sessions.set(token, { name, email, expiresAt });
+    setSessionCookie(res, token, 12 * 60 * 60);
+    return json(res, 201, { ok: true, user: { name, email } });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/auth/login') {
+    let body; try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+    const account = readLocalAccount();
+    const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : '';
+    const password = typeof body.password === 'string' ? body.password : '';
+    if (!account) return json(res, 409, { error: '尚未建立本機帳號，請先註冊。' });
+    if (email !== account.email || !passwordMatches(password, account)) return json(res, 401, { error: '電子郵件或密碼不正確。' });
+    const token = randomBytes(32).toString('hex');
+    sessions.set(token, { name: account.name, email: account.email, expiresAt: Date.now() + 12 * 60 * 60 * 1000 });
+    setSessionCookie(res, token, 12 * 60 * 60);
+    return json(res, 200, { ok: true, user: { name: account.name, email: account.email } });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
+    const session = currentSession(req);
+    if (session) sessions.delete(session.token);
+    setSessionCookie(res, '', 0);
+    return json(res, 200, { ok: true });
+  }
+  if (url.pathname.startsWith('/api/') && !currentSession(req)) return json(res, 401, { error: '請先登入本機帳號。' });
   if (req.method === 'GET' && url.pathname === '/api/health') {
     const [gemini, gpt, perplexity, cursor] = await Promise.all([checkAntigravity(), checkCodex(), checkPerplexity(), checkCursor()]);
     const grok = await testSub2Api();
