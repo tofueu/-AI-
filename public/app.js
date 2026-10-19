@@ -9,6 +9,7 @@ const agentInfo = {
   custom: { name: '其他 AI（手動交辦）', icon: '◇', url: '' }
 };
 let taskCache = [], activeTask = null, onlyActive = false;
+let authMode = 'register', appStarted = false, pollTimer = null;
 function esc(s='') { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function notify(text) { const el=$('#toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800); }
 function time(s) { return new Intl.DateTimeFormat('zh-TW',{hour:'2-digit',minute:'2-digit'}).format(new Date(s)); }
@@ -128,4 +129,60 @@ $('#testSub2api').addEventListener('click',async()=>{
   }catch(error){notify(error.message);}finally{button.disabled=false;button.querySelector('b').textContent='↗';}
 });
 workspaceInput.value=localStorage.getItem('pro-ai-workbench-workspace')||'';workspaceInput.addEventListener('change',()=>localStorage.setItem('pro-ai-workbench-workspace',workspaceInput.value.trim()));
-checkHealth();loadTasks();loadAccounts();loadPoolConfig();setInterval(()=>{loadTasks();checkHealth();},3500);
+
+function setAuthMode(mode){
+  authMode=mode;
+  const registering=mode==='register';
+  $('#nameField').classList.toggle('hidden',!registering);
+  $('#authTitle').textContent=registering?'建立你的本機帳號':'登入本機帳號';
+  $('#authSubmit span').textContent=registering?'建立帳號':'登入';
+  $('#authPassword').autocomplete=registering?'new-password':'current-password';
+  $('#authSwitch').textContent=registering?'已經建立帳號？登入':'還沒有帳號？建立本機帳號';
+  $('#authError').textContent='';
+}
+async function startApp(user){
+  if(appStarted)return;
+  appStarted=true;
+  $('#authScreen').classList.add('hidden');
+  $('#appShell').classList.remove('auth-locked');
+  $('#localUserName').textContent=user?.name||'我的工作區';
+  checkHealth();loadTasks();loadAccounts();loadPoolConfig();
+  pollTimer=setInterval(()=>{loadTasks();checkHealth();},3500);
+}
+async function checkLocalAuth(){
+  try{
+    const response=await fetch('/api/auth/state'),state=await response.json();
+    if(state.signedIn){await startApp(state.user);return;}
+    setAuthMode(state.accountExists?'login':'register');
+    $('#authSwitch').classList.toggle('hidden',state.accountExists);
+    $('#authScreen').classList.remove('hidden');
+    $('#appShell').classList.add('auth-locked');
+  }catch{
+    $('#authTitle').textContent='無法連接本機服務';
+    $('#authError').textContent='請確認工作台伺服器仍在執行，然後重新整理頁面。';
+  }
+}
+$('#authSwitch').addEventListener('click',()=>setAuthMode(authMode==='register'?'login':'register'));
+$('#authForm').addEventListener('submit',async event=>{
+  event.preventDefault();
+  const button=$('#authSubmit');button.disabled=true;$('#authError').textContent='';
+  const body={email:$('#authEmail').value.trim(),password:$('#authPassword').value};
+  if(authMode==='register')body.name=$('#authName').value.trim()||'我的工作區';
+  try{
+    const response=await fetch(`/api/auth/${authMode}`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),data=await response.json();
+    if(!response.ok)throw new Error(data.error||'登入失敗');
+    $('#authPassword').value='';
+    await startApp(data.user);
+    notify(authMode==='register'?'本機帳號已建立':'已登入本機帳號');
+  }catch(error){$('#authError').textContent=error.message;}
+  finally{button.disabled=false;}
+});
+$('#logoutBtn').addEventListener('click',async()=>{
+  await fetch('/api/auth/logout',{method:'POST'}).catch(()=>{});
+  if(pollTimer)clearInterval(pollTimer);pollTimer=null;appStarted=false;
+  $('#appShell').classList.add('auth-locked');
+  $('#authScreen').classList.remove('hidden');
+  $('#authSwitch').classList.add('hidden');
+  setAuthMode('login');$('#authEmail').value='';$('#authPassword').value='';
+});
+checkLocalAuth();
