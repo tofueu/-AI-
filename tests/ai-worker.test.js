@@ -1,11 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { runApprovedGeminiTask, APPROVED_AI_TASK_IDS } from '../lib/ai-worker.js';
+import { runApprovedAgyTask, APPROVED_AI_TASK_IDS } from '../lib/ai-worker.js';
 
 test('unknown AI task is rejected without executing anything', async () => {
   let called = false;
-  const result = await runApprovedGeminiTask({ task: 'arbitrary-command', enabled: true,
+  const result = await runApprovedAgyTask({ task: 'arbitrary-command', enabled: true,
     spawnImpl: () => { called = true; } });
   assert.equal(result.status, 'BLOCKED');
   assert.equal(called, false);
@@ -13,7 +13,7 @@ test('unknown AI task is rejected without executing anything', async () => {
 
 test('authorized task is WAITING_FOR_AUTH without explicit local CLI opt-in', async () => {
   assert.ok(APPROVED_AI_TASK_IDS.includes('aiwb-dispatcher'));
-  assert.equal((await runApprovedGeminiTask({ task: 'aiwb-dispatcher', enabled: false })).status, 'WAITING_FOR_AUTH');
+  assert.equal((await runApprovedAgyTask({ task: 'aiwb-dispatcher', enabled: false })).status, 'WAITING_FOR_AUTH');
 });
 
 test('headless adapter uses shell:false, sandbox, safe prompt, and strips billable keys', async () => {
@@ -27,14 +27,15 @@ test('headless adapter uses shell:false, sandbox, safe prompt, and strips billab
     queueMicrotask(() => child.emit('close', 0, null));
     return child;
   };
-  const r = await runApprovedGeminiTask({ task: 'aiwb-dispatcher', enabled: true, spawnImpl: fakeSpawn });
+  const r = await runApprovedAgyTask({ task: 'aiwb-dispatcher', enabled: true, spawnImpl: fakeSpawn });
   assert.equal(r.status, 'EXECUTED_UNVERIFIED');
   assert.equal(options.shell, false);
   assert.equal(options.env.GITHUB_TOKEN, undefined);
   assert.equal(options.env.GEMINI_API_KEY, undefined);
   assert.ok(args.includes('--sandbox'));
-  assert.ok(args.includes('auto_edit'));
-  assert.ok(args.includes('--prompt'));
+  assert.ok(args.includes('--add-dir'));
+  assert.ok(!args.includes('--dangerously-skip-permissions'));
+  assert.ok(args.includes('-p'));
 });
 
 test('missing binary reports authorization blocker, not success', async () => {
@@ -44,6 +45,6 @@ test('missing binary reports authorization blocker, not success', async () => {
     queueMicrotask(() => child.emit('error', new Error('ENOENT')));
     return child;
   };
-  const r = await runApprovedGeminiTask({ task: 'aiwb-dispatcher', enabled: true, spawnImpl: fakeSpawn });
+  const r = await runApprovedAgyTask({ task: 'aiwb-dispatcher', enabled: true, spawnImpl: fakeSpawn });
   assert.equal(r.status, 'WAITING_FOR_AUTH');
 });
