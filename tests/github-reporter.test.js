@@ -63,7 +63,7 @@ test('WAITING_FOR_AUTH is reported once with an honest blocker and no secrets', 
         const body = JSON.parse(options.body).body;
         assert.match(body, /WAITING_FOR_AUTH/);
         assert.match(body, /official CLI authorization/);
-        assert.match(body, /not\\*\\* Gemini\\/Jules autonomous execution/);
+        assert.ok(body.includes('**not** Gemini/Jules autonomous execution'));
         assert.doesNotMatch(body, /secret-token|my-private-token/);
         comments.push({ body, html_url: 'https://github.com/tofueu/-AI-/issues/2#issuecomment-100' });
         return { ok: true, json: async () => comments.at(-1) };
