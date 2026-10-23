@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { PersistentQueue } from '../lib/dispatcher.js';
@@ -50,7 +50,12 @@ test('local worker records execution errors without pretending success', async (
   assert.match(q.list()[0].checkpoint.reason, /missing executable/);
 }));
 
-test('real node test runner executes repository tests without a shell', async () => {
-  const result = await runNodeTests({ timeoutMs: 120000 });
-  assert.equal(result.ok, true, result.output);
+test('real node test runner executes isolated fixture without a shell', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'aiwb-runner-fixture-'));
+  try {
+    mkdirSync(join(dir, 'tests'));
+    writeFileSync(join(dir, 'tests', 'fixture.test.js'), "const test = require('node:test'); test('fixture', () => {});\n");
+    const result = await runNodeTests({ cwd: dir, timeoutMs: 10000 });
+    assert.equal(result.ok, true, result.output);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });
