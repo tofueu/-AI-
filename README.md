@@ -56,3 +56,14 @@ node --check public/app.js
 ```
 
 目前驗證範圍：語法檢查與本機假 Gateway 的連線流程測試。尚未在你的 Windows 電腦或實際 Sub2API 帳號池完成端到端驗證；首次使用需由你在 Sub2API 管理介面完成每個帳號的授權，然後回工作台驗證。
+
+
+## Dispatcher → Google Antigravity CLI 實驗性 Adapter（PR #6）
+
+本功能**僅在獨立開發分支**，尚未部署成常駐服務，亦尚未完成 GitHub→真實 AI→Commit/PR→獨立審查的端到端驗收。現有 `/aiwb run aiwb-dispatcher` 僅對允許的 GitHub 發言者有效；不得把 Issue 留言當作自動喚醒 Jules 的機制。
+
+- 使用 `agy`（Antigravity CLI）而不是舊版 `gemini`。Google Pro 訂閱是否能使用須依官方當前權益與本機已登入的帳號驗證；**不使用 API key 自動計費**。
+- 只有在執行機已安裝 `agy`、本人完成合法登入、部署者明確設定 `AIWB_ENABLE_AGY_CLI=1`，且 GitHub Token／白名單與 Dispatcher 均已配置後，才會嘗試執行固定的 `aiwb-dispatcher` 工作。沒有授權時為 `WAITING_FOR_AUTH`。
+- Adapter 使用固定任務提示詞、`shell:false`、`--sandbox`、`--add-dir` 與 `--output-format json`；不使用 `--dangerously-skip-permissions`。工作階段的 API key 與 GitHub Token 不傳給 AI 子程序。工作目錄必須是獨立功能分支。
+- CLI 成功退出**不等於**已提交 GitHub、PR 已通過或產品完成。此版本將其標記 `EXECUTED_UNVERIFIED` 並將佇列保持 `BLOCKED`，等待實作真正的 Git SHA／PR 驗證與安全推送機制。
+- 若本機 `agy` 不可用、無登入、權限不足、無 GitHub Dispatcher 常駐部署，明確回報未解決；不能宣稱自動接續已完成。
