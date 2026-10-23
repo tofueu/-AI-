@@ -25,7 +25,8 @@ try {
   summary.ingestion = await poller.poll(queue);
   summary.worker = await runOneLocalJob(queue);
   for (const job of queue.list().filter(j =>
-    j.status === 'READY_FOR_REVIEW' || j.status === 'BLOCKED').slice(0, 10)) {
+    j.status === 'READY_FOR_REVIEW' || j.status === 'BLOCKED' ||
+    j.status === 'WAITING_FOR_AUTH').slice(0, 10)) {
     const result = await reporter.report(job);
     summary.reports.push(result);
     if (result.status === 'WAITING_FOR_AUTH') break;
