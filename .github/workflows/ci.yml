@@ -1,0 +1,23 @@
+name: AI Workbench smoke checks
+on:
+  pull_request:
+  push:
+    branches:
+      - aiwb/ci-smoke-20261023
+permissions:
+  contents: read
+jobs:
+  smoke:
+    name: Node 22 smoke (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm run check
+      - run: npm test
