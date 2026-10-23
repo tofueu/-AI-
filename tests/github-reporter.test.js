@@ -51,3 +51,29 @@ test('GitHub errors are reported without disclosing credentials', async () => {
   });
   await assert.rejects(reporter.report(job), /HTTP 403/);
 });
+
+test('WAITING_FOR_AUTH is reported once with an honest blocker and no secrets', async () => {
+  const comments = [];
+  let writes = 0;
+  const reporter = new GitHubIssueReporter({
+    repo: 'tofueu/-AI-', issue: 2, token: 'secret-token',
+    fetchImpl: async (_url, options) => {
+      if (options.method === 'POST') {
+        writes++;
+        const body = JSON.parse(options.body).body;
+        assert.match(body, /WAITING_FOR_AUTH/);
+        assert.match(body, /official CLI authorization/);
+        assert.match(body, /not\\*\\* Gemini\\/Jules autonomous execution/);
+        assert.doesNotMatch(body, /secret-token|my-private-token/);
+        comments.push({ body, html_url: 'https://github.com/tofueu/-AI-/issues/2#issuecomment-100' });
+        return { ok: true, json: async () => comments.at(-1) };
+      }
+      return { ok: true, json: async () => comments };
+    }
+  });
+  const blocked = { ...job, status: 'WAITING_FOR_AUTH',
+    error: 'my-private-token', checkpoint: { reason: 'local-ai-cli-authorization-required' } };
+  assert.equal((await reporter.report(blocked)).status, 'POSTED');
+  assert.equal((await reporter.report(blocked)).status, 'ALREADY_REPORTED');
+  assert.equal(writes, 1);
+});
