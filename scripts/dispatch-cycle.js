@@ -26,9 +26,12 @@ try {
   summary.worker = await runOneLocalJob(queue);
   for (const job of queue.list().filter(j =>
     j.status === 'READY_FOR_REVIEW' || j.status === 'BLOCKED' ||
-    j.status === 'WAITING_FOR_AUTH').slice(0, 10)) {
+    j.status === 'WAITING_FOR_AUTH').filter(j => !j.reportedAt).slice(0, 10)) {
     const result = await reporter.report(job);
-    summary.reports.push(result);
+    if (result.status === 'POSTED' || result.status === 'ALREADY_REPORTED') {
+          queue.markReported(job.id, job.status, result.url);
+        }
+        summary.reports.push(result);
     if (result.status === 'WAITING_FOR_AUTH') break;
   }
   if (summary.ingestion.status === 'WAITING_FOR_AUTH' ||
