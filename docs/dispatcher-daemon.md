@@ -25,3 +25,16 @@ Only comments whose entire text matches `/aiwb run ci-smoke` or `/aiwb run dispa
 - Confirm Windows NOVA, provider login, and installer separately. Passing Node CI is not Windows GUI validation.
 
 The script is an intermediate engineering improvement, not completion of AI Workbench.
+
+
+## Read-only deployment readiness preflight
+
+Before starting a long-running daemon on an authorized machine, run:
+
+```sh
+node scripts/check-dispatcher-readiness.js
+```
+
+This checks the GitHub Issue #2 **read** endpoint using the configured token, trusted actor allowlist, explicit CLI opt-in, isolated `aiwb/` branch, and the presence of `agy --version`. It never posts a GitHub comment, invokes a model, requests OAuth, or prints tokens. Missing prerequisites return exit code 2 and machine-readable `BLOCKED` reasons.
+
+**Important:** Even when prerequisites are present, the result is `PREREQUISITES_PRESENT_E2E_UNVERIFIED`, not `READY`: GitHub write permission, subscription login, persistent daemon deployment, actual coding commits, PR review and automatic continuation remain **unverified**. This command must not be presented as an end-to-end acceptance test. It also cannot remotely inspect the user's Windows login or Jules session from GitHub CI.
