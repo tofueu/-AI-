@@ -38,7 +38,7 @@ try {
       j.status === 'WAITING_FOR_AUTH').filter(j => !j.reportedAt).slice(0, 10)) {
       const result = await reporter.report(job);
       if (result.status === 'POSTED' || result.status === 'ALREADY_REPORTED') {
-        queue.markReported(job.id, job.status, result.url);
+        queue.markReported(job.id, job.status, result.url, job.reportRevision || 0);
       }
       summary.reports.push(result);
       if (result.status === 'WAITING_FOR_AUTH') break;
