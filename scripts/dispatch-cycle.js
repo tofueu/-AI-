@@ -23,11 +23,13 @@ const summary = { queueFile, ingestion: null, worker: null, reports: [], limitat
 ] };
 try {
   summary.ingestion = await poller.poll(queue);
-  if (summary.ingestion.status === 'BLOCKED') {
-    // Missing trusted actor configuration must not look like a successful run.
-    // Do not execute already queued jobs until the allowlist is restored.
-    summary.status = 'BLOCKED';
-    summary.worker = { status: 'SKIPPED', reason: 'Trusted GitHub actor allowlist is missing' };
+  if (summary.ingestion.status !== 'OK') {
+    // Both missing GitHub credentials and a missing actor allowlist must
+    // prevent claims of already queued work. Polling is an authorization gate.
+    summary.status = summary.ingestion.status;
+    summary.worker = { status: 'SKIPPED', reason: summary.ingestion.status === 'WAITING_FOR_AUTH'
+      ? 'GitHub token is missing; queued work remains untouched'
+      : 'Trusted GitHub actor allowlist is missing' };
     process.exitCode = 2;
   } else {
     summary.worker = await runOneLocalJob(queue);
