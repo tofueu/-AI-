@@ -98,3 +98,23 @@ test('local test subprocess strips daemon credentials and arbitrary inherited en
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('malformed local test runner responses are blocked and never reported as successful', async () => {
+  const malformed = [
+    null, undefined, false, {}, { ok: 'true' },
+    { ok: true }, { ok: true, exitCode: 0 },
+    { ok: true, exitCode: 1, output: 'false positive' },
+    { ok: true, exitCode: 0, output: null }
+  ];
+  for (const value of malformed) {
+    await withQueue(async q => {
+      q.enqueue('test:invalid-runner', { task: 'ci-smoke' });
+      const result = await runOneLocalJob(q, { runner: async () => value });
+      assert.equal(result.status, 'BLOCKED');
+      const job = q.list()[0];
+      assert.equal(job.status, 'BLOCKED');
+      assert.equal(job.result, undefined);
+      assert.match(job.checkpoint.reason, /Invalid local test runner result/);
+    });
+  }
+});
