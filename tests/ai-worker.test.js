@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { runApprovedAgyTask, APPROVED_AI_TASK_IDS } from '../lib/ai-worker.js';
+import { runApprovedAgyTask, APPROVED_AI_TASK_IDS, agyChildEnvironment } from '../lib/ai-worker.js';
 
 test('unknown AI task is rejected without executing anything', async () => {
   let called = false;
@@ -72,4 +72,24 @@ test('AI worker refuses non-git or unverifiable worktrees without executing CLI'
   assert.equal(result.status, 'BLOCKED');
   assert.match(result.reason, /Cannot verify/);
   assert.equal(launched, false);
+});
+
+test('Antigravity child receives only required runtime paths, not arbitrary secrets or Node hooks', () => {
+  const env = agyChildEnvironment({
+    PATH: '/usr/bin', HOME: '/home/worker', APPDATA: 'C:\\Users\\worker\\AppData',
+    GITHUB_TOKEN: 'github-secret', GH_TOKEN: 'github-secret',
+    GEMINI_API_KEY: 'model-secret', OPENAI_API_KEY: 'model-secret',
+    CUSTOM_SECRET: 'unrecognized-secret', AWS_SECRET_ACCESS_KEY: 'cloud-secret',
+    NODE_OPTIONS: '--require ./malicious.js', NODE_PATH: '/untrusted/modules',
+    HTTPS_PROXY: 'http://user:password@proxy.invalid'
+  });
+  assert.equal(env.PATH, '/usr/bin');
+  assert.equal(env.HOME, '/home/worker');
+  assert.ok(Object.hasOwn(env, 'APPDATA'));
+  for (const key of ['GITHUB_TOKEN', 'GH_TOKEN', 'GEMINI_API_KEY',
+    'OPENAI_API_KEY', 'CUSTOM_SECRET', 'AWS_SECRET_ACCESS_KEY',
+    'NODE_OPTIONS', 'NODE_PATH', 'HTTPS_PROXY']) {
+    assert.equal(env[key], undefined, key);
+  }
+  assert.equal(Object.values(env).some(value => /secret|password|malicious/.test(value)), false);
 });
