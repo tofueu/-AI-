@@ -91,3 +91,20 @@ test('report revision persists and advances on state changes and auth resume', (
   restarted.transition(job.id, 'BLOCKED');
   assert.equal(restarted.list()[0].reportRevision, 3);
 }));
+
+
+test('stale report acknowledgement cannot suppress a newer same-status event', () => withQueue(q => {
+  const job = q.enqueue('issue:stale-report', { task: 'aiwb-dispatcher' }).job;
+  q.transition(job.id, 'WAITING_FOR_AUTH');
+  const oldRevision = q.list()[0].reportRevision;
+  q.transition(job.id, 'BLOCKED');
+  q.transition(job.id, 'WAITING_FOR_AUTH');
+  const currentRevision = q.list()[0].reportRevision;
+  assert.ok(currentRevision > oldRevision);
+  assert.throws(() => q.markReported(job.id, 'WAITING_FOR_AUTH', 'https://example.test/old', oldRevision),
+    /Job changed during reporting/);
+  assert.equal(q.list()[0].reportedAt, undefined);
+  q.markReported(job.id, 'WAITING_FOR_AUTH', 'https://example.test/current', currentRevision);
+  assert.ok(q.list()[0].reportedAt);
+  assert.equal(q.list()[0].reportUrl, 'https://example.test/current');
+}));
