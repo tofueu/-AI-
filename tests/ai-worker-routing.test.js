@@ -31,3 +31,19 @@ test('AI CLI exit alone cannot mark a coding task as reviewed or verified', asyn
   assert.equal(q.list()[0].checkpoint.reason, 'commit-pr-verification-required');
   assert.notEqual(q.list()[0].status, 'READY_FOR_REVIEW');
 }));
+
+test('malformed AI adapter results fail closed and preserve a blocked checkpoint', async () => {
+  for (const invalid of [null, undefined, '', 0, {}]) {
+    await withQueue(async q => {
+      q.enqueue('ai:malformed', { task: 'aiwb-dispatcher' });
+      const result = await runOneLocalJob(q, { aiRunner: async () => invalid });
+      assert.equal(result.status, 'BLOCKED');
+      const job = q.list()[0];
+      assert.equal(job.status, 'BLOCKED');
+      assert.equal(job.checkpoint.reason, 'commit-pr-verification-required');
+      assert.equal(job.checkpoint.adapterStatus, 'BLOCKED');
+      assert.match(job.error, /invalid result/);
+      assert.notEqual(job.status, 'READY_FOR_REVIEW');
+    });
+  }
+});
