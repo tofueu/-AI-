@@ -14,7 +14,9 @@ const poller = new GitHubIssuePoller({
 try {
   const result = await poller.poll(queue);
   console.log(JSON.stringify({ ...result, queue: queue.list().length, file }, null, 2));
-  if (result.status === 'BLOCKED') process.exitCode = 2;
+  // Missing credentials is also a failed authorization gate, not a successful dispatch.
+  // An exit code of zero would mislead supervisors into treating the worker as healthy.
+  if (result.status !== 'OK') process.exitCode = 2;
 } catch (error) {
   console.error(JSON.stringify({ status: 'BLOCKED', error: error.message }));
   process.exitCode = 1;

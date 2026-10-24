@@ -51,3 +51,59 @@ test('GitHub errors are reported without disclosing credentials', async () => {
   });
   await assert.rejects(reporter.report(job), /HTTP 403/);
 });
+
+test('WAITING_FOR_AUTH is reported once with an honest blocker and no secrets', async () => {
+  const comments = [];
+  let writes = 0;
+  const reporter = new GitHubIssueReporter({
+    repo: 'tofueu/-AI-', issue: 2, token: 'secret-token',
+    fetchImpl: async (_url, options) => {
+      if (options.method === 'POST') {
+        writes++;
+        const body = JSON.parse(options.body).body;
+        assert.match(body, /WAITING_FOR_AUTH/);
+        assert.match(body, /official CLI authorization/);
+        assert.ok(body.includes('**not** Gemini/Jules autonomous execution'));
+        assert.doesNotMatch(body, /secret-token|my-private-token/);
+        comments.push({ body, html_url: 'https://github.com/tofueu/-AI-/issues/2#issuecomment-100' });
+        return { ok: true, json: async () => comments.at(-1) };
+      }
+      return { ok: true, json: async () => comments };
+    }
+  });
+  const blocked = { ...job, status: 'WAITING_FOR_AUTH',
+    error: 'my-private-token', checkpoint: { reason: 'local-ai-cli-authorization-required' } };
+  assert.equal((await reporter.report(blocked)).status, 'POSTED');
+  assert.equal((await reporter.report(blocked)).status, 'ALREADY_REPORTED');
+  assert.equal(writes, 1);
+});
+
+
+test('each new status transition is reported once, without hiding later status changes', async () => {
+  const comments = [];
+  let writes = 0;
+  const reporter = new GitHubIssueReporter({
+    repo: 'tofueu/-AI-', issue: 2, token: 'test-token',
+    fetchImpl: async (_url, options) => {
+      if (options.method === 'POST') {
+        writes++;
+        const body = JSON.parse(options.body).body;
+        comments.push({ body, html_url: 'https://github.com/tofueu/-AI-/issues/2#issuecomment-' + writes });
+        return { ok: true, json: async () => comments.at(-1) };
+      }
+      return { ok: true, json: async () => comments };
+    }
+  });
+  const waiting = { ...job, status: 'WAITING_FOR_AUTH', reportRevision: 1 };
+  const blocked = { ...job, status: 'BLOCKED', reportRevision: 2 };
+  const waitingAgain = { ...job, status: 'WAITING_FOR_AUTH', reportRevision: 3 };
+  assert.equal((await reporter.report(waiting)).status, 'POSTED');
+  assert.equal((await reporter.report(waiting)).status, 'ALREADY_REPORTED');
+  assert.equal((await reporter.report(blocked)).status, 'POSTED');
+  assert.equal((await reporter.report(blocked)).status, 'ALREADY_REPORTED');
+  assert.equal((await reporter.report(waitingAgain)).status, 'POSTED');
+  assert.equal((await reporter.report(waitingAgain)).status, 'ALREADY_REPORTED');
+  assert.equal(writes, 3);
+  assert.match(comments[0].body, /WAITING_FOR_AUTH/);
+  assert.match(comments[1].body, /BLOCKED/);
+});

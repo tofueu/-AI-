@@ -23,15 +23,32 @@ const summary = { queueFile, ingestion: null, worker: null, reports: [], limitat
 ] };
 try {
   summary.ingestion = await poller.poll(queue);
-  summary.worker = await runOneLocalJob(queue);
-  for (const job of queue.list().filter(j =>
-    j.status === 'READY_FOR_REVIEW' || j.status === 'BLOCKED').slice(0, 10)) {
-    const result = await reporter.report(job);
-    summary.reports.push(result);
-    if (result.status === 'WAITING_FOR_AUTH') break;
+  if (summary.ingestion.status !== 'OK') {
+    // Both missing GitHub credentials and a missing actor allowlist must
+    // prevent claims of already queued work. Polling is an authorization gate.
+    summary.status = summary.ingestion.status;
+    summary.worker = { status: 'SKIPPED', reason: summary.ingestion.status === 'WAITING_FOR_AUTH'
+      ? 'GitHub token is missing; queued work remains untouched'
+      : 'Trusted GitHub actor allowlist is missing' };
+    process.exitCode = 2;
+  } else {
+    summary.worker = await runOneLocalJob(queue);
+    for (const job of queue.list().filter(j =>
+      j.status === 'READY_FOR_REVIEW' || j.status === 'BLOCKED' ||
+      j.status === 'WAITING_FOR_AUTH').filter(j => !j.reportedAt).slice(0, 10)) {
+      const result = await reporter.report(job);
+      if (result.status === 'POSTED' || result.status === 'ALREADY_REPORTED') {
+        queue.markReported(job.id, job.status, result.url, job.reportRevision || 0);
+      }
+      summary.reports.push(result);
+      if (result.status === 'WAITING_FOR_AUTH') break;
+    }
+    if (summary.ingestion.status === 'WAITING_FOR_AUTH' ||
+        summary.reports.some(r => r.status === 'WAITING_FOR_AUTH')) {
+      summary.status = 'WAITING_FOR_AUTH';
+      process.exitCode = 2;
+    }
   }
-  if (summary.ingestion.status === 'WAITING_FOR_AUTH' ||
-      summary.reports.some(r => r.status === 'WAITING_FOR_AUTH')) process.exitCode = 2;
 } catch (error) {
   summary.error = String(error?.message || error).slice(0, 300);
   process.exitCode = 1;
