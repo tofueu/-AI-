@@ -67,3 +67,22 @@ node --check public/app.js
 - Adapter 使用固定任務提示詞、`shell:false`、`--sandbox`、`--add-dir` 與 `--output-format json`；不使用 `--dangerously-skip-permissions`。工作階段的 API key 與 GitHub Token 不傳給 AI 子程序。工作目錄必須是獨立功能分支。
 - CLI 成功退出**不等於**已提交 GitHub、PR 已通過或產品完成。此版本將其標記 `EXECUTED_UNVERIFIED` 並將佇列保持 `BLOCKED`，等待實作真正的 Git SHA／PR 驗證與安全推送機制。
 - 若本機 `agy` 不可用、無登入、權限不足、無 GitHub Dispatcher 常駐部署，明確回報未解決；不能宣稱自動接續已完成。
+
+
+### Opt-in trusted GitHub PR review ingestion (Draft implementation)
+
+The dispatcher can optionally ingest **real** GitHub Pull Request Reviews with state
+`CHANGES_REQUESTED`. Set `AIWB_REVIEW_PR_NUMBERS=5,6` and
+`AIWB_ALLOWED_PR_REVIEWERS=tofueu` on a separately authorized runner.
+Both settings are required when enabled. Only current-head reviews on open,
+same-repository PRs by allowlisted reviewers other than the PR author can
+enqueue a deduplicated `aiwb-pr-review-fix` request. Review bodies are never
+executed as commands. Closed/forked PRs, stale review commits, ordinary Issue
+comments, self-reviews, and untrusted reviewers cannot trigger repair jobs.
+
+This **does not** implement AI coding, GitHub write permissions, Jules session
+continuation, independent product acceptance, or real provider OAuth. The
+restricted local worker currently reports the review-fix task as `BLOCKED`
+until an explicitly authorized and independently verified adapter exists.
+Keep the dispatcher credentials out of untrusted PR build environments.
+Use `npm test` to run mocked, credential-free review provenance tests.
