@@ -14,8 +14,25 @@ function stateText(s) { return ({waiting_research:'等待研究',queued:'排隊�
 function rootProgress(root, children) { const done=children.filter(t=>t.status==='done').length; return {done,total:children.length,percent:children.length?Math.round(done/children.length*100):0}; }
 
 async function checkHealth() {
-  try { const data=await fetch('/api/health').then(r=>r.json());const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace; }
-  catch { $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線'; }
+  try {
+    const data=await fetch('/api/health').then(r=>r.json());
+    const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);
+
+    const perpEl = $('#perpStatus');
+    perpEl.innerHTML = data.perplexity ? `<i class="status-dot"></i>連線中` : `<i class="status-dot offline"></i>離線`;
+    perpEl.classList.toggle('offline', !data.perplexity);
+
+    const grokEl = $('#grokStatus');
+    grokEl.innerHTML = data.grok ? `<i class="status-dot"></i>連線中` : `<i class="status-dot offline"></i>離線`;
+    grokEl.classList.toggle('offline', !data.grok);
+
+    if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace;
+  }
+  catch {
+    $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#perpStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#grokStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+  }
 }
 function renderTasks() {
   const allRoots=taskCache.filter(t=>t.kind==='parent'||(!t.parentId&&t.kind!=='child'));
@@ -80,3 +97,58 @@ $('#clearView').addEventListener('click',()=>{onlyActive=!onlyActive;$('#clearVi
 $('#settingsBtn').addEventListener('click',()=>notify('權限設定與啟動方式請看 README。'));
 workspaceInput.value=localStorage.getItem('pro-ai-workbench-workspace')||'';workspaceInput.addEventListener('change',()=>localStorage.setItem('pro-ai-workbench-workspace',workspaceInput.value.trim()));
 checkHealth();loadTasks();setInterval(()=>{loadTasks();checkHealth();},3500);
+
+const providerNames = { opencode: 'OpenCode', deepseek: 'DeepSeek', glm: 'GLM', nvidia: 'NVIDIA API' };
+async function refreshModelProviders() {
+  const list = $('#modelProviders'), modelSelect = $('#opencodeModel');
+  list.textContent = '正在查詢真實模型清單…';
+  modelSelect.replaceChildren(new Option('請先偵測', ''));
+  try {
+    const providers = await fetch('/api/model-providers').then(r => r.json());
+    list.replaceChildren();
+    for (const provider of providers) {
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:8px 0;border-bottom:1px solid #334155;display:flex;gap:10px;flex-wrap:wrap;align-items:center';
+      const label = document.createElement('strong');
+      label.textContent = providerNames[provider.id] || provider.id;
+      const status = document.createElement('span');
+      status.textContent = provider.configured === false ? '未設定 API Key' : '尚未驗證';
+      const check = document.createElement('button');
+      check.className = 'mini-btn';
+      check.textContent = '偵測模型';
+      check.addEventListener('click', async () => {
+        check.disabled = true;
+        status.textContent = '查詢中…';
+        try {
+          const result = await fetch('/api/model-providers/' + encodeURIComponent(provider.id) + '/models').then(r => r.json());
+          status.textContent = result.state + ' · ' + result.models.length + ' 模型 · 額度未知';
+          if (provider.id === 'opencode') {
+            modelSelect.replaceChildren(new Option('請選擇真實模型', ''));
+            for (const model of result.models) modelSelect.add(new Option(model, model));
+          }
+        } catch { status.textContent = '查詢失敗（不可視為已連線）'; }
+        finally { check.disabled = false; }
+      });
+      row.append(label, status, check);
+      list.append(row);
+    }
+  } catch { list.textContent = '無法連線到工作台模型 API'; }
+}
+$('#modelsRefresh').addEventListener('click', refreshModelProviders);
+$('#runOpenCode').addEventListener('click', async () => {
+  const model = $('#opencodeModel').value, prompt = promptBox.value.trim(), workspace = workspaceInput.value.trim();
+  if (!model || !prompt || !workspace) return notify('請先偵測模型，填入主任務與本機專案資料夾');
+  if (!window.confirm('OpenCode 將在選定資料夾執行任務，可能修改本機檔案。確認執行？')) return;
+  const button = $('#runOpenCode');button.disabled = true;
+  $('#modelActionStatus').textContent = 'OpenCode 正在執行，請勿重複送出…';
+  try {
+    const response = await fetch('/api/model-tasks/opencode', {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ model, prompt, workspace })
+    });
+    const result = await response.json();
+    $('#modelActionStatus').textContent = response.ok ? '執行成功：' + result.output.slice(-3000) : '執行失敗：' + result.error;
+  } catch { $('#modelActionStatus').textContent = '執行失敗；未確認檔案是否修改，請先檢查後再試'; }
+  finally { button.disabled = false; }
+});
+refreshModelProviders();

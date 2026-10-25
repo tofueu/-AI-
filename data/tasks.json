@@ -1,0 +1,15 @@
+[
+  {
+    "id": "1d3796ff-9421-4b74-9a39-e39bb0629574",
+    "kind": "standalone",
+    "agent": "custom",
+    "role": "獨立審查",
+    "prompt": "Integration test task",
+    "workspace": "",
+    "status": "handoff",
+    "response": "",
+    "logs": "",
+    "createdAt": "2026-10-25T06:50:42.334Z",
+    "updatedAt": "2026-10-25T06:50:42.334Z"
+  }
+]

@@ -1,4 +1,6 @@
 import http from 'node:http';
+import { ModelRouter, PROVIDERS, safeModelId } from './lib/model-router.js';
+import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
@@ -23,6 +25,19 @@ function loadTasks() {
   try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
   catch { return []; }
 }
+
+const initialTasks = loadTasks();
+let changed = false;
+for (const task of initialTasks) {
+  if (task.status === 'running') {
+    task.status = 'error';
+    task.error = 'Server restarted while running';
+    task.updatedAt = new Date().toISOString();
+    changed = true;
+  }
+}
+if (changed) writeFileSync(DATA_FILE, JSON.stringify(initialTasks, null, 2), 'utf8');
+
 function saveTasks(tasks) { writeFileSync(DATA_FILE, JSON.stringify(tasks, null, 2), 'utf8'); }
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -56,6 +71,7 @@ function updateTask(taskId, changes) {
   if (i < 0) return;
   tasks[i] = { ...tasks[i], ...changes, updatedAt: new Date().toISOString() };
   saveTasks(tasks);
+  if (typeof broadcastTask !== 'undefined') broadcastTask(tasks[i]);
 }
 
 async function gitChanges(workspace) {
@@ -87,7 +103,6 @@ async function advanceTeam(taskId) {
     const context = `\n\n以下是研究 AI 已完成的資料，請以它為依據實作：\n${research.response}`;
     updateTask(implementation.id, { status: 'queued', prompt: implementation.prompt + context });
     updateTask(parent.id, { status: 'running' });
-    runGemini(taskById(implementation.id));
     return;
   }
   if (completed.id === implementation?.id && review?.status === 'blocked') {
@@ -105,6 +120,17 @@ async function advanceTeam(taskId) {
 function validWorkspace(value) {
   if (typeof value !== 'string' || !path.isAbsolute(value)) return false;
   try { return statSync(value).isDirectory(); } catch { return false; }
+}
+
+async function checkProvider(url) {
+  return new Promise((resolve) => {
+    const req = https.get(url, { timeout: 3000 }, (res) => {
+      resolve(res.statusCode >= 200 && res.statusCode < 400);
+      res.resume();
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+  });
 }
 
 async function checkAntigravity() {
@@ -138,7 +164,9 @@ function runGemini(task) {
     try { const parsed = JSON.parse(stdout); response = parsed.response || parsed.result || stdout; }
     catch { response = stdout.trim(); }
     const changes = code === 0 ? await gitChanges(task.workspace) : [];
-    updateTask(task.id, { status: code === 0 ? 'done' : 'error', exitCode: code, response, changes, error: code === 0 ? '' : stderr.trim(), finishedAt: new Date().toISOString() });
+    let checkpoint = null;
+    if (code === 0) { try { checkpoint = (await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: task.workspace })).stdout.trim(); } catch {} }
+    updateTask(task.id, { status: code === 0 ? 'done' : 'error', exitCode: code, response, changes, checkpoint, error: code === 0 ? '' : stderr.trim(), finishedAt: new Date().toISOString() });
     if (code === 0) await advanceTeam(task.id);
   });
 }
@@ -150,11 +178,58 @@ function sendFile(res, filePath) {
   res.end(readFileSync(filePath));
 }
 
+const modelRouter = new ModelRouter();
+const sseClients = new Set();
+function broadcastTask(task) {
+  const payload = `data: ${JSON.stringify(task)}\n\n`;
+  for (const client of sseClients) client.write(payload);
+}
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
+  if (req.method === 'GET' && url.pathname === '/api/events') {
+    res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+    res.write('data: connected\n\n');
+    sseClients.add(res);
+    req.on('close', () => sseClients.delete(res));
+    return;
+  }
+  // Issue #14: all provider states are obtained from actual CLI/API checks.
+  if (req.method === 'GET' && url.pathname === '/api/model-providers') {
+    return json(res, 200, Object.entries(PROVIDERS).map(([id, p]) => ({
+      id, kind: p.kind, configured: p.kind === 'cli' ? null : Boolean(process.env[p.keyEnv]),
+      quota: 'UNKNOWN', modelListVerified: false
+    })));
+  }
+  if (req.method === 'GET' && ['opencode','deepseek','glm','nvidia'].some(p => url.pathname === '/api/model-providers/' + p + '/models')) {
+    const provider = url.pathname.split('/')[3];
+    return json(res, 200, await modelRouter.discover(provider));
+  }
+  if (req.method === 'POST' && url.pathname === '/api/model-tasks/opencode') {
+    let body;
+    try { body = await readBody(req); } catch (error) { return json(res, 400, { error: error.message }); }
+    if (!safeModelId(body.model) || typeof body.prompt !== 'string' || !body.prompt.trim() ||
+        body.prompt.length > 120000 || !validWorkspace(body.workspace)) {
+      return json(res, 400, { error: 'Valid model, prompt and local workspace required' });
+    }
+    // Explicit manual execution only: never silently retry an agent that may have edited files.
+    try {
+      const checkpoint = (await execFileAsync('git', ['rev-parse', 'HEAD'], { cwd: body.workspace }).catch(() => ({stdout:''}))).stdout.trim();
+      const result = await modelRouter.failover({
+        candidates: [{ provider: 'opencode', model: body.model }], prompt: body.prompt, cwd: body.workspace, checkpoint
+      });
+      if (!result.verified) throw new Error('Failover could not complete execution');
+      return json(res, 200, { state: 'COMPLETED', model: result.model, output: result.output.slice(-24000) });
+    } catch (error) {
+      return json(res, 502, { state: 'FAILED', error: 'OpenCode CLI execution failed; inspect local logs before retry' });
+    }
+  }
   if (req.method === 'GET' && url.pathname === '/api/health') {
-    const cli = await checkAntigravity();
-    return json(res, 200, { ok: true, cli, platform: os.platform(), defaultWorkspace: process.cwd() });
+    const [cli, perplexity, grok] = await Promise.all([
+      checkAntigravity(),
+      checkProvider('https://www.perplexity.ai/'),
+      checkProvider('https://grok.com/')
+    ]);
+    return json(res, 200, { ok: true, cli, perplexity, grok, platform: os.platform(), defaultWorkspace: process.cwd() });
   }
   if (req.method === 'GET' && url.pathname === '/api/tasks') return json(res, 200, loadTasks().sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
   if (req.method === 'POST' && url.pathname === '/api/tasks') {
@@ -183,7 +258,6 @@ const server = http.createServer(async (req, res) => {
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
     const tasks = loadTasks(); tasks.push(task); saveTasks(tasks);
-    if (agent === 'gemini') runGemini(task);
     return json(res, 201, task);
   }
   const dispatchMatch = url.pathname.match(/^\/api\/tasks\/([\w-]+)\/dispatch$/);
@@ -215,5 +289,13 @@ const server = http.createServer(async (req, res) => {
   if (!file.startsWith(PUBLIC_DIR) || !existsSync(file) || statSync(file).isDirectory()) return json(res, 404, { error: 'Not found' });
   sendFile(res, file);
 });
+
+
+setInterval(() => {
+  const tasks = loadTasks();
+  if (tasks.some(t => t.agent === 'gemini' && t.status === 'running')) return;
+  const queuedTask = tasks.find(t => t.agent === 'gemini' && t.status === 'queued');
+  if (queuedTask) runGemini(queuedTask);
+}, 3000);
 
 server.listen(PORT, HOST, () => console.log(`AI Workbench is running at http://${HOST}:${PORT}`));
