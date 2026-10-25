@@ -185,7 +185,7 @@ const server = http.createServer(async (req, res) => {
       quota: 'UNKNOWN', modelListVerified: false
     })));
   }
-  if (req.method === 'GET' && /^\\/api\\/model-providers\\/(opencode|deepseek|glm|nvidia)\\/models$/.test(url.pathname)) {
+  if (req.method === 'GET' && ['opencode','deepseek','glm','nvidia'].some(p => url.pathname === '/api/model-providers/' + p + '/models')) {
     const provider = url.pathname.split('/')[3];
     return json(res, 200, await modelRouter.discover(provider));
   }
