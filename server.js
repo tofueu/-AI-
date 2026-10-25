@@ -11,6 +11,7 @@ const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'tasks.json');
+const JULES_FILE = path.join(DATA_DIR, 'jules_events.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
@@ -18,12 +19,19 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 
 mkdirSync(DATA_DIR, { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
+if (!existsSync(JULES_FILE)) writeFileSync(JULES_FILE, '[]', 'utf8');
 
 function loadTasks() {
   try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
   catch { return []; }
 }
 function saveTasks(tasks) { writeFileSync(DATA_FILE, JSON.stringify(tasks, null, 2), 'utf8'); }
+
+function loadJulesEvents() {
+  try { return JSON.parse(readFileSync(JULES_FILE, 'utf8')); }
+  catch { return []; }
+}
+function saveJulesEvents(events) { writeFileSync(JULES_FILE, JSON.stringify(events, null, 2), 'utf8'); }
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
   res.end(JSON.stringify(body));
@@ -210,6 +218,40 @@ const server = http.createServer(async (req, res) => {
     updateTask(cancelMatch[1], { status: 'cancelled', finishedAt: new Date().toISOString() });
     return json(res, 200, { ok: true });
   }
+
+  // Jules State API
+  if (req.method === 'GET' && url.pathname === '/api/jules/events') {
+    return json(res, 200, loadJulesEvents().sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
+  }
+  if (req.method === 'POST' && url.pathname === '/api/jules/events') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+
+    if (!body.id || typeof body.id !== 'string') return json(res, 400, { error: 'Missing or invalid event id' });
+
+    const events = loadJulesEvents();
+    const existing = events.find(e => e.id === body.id);
+
+    if (existing) {
+      Object.assign(existing, body, {
+        retryCount: (existing.retryCount || 0) + 1,
+        updatedAt: new Date().toISOString()
+      });
+      saveJulesEvents(events);
+      return json(res, 200, existing);
+    }
+
+    const newEvent = {
+      ...body,
+      retryCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    events.push(newEvent);
+    saveJulesEvents(events);
+    return json(res, 201, newEvent);
+  }
+
   const safePath = path.normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, '');
   const file = path.join(PUBLIC_DIR, safePath || 'index.html');
   if (!file.startsWith(PUBLIC_DIR) || !existsSync(file) || statSync(file).isDirectory()) return json(res, 404, { error: 'Not found' });
