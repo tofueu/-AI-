@@ -6,7 +6,7 @@ const agentInfo = {
   grok: { name: 'SuperGrok · Grok Bot', icon: '𝕏', url: 'https://grok.com/' },
   custom: { name: '其他 AI（手動交辦）', icon: '◇', url: '' }
 };
-let taskCache = [], activeTask = null, onlyActive = false;
+let taskCache = [], julesEventsCache = [], activeTask = null, onlyActive = false;
 function esc(s='') { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function notify(text) { const el=$('#toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800); }
 function time(s) { return new Intl.DateTimeFormat('zh-TW',{hour:'2-digit',minute:'2-digit'}).format(new Date(s)); }
@@ -40,6 +40,43 @@ function renderTasks() {
   taskList.querySelectorAll('.tree-root-head').forEach(head=>head.addEventListener('click',()=>head.parentElement.classList.toggle('collapsed')));
 }
 async function loadTasks(){try{taskCache=await fetch('/api/tasks').then(r=>r.json());renderTasks();}catch{taskList.innerHTML='<div class="empty-state">無法讀取任務記錄。</div>';}}
+
+function renderJulesEvents() {
+  const container = $('#julesEventList');
+  if (!julesEventsCache.length) {
+    container.innerHTML = '<div class="empty-state">目前沒有 Jules 的狀態紀錄。</div>';
+    return;
+  }
+  container.innerHTML = julesEventsCache.map(evt => {
+    const typeLabel = ({activity: '活動', question: '問題', failure: '失敗', handoff: '交接', reply: '回覆'})[evt.type] || evt.type;
+    const termLabel = evt.continuation === 'terminal' ? '終止' : '繼續';
+    const retryNote = evt.retryCount ? `<span style="color:var(--amber);margin-left:8px;">[重試次數: ${evt.retryCount}]</span>` : '';
+    return `<article class="tree-root" style="margin-bottom:12px; padding:16px;">
+      <div style="display:flex; justify-content:space-between; margin-bottom:8px;">
+        <strong>ID: ${esc(evt.id)}</strong>
+        <span class="tree-state ${evt.type === 'failure' ? 'error' : 'done'}"><i></i>${esc(typeLabel)} · ${esc(termLabel)}</span>
+      </div>
+      <div style="font-size:13px; color:var(--text-dim); margin-bottom:4px;">
+        <strong>檢查點 (Checkpoint):</strong> ${esc(evt.checkpoint || '無')}
+      </div>
+      <div style="font-size:13px; color:var(--text-dim); margin-bottom:4px;">
+        <strong>Git SHA:</strong> ${esc(evt.gitSha || '未知')}
+      </div>
+      <div style="font-size:13px; color:var(--text-dim);">
+        <strong>時間:</strong> ${time(evt.createdAt)} ${retryNote}
+      </div>
+    </article>`;
+  }).join('');
+}
+
+async function loadJulesEvents() {
+  try {
+    julesEventsCache = await fetch('/api/jules/events').then(r => r.json());
+    renderJulesEvents();
+  } catch {
+    $('#julesEventList').innerHTML = '<div class="empty-state">無法讀取 Jules 狀態記錄。</div>';
+  }
+}
 
 async function createTask() {
   const prompt=promptBox.value.trim(), workspace=workspaceInput.value.trim();
@@ -76,7 +113,8 @@ $('#runBtn').addEventListener('click',createTask);
 document.querySelectorAll('.mini-btn[data-agent]').forEach(btn=>btn.addEventListener('click',()=>{const p=btn.closest('.agent-card');promptBox.value=`請負責${p.querySelector('h3').textContent}的工作，針對目前主專案提供結果。`;promptBox.focus();notify('請補充主目標，再建立套娃分工。');}));
 document.querySelectorAll('.project-link').forEach(btn=>btn.addEventListener('click',()=>{promptBox.value=btn.dataset.prompt;promptBox.focus();}));
 $('#refreshBtn').addEventListener('click',()=>{checkHealth();loadTasks();notify('任務與連線狀態已更新。');});
+$('#refreshJulesBtn').addEventListener('click',()=>{loadJulesEvents();notify('Jules 狀態已更新。');});
 $('#clearView').addEventListener('click',()=>{onlyActive=!onlyActive;$('#clearView').textContent=onlyActive?'顯示全部主任務':'只看進行中';renderTasks();});
 $('#settingsBtn').addEventListener('click',()=>notify('權限設定與啟動方式請看 README。'));
 workspaceInput.value=localStorage.getItem('pro-ai-workbench-workspace')||'';workspaceInput.addEventListener('change',()=>localStorage.setItem('pro-ai-workbench-workspace',workspaceInput.value.trim()));
-checkHealth();loadTasks();setInterval(()=>{loadTasks();checkHealth();},3500);
+checkHealth();loadTasks();loadJulesEvents();setInterval(()=>{loadTasks();loadJulesEvents();checkHealth();},3500);
