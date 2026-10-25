@@ -79,4 +79,107 @@ $('#refreshBtn').addEventListener('click',()=>{checkHealth();loadTasks();notify(
 $('#clearView').addEventListener('click',()=>{onlyActive=!onlyActive;$('#clearView').textContent=onlyActive?'顯示全部主任務':'只看進行中';renderTasks();});
 $('#settingsBtn').addEventListener('click',()=>notify('權限設定與啟動方式請看 README。'));
 workspaceInput.value=localStorage.getItem('pro-ai-workbench-workspace')||'';workspaceInput.addEventListener('change',()=>localStorage.setItem('pro-ai-workbench-workspace',workspaceInput.value.trim()));
-checkHealth();loadTasks();setInterval(()=>{loadTasks();checkHealth();},3500);
+
+// --- Navigation ---
+document.querySelectorAll('.nav-item').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    link.classList.add('active');
+    const target = link.getAttribute('href');
+    if (target === '#rooms') {
+      $('#rooms').style.display = 'block';
+      $('#home').style.display = 'none';
+      fetchRooms();
+    } else {
+      $('#rooms').style.display = 'none';
+      $('#home').style.display = 'block';
+      if(target) {
+         const targetEl = $(target);
+         if(targetEl) targetEl.scrollIntoView({behavior: "smooth"});
+      }
+    }
+  });
+});
+
+// --- Rooms Logic ---
+let activeRoomId = null;
+
+async function fetchRooms() {
+  try {
+    const res = await fetch('/api/rooms');
+    const rooms = await res.json();
+    const list = $('#roomsList');
+    list.innerHTML = rooms.map(r => `<button class="secondary-btn" style="text-align:left; width:100%; border:1px solid transparent;" data-room="${r.id}">${esc(r.name)}</button>`).join('') || '<div class="empty-state">沒有頻道</div>';
+    list.querySelectorAll('button').forEach(btn => btn.addEventListener('click', () => {
+      list.querySelectorAll('button').forEach(b => b.style.borderColor = 'transparent');
+      btn.style.borderColor = 'var(--accent)';
+      activeRoomId = btn.dataset.room;
+      $('#activeRoomHeader').textContent = `頻道: ${btn.textContent}`;
+      $('#sendRoomMessageBtn').disabled = false;
+      fetchMessages();
+    }));
+  } catch(e) { console.error('Failed to fetch rooms', e); }
+}
+
+$('#createRoomBtn').addEventListener('click', async () => {
+  const name = prompt('請輸入新頻道名稱：');
+  if (!name || !name.trim()) return;
+  try {
+    await fetch('/api/rooms', { method: 'POST', headers: {'content-type':'application/json'}, body: JSON.stringify({name}) });
+    fetchRooms();
+  } catch(e) { notify('建立頻道失敗'); }
+});
+
+async function fetchMessages() {
+  if (!activeRoomId) return;
+  try {
+    const res = await fetch(`/api/rooms/${activeRoomId}/messages`);
+    const msgs = await res.json();
+    const tl = $('#roomTimeline');
+
+    tl.innerHTML = msgs.map(m => `
+      <div style="background:var(--surface-raised); padding:12px; border-radius:8px; border:1px solid var(--border);">
+        <div style="font-size:0.85rem; color:#8b949e; margin-bottom:4px; display:flex; justify-content:space-between;">
+          <strong>${esc(m.author)}</strong><span>${time(m.createdAt)}</span>
+        </div>
+        <div style="white-space:pre-wrap; word-break:break-all;">${esc(m.text)}</div>
+      </div>
+    `).join('') || '<div class="empty-state" style="margin:auto;">頻道目前沒有訊息</div>';
+
+    tl.scrollTop = tl.scrollHeight;
+  } catch(e) { console.error('Failed to fetch messages', e); }
+}
+
+$('#sendRoomMessageBtn').addEventListener('click', async () => {
+  if (!activeRoomId) return;
+  const input = $('#roomMessageComposer');
+  const text = input.value.trim();
+  if (!text) return;
+
+  input.value = '';
+  $('#sendRoomMessageBtn').disabled = true;
+
+  try {
+    await fetch(`/api/rooms/${activeRoomId}/messages`, {
+      method: 'POST',
+      headers: {'content-type':'application/json'},
+      body: JSON.stringify({ author: 'User', text })
+    });
+    fetchMessages();
+  } catch(e) {
+    notify('傳送失敗');
+  } finally {
+    $('#sendRoomMessageBtn').disabled = false;
+    input.focus();
+  }
+});
+
+$('#roomMessageComposer').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    $('#sendRoomMessageBtn').click();
+  }
+});
+
+checkHealth();loadTasks();setInterval(()=>{loadTasks();checkHealth();if(activeRoomId)fetchMessages();},3500);

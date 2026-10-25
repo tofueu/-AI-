@@ -16,6 +16,7 @@
         <a class="nav-item active" href="#home"><span class="nav-icon">▦</span>總覽</a>
         <a class="nav-item" href="#agents"><span class="nav-icon">◈</span>AI 助理 <span class="nav-count">3</span></a>
         <a class="nav-item" href="#tasks"><span class="nav-icon">◷</span>任務紀錄</a>
+        <a class="nav-item" href="#rooms"><span class="nav-icon">💬</span>群組頻道</a>
         <div class="nav-label space-top">你的專案</div>
         <button class="project-link" data-prompt="整理這個專案目前的狀態、待辦和風險。先檢查檔案，不要修改程式。"><i class="project-dot violet"></i>程式開發</button>
         <button class="project-link" data-agent="perplexity" data-prompt="搜尋最新資料，提供可靠來源和摘要。"><i class="project-dot blue"></i>資料研究</button>
@@ -24,9 +25,10 @@
       <div class="sidebar-bottom"><div class="quota-note"><span class="spark">✦</span><div><strong>使用現有訂閱</strong><p>不串接付費 API</p></div></div><div class="profile"><div class="avatar">蔡</div><div><strong>我的工作區</strong><small>本機模式</small></div><span class="more">•••</span></div></div>
     </aside>
 
-    <main id="home">
-      <header class="topbar"><div class="crumb">工作區 <span>/</span> 總覽</div><div class="top-actions"><span class="local-pill"><i></i>資料保存在本機</span><button class="icon-btn" title="設定" id="settingsBtn">⚙</button></div></header>
-      <section class="welcome"><div><p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>今天要完成什麼？</h1><p class="subhead">交給適合的 AI 助理，任務、程式和審查結果都集中在這裡。</p></div><div class="welcome-orb"><span>✦</span></div></section>
+    <main id="main-content">
+      <div id="home">
+        <header class="topbar"><div class="crumb">工作區 <span>/</span> 總覽</div><div class="top-actions"><span class="local-pill"><i></i>資料保存在本機</span><button class="icon-btn" title="設定" id="settingsBtn">⚙</button></div></header>
+        <section class="welcome"><div><p class="eyebrow">THURSDAY, OCTOBER 15</p><h1>今天要完成什麼？</h1><p class="subhead">交給適合的 AI 助理，任務、程式和審查結果都集中在這裡。</p></div><div class="welcome-orb"><span>✦</span></div></section>
 
       <section class="composer card">
         <div class="composer-head"><div class="composer-label"><span class="compose-icon">✎</span><strong>建立主任務</strong></div><span class="hint">建立後展開成可追蹤的子任務</span></div>
@@ -45,6 +47,30 @@
       </section>
 
       <section class="section tasks-section" id="tasks"><div class="section-head"><div><h2>任務分工樹</h2><p>展開主任務，追蹤每位 AI 的負責項目與狀態</p></div><button class="text-btn" id="clearView">只看進行中</button></div><div id="taskList" class="task-list"></div></section>
+      </div>
+
+      <section class="section rooms-section" id="rooms" style="display:none;">
+        <div class="section-head">
+          <div><h2>群組頻道</h2><p>與多個 AI 在專屬頻道協作</p></div>
+          <button class="text-btn" id="createRoomBtn">新增頻道</button>
+        </div>
+        <div class="rooms-layout" style="display:flex; gap:16px;">
+          <div class="rooms-sidebar" style="flex:1; max-width:250px; background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:16px; min-height:400px;">
+            <h3>頻道列表</h3>
+            <div id="roomsList" style="margin-top:12px; display:flex; flex-direction:column; gap:8px;"></div>
+          </div>
+          <div class="rooms-main" style="flex:2; display:flex; flex-direction:column; background:var(--surface); border:1px solid var(--border); border-radius:12px; min-height:400px; padding:16px;">
+            <div id="activeRoomHeader" style="border-bottom:1px solid var(--border); padding-bottom:8px; margin-bottom:12px; font-weight:bold;">選擇或建立一個頻道</div>
+            <div id="roomTimeline" style="flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:12px; margin-bottom:16px; padding-right:8px;">
+            </div>
+            <div class="room-composer" style="display:flex; gap:8px; border-top:1px solid var(--border); padding-top:12px;">
+              <textarea id="roomMessageComposer" placeholder="傳送訊息，輸入 @gemini 即可呼叫 AI" style="flex:1; resize:none; padding:12px; border-radius:8px; background:var(--surface-raised); border:1px solid var(--border); color:#fff; min-height:50px; font-family:inherit;"></textarea>
+              <button class="run-btn" id="sendRoomMessageBtn" style="padding:0 24px; white-space:nowrap;" disabled>送出</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <footer>PRO AI WORKBENCH <span>·</span> 使用你已有的訂閱額度</footer>
     </main>
   </div>

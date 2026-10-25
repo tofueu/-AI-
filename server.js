@@ -11,6 +11,8 @@ const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'tasks.json');
+const ROOMS_FILE = path.join(DATA_DIR, 'rooms.json');
+const MESSAGES_FILE = path.join(DATA_DIR, 'messages.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
@@ -18,6 +20,14 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 
 mkdirSync(DATA_DIR, { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
+if (!existsSync(ROOMS_FILE)) writeFileSync(ROOMS_FILE, '[]', 'utf8');
+if (!existsSync(MESSAGES_FILE)) writeFileSync(MESSAGES_FILE, '[]', 'utf8');
+
+function loadRooms() { try { return JSON.parse(readFileSync(ROOMS_FILE, 'utf8')); } catch { return []; } }
+function saveRooms(rooms) { writeFileSync(ROOMS_FILE, JSON.stringify(rooms, null, 2), 'utf8'); }
+
+function loadMessages() { try { return JSON.parse(readFileSync(MESSAGES_FILE, 'utf8')); } catch { return []; } }
+function saveMessages(msgs) { writeFileSync(MESSAGES_FILE, JSON.stringify(msgs, null, 2), 'utf8'); }
 
 function loadTasks() {
   try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
@@ -139,6 +149,19 @@ function runGemini(task) {
     catch { response = stdout.trim(); }
     const changes = code === 0 ? await gitChanges(task.workspace) : [];
     updateTask(task.id, { status: code === 0 ? 'done' : 'error', exitCode: code, response, changes, error: code === 0 ? '' : stderr.trim(), finishedAt: new Date().toISOString() });
+
+    if (task.roomId) {
+      const msgs = loadMessages();
+      msgs.push({
+        id: randomUUID(),
+        roomId: task.roomId,
+        author: task.agent,
+        text: response || 'Completed with no response.',
+        createdAt: new Date().toISOString()
+      });
+      saveMessages(msgs);
+    }
+
     if (code === 0) await advanceTeam(task.id);
   });
 }
@@ -156,6 +179,78 @@ const server = http.createServer(async (req, res) => {
     const cli = await checkAntigravity();
     return json(res, 200, { ok: true, cli, platform: os.platform(), defaultWorkspace: process.cwd() });
   }
+  if (req.method === 'GET' && url.pathname === '/api/rooms') return json(res, 200, loadRooms().sort((a, b) => b.createdAt.localeCompare(a.createdAt)));
+  if (req.method === 'POST' && url.pathname === '/api/rooms') {
+    let body; try { body = await readBody(req); } catch(e) { return json(res, 400, { error: e.message }); }
+    if (!body.name || !body.name.trim()) return json(res, 400, { error: '請輸入頻道名稱' });
+    const room = { id: randomUUID(), name: body.name.trim(), createdAt: new Date().toISOString() };
+    const rooms = loadRooms(); rooms.push(room); saveRooms(rooms);
+    return json(res, 201, room);
+  }
+  const messagesMatch = url.pathname.match(/^\/api\/rooms\/([\w-]+)\/messages$/);
+  if (req.method === 'GET' && messagesMatch) {
+    const msgs = loadMessages().filter(m => m.roomId === messagesMatch[1]);
+    return json(res, 200, msgs.sort((a, b) => a.createdAt.localeCompare(b.createdAt)));
+  }
+  if (req.method === 'POST' && messagesMatch) {
+    let body; try { body = await readBody(req); } catch(e) { return json(res, 400, { error: e.message }); }
+    const roomId = messagesMatch[1];
+    const room = loadRooms().find(r => r.id === roomId);
+    if (!room) return json(res, 404, { error: 'Room not found' });
+    if (!body.text || !body.text.trim()) return json(res, 400, { error: 'Text required' });
+
+    // Extract metadata
+    const metadata = body.metadata || {};
+
+    const message = {
+      id: randomUUID(),
+      roomId,
+      author: body.author || 'User',
+      text: body.text,
+      metadata,
+      createdAt: new Date().toISOString()
+    };
+    const msgs = loadMessages(); msgs.push(message); saveMessages(msgs);
+
+    const mentions = [
+      { text: '@gemini', agent: 'gemini', role: 'coder', cmd: runGemini },
+      { text: '@gpt', agent: 'gpt', role: 'planner' },
+      { text: '@perplexity', agent: 'perplexity', role: 'researcher' },
+      { text: '@cursor', agent: 'cursor', role: 'coder' },
+      { text: '@grok', agent: 'grok', role: 'reviewer' },
+    ];
+
+    // Find if an agent was mentioned
+    const textLower = body.text.toLowerCase();
+    for (const mention of mentions) {
+      if (textLower.includes(mention.text)) {
+        const provenanceContext = `\n\nHandoff from room: ${room.name}\nMessage ID: ${message.id}\nGitHub URL: ${metadata.githubUrl || 'None'}\n`;
+        const task = {
+          id: randomUUID(),
+          kind: 'standalone',
+          agent: mention.agent,
+          role: mention.role, // planner, coder, debug, reviewer, tester
+          prompt: body.text + provenanceContext,
+          workspace: process.cwd(),
+          status: 'queued',
+          response: '',
+          logs: '',
+          roomId,
+          messageId: message.id, // Reference to the handoff message
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        };
+        const tasks = loadTasks(); tasks.push(task); saveTasks(tasks);
+
+        message.handoffTo = task.id; // Record provenance handoff
+        saveMessages(msgs);
+
+        if (mention.cmd && typeof mention.cmd === 'function') mention.cmd(task);
+      }
+    }
+    return json(res, 201, message);
+  }
+
   if (req.method === 'GET' && url.pathname === '/api/tasks') return json(res, 200, loadTasks().sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
   if (req.method === 'POST' && url.pathname === '/api/tasks') {
     let body;

@@ -1,0 +1,5 @@
+
+> pro-ai-workbench@0.2.0 start
+> node server.js
+
+AI Workbench is running at http://127.0.0.1:4173
