@@ -1,0 +1,6 @@
+feat(nova): integrate NovaPetEngine and expose pet state to frontend
+
+- Instantiates `NovaPetEngine` globally in `server.js`.
+- Adds `updatePetStateByTask` to track running, done, error, and queued states of AI tasks (Codex, Gemini, Cursor, Sub2API) and updates the NovaPet state accordingly.
+- Exposes a new `/api/nova` endpoint which serves the pet's rendering state.
+- Updates `public/app.js` to continuously poll the `/api/nova` endpoint and visually reflect the pet's state in the UI via the `.welcome-orb` element.
