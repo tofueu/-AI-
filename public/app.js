@@ -14,8 +14,25 @@ function stateText(s) { return ({waiting_research:'等待研究',queued:'排隊�
 function rootProgress(root, children) { const done=children.filter(t=>t.status==='done').length; return {done,total:children.length,percent:children.length?Math.round(done/children.length*100):0}; }
 
 async function checkHealth() {
-  try { const data=await fetch('/api/health').then(r=>r.json());const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace; }
-  catch { $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線'; }
+  try {
+    const data=await fetch('/api/health').then(r=>r.json());
+    const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);
+
+    const perpEl = $('#perpStatus');
+    perpEl.innerHTML = data.perplexity ? `<i class="status-dot"></i>連線中` : `<i class="status-dot offline"></i>離線`;
+    perpEl.classList.toggle('offline', !data.perplexity);
+
+    const grokEl = $('#grokStatus');
+    grokEl.innerHTML = data.grok ? `<i class="status-dot"></i>連線中` : `<i class="status-dot offline"></i>離線`;
+    grokEl.classList.toggle('offline', !data.grok);
+
+    if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace;
+  }
+  catch {
+    $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#perpStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#grokStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+  }
 }
 function renderTasks() {
   const allRoots=taskCache.filter(t=>t.kind==='parent'||(!t.parentId&&t.kind!=='child'));
