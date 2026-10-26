@@ -308,6 +308,11 @@ const server = http.createServer(async (req, res) => {
     if (typeof body.response !== 'string' || !body.response.trim()) return json(res, 400, { error: '請貼上 AI 回覆。' });
     const task = loadTasks().find(item => item.id === resultMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
+    // A pasted result is evidence of a *manual* handoff, not proof that a
+    // queued/running AI task or a blocked dependency has completed.
+    if (task.status !== 'handoff' || task.agent === 'gemini') return json(res, 409, {
+      error: '只有等待手動回覆的任務可以貼回結果；目前狀態：' + task.status
+    });
     updateTask(task.id, { response: body.response.trim(), status: 'done', finishedAt: new Date().toISOString() });
     await advanceTeam(task.id);
     return json(res, 200, { ok: true });
