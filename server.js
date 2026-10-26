@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'no
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
-import { checkProviderAuth, redactSecrets, createCachedAuthChecker } from './auth.js';
+import { checkProviderAuth, redactSecrets } from './auth.js';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -108,7 +108,9 @@ function validWorkspace(value) {
   try { return statSync(value).isDirectory(); } catch { return false; }
 }
 
-const checkAntigravity = createCachedAuthChecker(() => checkProviderAuth(AGY, execFileAsync));
+async function checkAntigravity() {
+  return await checkProviderAuth(AGY, execFileAsync);
+}
 
 function runGemini(task) {
   updateTask(task.id, { status: 'running', startedAt: new Date().toISOString(), logs: '啟動 Antigravity CLI…\n' });
