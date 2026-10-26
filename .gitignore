@@ -1,0 +1,16 @@
+# Local user data and authentication secrets must never be committed.
+data/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+auth/
+credentials/
+secrets/
+.tokens/
+node_modules/
+coverage/
