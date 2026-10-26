@@ -92,6 +92,25 @@ test('Rooms and Messages API Integration', async (t) => {
     assert.strictEqual(gptTask.connectionStatus, 'not_connected');
     assert.match(gptTask.blockedReason, /尚未接入/);
 
+    // A handoff draft is NOT a live provider dispatch. A repeated dispatch
+    // must not reset its state or masquerade as a successful AI connection.
+    res = await request(`/api/tasks/${handoffId}/dispatch`, 'POST');
+    assert.strictEqual(res.status, 409);
+    res = await request('/api/tasks');
+    assert.strictEqual(res.data.find(task => task.id === handoffId).status, 'handoff');
+
+    // A finished task must never be rolled back to handoff by a stale UI.
+    res = await request(`/api/tasks/${handoffId}/result`, 'POST', {
+      response: 'Manually reviewed result'
+    });
+    assert.strictEqual(res.status, 200);
+    res = await request(`/api/tasks/${handoffId}/dispatch`, 'POST');
+    assert.strictEqual(res.status, 409);
+    res = await request('/api/tasks');
+    const finishedTask = res.data.find(task => task.id === handoffId);
+    assert.strictEqual(finishedTask.status, 'done');
+    assert.strictEqual(finishedTask.response, 'Manually reviewed result');
+
     res = await request(`/api/rooms/${roomId}/messages`, 'POST', { text: 42 });
     assert.strictEqual(res.status, 400);
 
