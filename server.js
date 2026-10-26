@@ -291,7 +291,13 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && dispatchMatch) {
     const task = loadTasks().find(item => item.id === dispatchMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
-    if (task.status === 'blocked') return json(res, 409, { error: '這個任務要等前一個子任務完成後才會解鎖。' });
+    // Only a planned manual handoff may transition to handoff. Repeated
+    // dispatches must not revert completed, cancelled or running tasks.
+    if (task.status !== 'planned') return json(res, 409, {
+      error: task.status === 'blocked'
+        ? '這個任務要等前一個子任務完成後才會解鎖。'
+        : '只有待交辦的任務可以手動交辦；目前狀態：' + task.status
+    });
     updateTask(task.id, { status: 'handoff', dispatchedAt: new Date().toISOString() });
     return json(res, 200, { ok: true, task: { ...task, status: 'handoff' } });
   }
