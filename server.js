@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, statSync } from 'no
 import path from 'node:path';
 import os from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { checkProviderAuth, redactSecrets } from './auth.js';
 
 const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -45,7 +46,7 @@ function addLog(taskId, chunk, stream = 'out') {
   const tasks = loadTasks();
   const task = tasks.find(item => item.id === taskId);
   if (!task) return;
-  const message = String(chunk).slice(-8000);
+  const message = redactSecrets(String(chunk)).slice(-8000);
   task.logs = (task.logs || '').concat(stream === 'err' ? `\n${message}` : message).slice(-30000);
   task.updatedAt = new Date().toISOString();
   saveTasks(tasks);
@@ -108,12 +109,7 @@ function validWorkspace(value) {
 }
 
 async function checkAntigravity() {
-  try {
-    const { stdout } = await execFileAsync(AGY, ['--version'], { timeout: 5000, windowsHide: true });
-    return { available: true, version: stdout.trim() || 'Antigravity CLI available' };
-  } catch (error) {
-    return { available: false, version: null, message: error.code === 'ENOENT' ? '找不到 agy；請在安裝 Antigravity CLI 並登入的電腦執行本 App。' : (error.stderr || error.message).trim() };
-  }
+  return await checkProviderAuth(AGY, execFileAsync);
 }
 
 function runGemini(task) {
@@ -128,8 +124,8 @@ function runGemini(task) {
     windowsHide: true,
     shell: false
   });
-  child.stdout.on('data', chunk => { stdout += chunk; addLog(task.id, chunk); });
-  child.stderr.on('data', chunk => { stderr += chunk; addLog(task.id, chunk, 'err'); });
+  child.stdout.on('data', chunk => { stdout += redactSecrets(String(chunk)); addLog(task.id, chunk); });
+  child.stderr.on('data', chunk => { stderr += redactSecrets(String(chunk)); addLog(task.id, chunk, 'err'); });
   child.on('error', error => updateTask(task.id, { status: 'error', error: error.message, finishedAt: new Date().toISOString() }));
   child.on('close', async code => {
     const current = loadTasks().find(item => item.id === task.id);

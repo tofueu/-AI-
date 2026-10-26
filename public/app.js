@@ -14,8 +14,25 @@ function stateText(s) { return ({waiting_research:'等待研究',queued:'排隊�
 function rootProgress(root, children) { const done=children.filter(t=>t.status==='done').length; return {done,total:children.length,percent:children.length?Math.round(done/children.length*100):0}; }
 
 async function checkHealth() {
-  try { const data=await fetch('/api/health').then(r=>r.json());const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace; }
-  catch { $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線'; }
+  try {
+    const data = await fetch('/api/health').then(r => r.json());
+    const el = $('#gemStatus');
+    const s = data.cli.status;
+    let html = '';
+    if (s === 'authenticated') html = `<i class="status-dot"></i>${esc(data.cli.version)}${data.cli.isSubscription ? ' (Sub)' : ''}`;
+    else if (s === 'missing') html = '<i class="status-dot offline"></i>尚未安裝 CLI <span class="auth-hint">請在終端機安裝並登入</span>';
+    else if (s === 'expired_login') html = '<i class="status-dot offline"></i>登入過期 <span class="auth-hint">請在終端機執行 agy login</span>';
+    else if (s === 'auth_pending') html = '<i class="status-dot offline"></i>等待登入授權中 <span class="auth-hint">請在終端機執行 agy login</span>';
+    else if (s === 'configured_but_not_authenticated') html = '<i class="status-dot offline"></i>已設定，未驗證 <span class="auth-hint">請在終端機執行 agy login</span>';
+    else if (s === 'failed_probe') html = '<i class="status-dot offline"></i>連線測試失敗';
+    else html = '<i class="status-dot offline"></i>未連線';
+
+    el.innerHTML = html;
+    el.classList.toggle('offline', s !== 'authenticated');
+    if (!workspaceInput.value) workspaceInput.placeholder = data.defaultWorkspace;
+  } catch {
+    $('#gemStatus').innerHTML = '<i class="status-dot offline"></i>工作台離線';
+  }
 }
 function renderTasks() {
   const allRoots=taskCache.filter(t=>t.kind==='parent'||(!t.parentId&&t.kind!=='child'));
