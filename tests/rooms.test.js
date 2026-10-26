@@ -75,6 +75,26 @@ test('Rooms and Messages API Integration', async (t) => {
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.data.length, 2);
 
+    // No provider connection exists for @gpt: do not pretend it is running.
+    res = await request(`/api/rooms/${roomId}/messages`, 'POST', {
+      text: 'Please review @gpt', author: 'gpt'
+    });
+    assert.strictEqual(res.status, 201);
+    assert.strictEqual(res.data.author, 'User'); // Prevent spoofed AI replies.
+    assert.ok(res.data.handoffTo);
+    const handoffId = res.data.handoffTo;
+    res = await request('/api/tasks');
+    assert.strictEqual(res.status, 200);
+    const gptTask = res.data.find(task => task.id === handoffId);
+    assert.ok(gptTask);
+    assert.strictEqual(gptTask.agent, 'gpt');
+    assert.strictEqual(gptTask.status, 'handoff');
+    assert.strictEqual(gptTask.connectionStatus, 'not_connected');
+    assert.match(gptTask.blockedReason, /尚未接入/);
+
+    res = await request(`/api/rooms/${roomId}/messages`, 'POST', { text: 42 });
+    assert.strictEqual(res.status, 400);
+
   } finally {
     serverProcess.kill();
     if (fs.existsSync(ROOMS_FILE)) fs.writeFileSync(ROOMS_FILE, '[]');
