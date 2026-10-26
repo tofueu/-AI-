@@ -111,6 +111,15 @@ test('Rooms and Messages API Integration', async (t) => {
     assert.strictEqual(finishedTask.status, 'done');
     assert.strictEqual(finishedTask.response, 'Manually reviewed result');
 
+    // A duplicate paste must not overwrite an already completed result.
+    res = await request(`/api/tasks/${handoffId}/result`, 'POST', {
+      response: 'Fake second completion'
+    });
+    assert.strictEqual(res.status, 409);
+    res = await request('/api/tasks');
+    assert.strictEqual(res.data.find(task => task.id === handoffId).response,
+                       'Manually reviewed result');
+
     res = await request(`/api/rooms/${roomId}/messages`, 'POST', { text: 42 });
     assert.strictEqual(res.status, 400);
 
