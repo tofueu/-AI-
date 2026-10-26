@@ -56,11 +56,21 @@ async function createTask() {
 async function dispatchExternal(id){
   const task=taskCache.find(t=>t.id===id);if(!task)return;
   try{
-    await fetch(`/api/tasks/${id}/dispatch`,{method:'POST'});
-    const info=agentInfo[task.agent];await navigator.clipboard.writeText(task.prompt).catch(()=>{});
-    if (info.url) window.open(info.url,'_blank','noopener');
-    notify(`${info.name} 任務提示已複製；完成後按「貼回結果」。`);await loadTasks();
-  }catch{notify('交辦失敗，請重新操作。');}
+    const res=await fetch(`/api/tasks/${id}/dispatch`,{method:'POST'});
+    if(!res.ok){
+      const data=await res.json().catch(()=>({}));
+      throw new Error(data.error||'無法交辦：HTTP '+res.status);
+    }
+    const info=agentInfo[task.agent]||agentInfo.custom;
+    let copied=false;
+    try{await navigator.clipboard.writeText(task.prompt);copied=true;}catch{}
+    // This is a manual handoff page, NOT an OAuth callback or a verified AI run.
+    if(info.url)window.open(info.url,'_blank','noopener');
+    notify(copied
+      ? `已複製${info.name}手動交辦內容（尚未授權／執行）；完成後貼回結果。`
+      : '手動交辦已建立，但剪貼簿無法使用；請開啟任務視窗自行複製。');
+    await loadTasks();
+  }catch(e){notify(e.message||'交辦失敗，請重新操作。');}
 }
 async function showTask(id){
   const task=taskCache.find(t=>t.id===id);if(!task)return;activeTask=task;
