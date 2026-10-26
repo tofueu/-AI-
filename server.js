@@ -197,7 +197,7 @@ const server = http.createServer(async (req, res) => {
     const roomId = messagesMatch[1];
     const room = loadRooms().find(r => r.id === roomId);
     if (!room) return json(res, 404, { error: 'Room not found' });
-    if (!body.text || !body.text.trim()) return json(res, 400, { error: 'Text required' });
+    if (typeof body.text !== 'string' || !body.text.trim()) return json(res, 400, { error: 'Text required' });
 
     // Extract metadata
     const metadata = body.metadata || {};
@@ -205,7 +205,9 @@ const server = http.createServer(async (req, res) => {
     const message = {
       id: randomUUID(),
       roomId,
-      author: body.author || 'User',
+      // The room POST endpoint is a local user input, not an authenticated AI
+      // provider callback. Never allow a caller to impersonate an AI reply.
+      author: 'User',
       text: body.text,
       metadata,
       createdAt: new Date().toISOString()
@@ -232,7 +234,11 @@ const server = http.createServer(async (req, res) => {
           role: mention.role, // planner, coder, debug, reviewer, tester
           prompt: body.text + provenanceContext,
           workspace: process.cwd(),
-          status: 'queued',
+          // Only Gemini currently has a real local CLI dispatch path.
+          // Other @mentions are handoff drafts, not queued AI executions.
+          status: mention.cmd ? 'queued' : 'handoff',
+          connectionStatus: mention.cmd ? 'cli_execution_unverified' : 'not_connected',
+          blockedReason: mention.cmd ? '' : '尚未接入真實 AI 授權及執行器；此任務僅供手動轉交。',
           response: '',
           logs: '',
           roomId,
