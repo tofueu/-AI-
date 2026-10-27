@@ -11,6 +11,17 @@ foreach ($file in @($chatFile, $overlayFile)) {
 }
 . $chatFile
 
+# Parse the real WPF XAML without displaying a window on the CI runner.
+$source = [System.IO.File]::ReadAllText($chatFile)
+if ($source -notmatch '(?s)\$xaml\s*=\s*@"\s*\r?\n(.*?)\r?\n"@') {
+    throw 'NOVA chat XAML declaration missing'
+}
+$xml = [xml]$Matches[1]
+if ($xml.DocumentElement.GetAttribute('x', 'http://www.w3.org/2000/xmlns/') -ne
+    'http://schemas.microsoft.com/winfx/2006/xaml') {
+    throw 'NOVA XAML control namespace missing'
+}
+
 $payload = New-NovaChatTaskPayload -Agent 'grok' -Prompt '  hello  '
 $parsed = ConvertFrom-Json -InputObject $payload
 if ($parsed.agent -ne 'grok' -or $parsed.prompt -ne 'hello') {
