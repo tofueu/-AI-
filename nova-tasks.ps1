@@ -13,7 +13,7 @@ function ConvertTo-NovaTaskArray {
     $tasks = $envelope.items
     if ($tasks -isnot [array]) { throw "Expected JSON task array" }
     foreach ($task in $tasks) {
-        if ($null -eq $task -or $task.PSObject.Properties.Name -notcontains 'status') {
+        if ($null -eq $task -or -not $task.PSObject.Properties.Match("status").Count) {
             throw "Task missing status"
         }
     }
