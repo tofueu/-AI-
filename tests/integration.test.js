@@ -61,6 +61,15 @@ test('Integration Test', async (t) => {
     assert.ok(task, 'Task should exist');
     assert.strictEqual(task.status, 'handoff');
 
+    // NOVA may select Codex without falsely claiming it is authenticated.
+    const codexRes = await request('/api/tasks', 'POST', {
+      agent: 'codex', prompt: 'NOVA Codex handoff test'
+    });
+    assert.strictEqual(codexRes.status, 201);
+    assert.strictEqual(codexRes.body.agent, 'codex');
+    assert.strictEqual(codexRes.body.status, 'handoff');
+    assert.strictEqual(codexRes.body.response, '');
+
   } finally {
     serverProcess.kill();
   }
