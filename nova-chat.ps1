@@ -45,6 +45,7 @@ function Format-NovaChatHistory {
 function Show-NovaChatWindow {
     $xaml = @"
 <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="NOVA - AI Workbench" Width="520" Height="590"
         MinWidth="410" MinHeight="440" WindowStartupLocation="CenterScreen">
     <Grid Margin="12">
