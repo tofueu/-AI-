@@ -7,7 +7,11 @@ function ConvertTo-NovaTaskArray {
         throw "Expected JSON task array"
     }
 
-    $tasks = @(ConvertFrom-Json -InputObject $Json -ErrorAction Stop)
+    # PowerShell 5.1 unwraps JSON arrays at the pipeline boundary, including [].
+    # Wrap the JSON in an object so the array remains a property with exact cardinality.
+    $envelope = ConvertFrom-Json -InputObject ('{"items":' + $Json + '}') -ErrorAction Stop
+    $tasks = $envelope.items
+    if ($tasks -isnot [array]) { throw "Expected JSON task array" }
     foreach ($task in $tasks) {
         if ($null -eq $task -or $task.PSObject.Properties.Name -notcontains 'status') {
             throw "Task missing status"
