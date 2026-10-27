@@ -11,13 +11,13 @@ import { fileURLToPath } from 'node:url';
 const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'tasks.json');
+const DATA_FILE = process.env.TEST_DATA_FILE ? path.resolve(process.env.TEST_DATA_FILE) : path.join(DATA_DIR, 'tasks.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
-mkdirSync(DATA_DIR, { recursive: true });
+mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
 function loadTasks() {
