@@ -11,6 +11,7 @@ on:
       - 'tests/nova-launch-regression.ps1'
       - 'tests/nova-tasks-regression.ps1'
       - 'tests/nova-chat-regression.ps1'
+      - 'tests/integration.test.js'
       - '.github/workflows/nova-windows.yml'
   workflow_dispatch:
 
@@ -31,6 +32,9 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+      - name: Verify shared NOVA task API and Codex handoff
+        shell: pwsh
+        run: npm test
       - name: Verify backend survives launcher exit and repeat launch
         shell: powershell
         run: .\tests\nova-launch-regression.ps1
