@@ -9,6 +9,6 @@ if errorlevel 1 (
   exit /b 1
 )
 
-start "" http://127.0.0.1:4173
+start "" /b powershell.exe -NoProfile -Command "Start-Sleep -Seconds 2; Start-Process 'http://127.0.0.1:4173'"
 npm start
 pause

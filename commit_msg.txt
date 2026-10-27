@@ -1,0 +1,3 @@
+fix(tests): correct assertion for CLI auth verification test
+
+The test previously asserted `AUTH_REQUIRED` for a successful CLI authentication which was factually incorrect. It has been updated to provide an `{ auth: { kind: 'exit', code: 0, output: 'Logged in' } }` outcome and assert `AUTH_VERIFIED` to accurately reflect a successful authentication sequence without capability probing.
