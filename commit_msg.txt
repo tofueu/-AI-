@@ -1,6 +1,3 @@
-feat(nova): integrate NovaPetEngine and expose pet state to frontend
+fix(tests): correct assertion for CLI auth verification test
 
-- Instantiates `NovaPetEngine` globally in `server.js`.
-- Adds `updatePetStateByTask` to track running, done, error, and queued states of AI tasks (Codex, Gemini, Cursor, Sub2API) and updates the NovaPet state accordingly.
-- Exposes a new `/api/nova` endpoint which serves the pet's rendering state.
-- Updates `public/app.js` to continuously poll the `/api/nova` endpoint and visually reflect the pet's state in the UI via the `.welcome-orb` element.
+The test previously asserted `AUTH_REQUIRED` for a successful CLI authentication which was factually incorrect. It has been updated to provide an `{ auth: { kind: 'exit', code: 0, output: 'Logged in' } }` outcome and assert `AUTH_VERIFIED` to accurately reflect a successful authentication sequence without capability probing.
