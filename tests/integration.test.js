@@ -2,12 +2,17 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+
+const TEST_PORT = 4174;
 
 function request(path, method = 'GET', body = null) {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: '127.0.0.1',
-      port: 4173,
+      port: TEST_PORT,
       path,
       method,
       headers: body ? { 'Content-Type': 'application/json' } : {}
@@ -32,10 +37,20 @@ function sleep(ms) {
 
 test('Integration Test', async (t) => {
   // Start server
-  const serverProcess = spawn('node', ['server.js'], { stdio: 'pipe' });
+  const tempDir = mkdtempSync(path.join(tmpdir(), 'nova-api-test-'));
+  const serverProcess = spawn(process.execPath, ['server.js'], {
+    stdio: 'pipe',
+    env: { ...process.env, PORT: String(TEST_PORT), TEST_DATA_FILE: path.join(tempDir, 'tasks.json') }
+  });
 
-  // Wait for server to start
-  await sleep(2000);
+  // Poll only the local task endpoint; external provider health may be offline.
+  let ready = false;
+  for (let attempt = 0; attempt < 40; attempt++) {
+    try { const res = await request('/api/tasks'); if (res.status === 200) { ready = true; break; } }
+    catch { /* server not yet listening */ }
+    await sleep(100);
+  }
+  assert.ok(ready, 'Isolated workbench server must start');
 
   try {
     // 1. Check Health (Provider Auth/Capability Checks)
@@ -72,5 +87,6 @@ test('Integration Test', async (t) => {
 
   } finally {
     serverProcess.kill();
+    rmSync(tempDir, { recursive: true, force: true });
   }
 });
