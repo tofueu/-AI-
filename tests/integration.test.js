@@ -85,6 +85,33 @@ test('Integration Test', async (t) => {
     assert.strictEqual(codexRes.body.status, 'handoff');
     assert.strictEqual(codexRes.body.response, '');
 
+    // Control panel and NOVA must share the same task API and allow a
+    // per-task provider choice without falsely reporting authenticated models.
+    const ui = await request('/');
+    assert.strictEqual(ui.status, 200);
+    assert.match(ui.body, /id="primaryAgent"/);
+    const browserCode = await request('/app.js');
+    assert.strictEqual(browserCode.status, 200);
+    assert.match(browserCode.body, /\$\('#primaryAgent'\)\.value/);
+    assert.match(browserCode.body, /網站可達・授權未驗證/);
+
+    for (const provider of ['perplexity', 'grok']) {
+      const selected = await request('/api/tasks', 'POST', {
+        agent: provider, prompt: 'NOVA and console shared handoff'
+      });
+      assert.strictEqual(selected.status, 201);
+      assert.strictEqual(selected.body.agent, provider);
+      assert.strictEqual(selected.body.status, 'handoff');
+      assert.strictEqual(selected.body.response, '', 'Do not invent a model response');
+      const shared = await request('/api/tasks');
+      assert.ok(shared.body.some(t => t.id === selected.body.id && t.agent === provider));
+    }
+
+    const noGeminiWorkspace = await request('/api/tasks', 'POST', {
+      agent: 'gemini', prompt: 'Must not launch without workspace'
+    });
+    assert.strictEqual(noGeminiWorkspace.status, 400);
+
   } finally {
     serverProcess.kill();
     rmSync(tempDir, { recursive: true, force: true });
