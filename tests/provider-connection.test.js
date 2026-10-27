@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ProviderConnectionRegistry, codexAdapter, geminiAdapter, cursorAdapter, perplexityAdapter } from '../lib/provider-connection.js';
 
 function fixture({ runtime = { kind: 'exit', code: 0 },
-  auth = { kind: 'exit', code: 0 }, probe = null,
+  auth = { kind: 'exit', code: 0, output: 'Logged in using ChatGPT' }, probe = null,
   platform = 'win32', ttlMs = 1000 } = {}) {
   let clock = 100_000;
   const calls = [];
@@ -31,6 +31,23 @@ test('signed-out Codex cannot be marked connected', async () => {
   const f = fixture({ auth: { kind: 'exit', code: 1, output: 'Please log in' } });
   assert.equal((await f.registry.verify('codex')).status, 'AUTH_REQUIRED');
   assert.deepEqual(f.calls[1][1], ['login', 'status']);
+});
+
+test('Codex exit 0 with signed-out text is not authentication', async () => {
+  const f = fixture({ auth: { kind: 'exit', code: 0, output: 'Not logged in' } });
+  assert.equal((await f.registry.verify('codex')).status, 'AUTH_REQUIRED');
+});
+
+test('Codex exit 0 without recognizable login evidence fails closed', async () => {
+  const f = fixture({ auth: { kind: 'exit', code: 0, output: '' } });
+  assert.equal((await f.registry.verify('codex')).status, 'AUTH_REQUIRED');
+});
+
+test('Codex login verification never claims model capability', async () => {
+  const f = fixture({ auth: { kind: 'exit', code: 0, output: 'Logged in using ChatGPT' } });
+  const state = await f.registry.verify('codex');
+  assert.equal(state.status, 'AUTH_VERIFIED');
+  assert.equal(state.capability, 'UNVERIFIED');
 });
 
 test('CLI auth success is not a verified model execution', async () => {
