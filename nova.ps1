@@ -32,7 +32,13 @@ $timer.Interval = [TimeSpan]::FromSeconds(2)
 
 $timer.Add_Tick({
     try {
-        $response = Invoke-RestMethod -Uri "http://127.0.0.1:4173/api/tasks" -TimeoutSec 1
+        # Invoke-RestMethod in Windows PowerShell 5.1 can unwrap a one-item JSON array
+        # into a scalar, so validating its result with -is [array] rejects a valid task.
+        # Check the wire-level JSON container before parsing, then normalize the result.
+        $http = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:4173/api/tasks" -TimeoutSec 1
+        $json = [string]$http.Content
+        if (-not $json.TrimStart().StartsWith('[')) { throw "Expected JSON task array" }
+        $response = @(ConvertFrom-Json -InputObject $json -ErrorAction Stop)
 
         $hasError = $false
         $hasRunning = $false
@@ -42,7 +48,7 @@ $timer.Add_Tick({
         $hasWaiting = $false
 
         # Fail closed if the endpoint returns an error object or unexpected payload.
-        if ($null -eq $response -or $response -isnot [array]) { throw "Unexpected /api/tasks response" }
+        if ($response -isnot [array]) { throw "Unexpected /api/tasks response" }
         foreach ($task in $response) {
             if ($null -eq $task -or $task.PSObject.Properties.Name -notcontains "status") { throw "Task missing status" }
             switch ($task.status) {
