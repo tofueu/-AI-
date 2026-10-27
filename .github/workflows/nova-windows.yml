@@ -6,6 +6,8 @@ on:
       - 'nova.ps1'
       - 'nova-tasks.ps1'
       - 'tests/nova-tasks-regression.ps1'
+      - 'tests/nova-startup-regression.ps1'
+      - 'start.bat'
       - '.github/workflows/nova-windows.yml'
   workflow_dispatch:
 
@@ -21,3 +23,6 @@ jobs:
       - name: Run actual Windows PowerShell 5.1 parser regressions
         shell: powershell
         run: .\tests\nova-tasks-regression.ps1
+      - name: Verify NOVA integrated startup and PowerShell syntax
+        shell: powershell
+        run: .\tests\nova-startup-regression.ps1
