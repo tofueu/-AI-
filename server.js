@@ -217,8 +217,12 @@ const server = http.createServer(async (req, res) => {
   if (req.method === 'POST' && dispatchMatch) {
     const task = loadTasks().find(item => item.id === dispatchMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
-    if (task.status === 'blocked') return json(res, 409, { error: '這個任務要等前一個子任務完成後才會解鎖。' });
-    updateTask(task.id, { status: 'handoff', dispatchedAt: new Date().toISOString() });
+    // Only external planned tasks can be handed off. Never turn a queued/running
+    // Gemini job or a completed/cancelled task into a manual handoff.
+    if (task.agent === 'gemini' || !['planned', 'handoff'].includes(task.status)) {
+      return json(res, 409, { error: '只有等待交辦的外部 AI 任務可以手動交接。' });
+    }
+    if (task.status === 'planned') updateTask(task.id, { status: 'handoff', dispatchedAt: new Date().toISOString() });
     return json(res, 200, { ok: true, task: { ...task, status: 'handoff' } });
   }
   const resultMatch = url.pathname.match(/^\/api\/tasks\/([\w-]+)\/result$/);
@@ -228,6 +232,11 @@ const server = http.createServer(async (req, res) => {
     if (typeof body.response !== 'string' || !body.response.trim()) return json(res, 400, { error: '請貼上 AI 回覆。' });
     const task = loadTasks().find(item => item.id === resultMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
+    // A pasted response is evidence of manual handoff only; it must never
+    // overwrite a CLI task or fabricate success for blocked/completed work.
+    if (task.agent === 'gemini' || task.status !== 'handoff') {
+      return json(res, 409, { error: '僅允許已交辦的外部 AI 任務貼回真實回覆。' });
+    }
     updateTask(task.id, { response: body.response.trim(), status: 'done', finishedAt: new Date().toISOString() });
     await advanceTeam(task.id);
     return json(res, 200, { ok: true });
