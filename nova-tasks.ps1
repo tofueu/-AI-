@@ -25,7 +25,7 @@ function ConvertTo-NovaTaskArray {
 # Choose live work before historical results. Otherwise one old error pins NOVA red
 # forever even while a new task is running or has completed successfully.
 function Get-NovaTaskColor {
-    param([Parameter(Mandatory = $true)][array]$Tasks)
+    param([Parameter(Mandatory = $true)][AllowEmptyCollection()][array]$Tasks)
 
     $statuses = @($Tasks | ForEach-Object { [string]$_.status })
     if ($statuses -contains 'running') { return 'Blue' }
