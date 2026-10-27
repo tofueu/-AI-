@@ -16,8 +16,10 @@ try {
         Pop-Location
     }
 
-    $tasks = Invoke-RestMethod -Uri 'http://127.0.0.1:4173/api/tasks' -TimeoutSec 3
-    if ($null -eq $tasks) { throw 'Task endpoint did not return JSON' }
+    $tasksResponse = Invoke-WebRequest -UseBasicParsing -Uri 'http://127.0.0.1:4173/api/tasks' -TimeoutSec 3
+    if ($tasksResponse.StatusCode -ne 200 -or -not $tasksResponse.Content.TrimStart().StartsWith('[')) {
+        throw 'Task endpoint did not return a JSON array'
+    }
 
     $listener = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction Stop |
         Select-Object -First 1
