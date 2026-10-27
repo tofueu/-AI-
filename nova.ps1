@@ -24,7 +24,7 @@ $window = [Windows.Markup.XamlReader]::Load($reader)
 $orb = $window.FindName("Orb")
 
 $window.Add_MouseLeftButtonDown({
-    $window.DragMove()
+    try { $window.DragMove() } catch { }
 })
 
 $timer = New-Object System.Windows.Threading.DispatcherTimer
@@ -41,7 +41,10 @@ $timer.Add_Tick({
         $hasBlockedQueued = $false
         $hasWaiting = $false
 
+        # Fail closed if the endpoint returns an error object or unexpected payload.
+        if ($null -eq $response -or $response -isnot [array]) { throw "Unexpected /api/tasks response" }
         foreach ($task in $response) {
+            if ($null -eq $task -or $task.PSObject.Properties.Name -notcontains "status") { throw "Task missing status" }
             switch ($task.status) {
                 'error' { $hasError = $true }
                 'running' { $hasRunning = $true }
