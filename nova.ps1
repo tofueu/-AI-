@@ -1,6 +1,7 @@
 #requires -version 5.1
 Add-Type -AssemblyName PresentationFramework
 . (Join-Path $PSScriptRoot 'nova-tasks.ps1')
+. (Join-Path $PSScriptRoot 'nova-chat.ps1')
 
 $xaml = @"
 <Window
@@ -27,6 +28,9 @@ $orb = $window.FindName("Orb")
 $window.Add_MouseLeftButtonDown({
     try { $window.DragMove() } catch { }
 })
+
+# Right-click opens the same task/conversation channel as the workbench.
+$window.Add_MouseRightButtonUp({ Show-NovaChatWindow })
 
 $timer = New-Object System.Windows.Threading.DispatcherTimer
 $timer.Interval = [TimeSpan]::FromSeconds(2)
