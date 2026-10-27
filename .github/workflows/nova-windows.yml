@@ -5,10 +5,12 @@ on:
     paths:
       - 'nova.ps1'
       - 'nova-tasks.ps1'
+      - 'nova-chat.ps1'
       - 'start.bat'
       - 'server.js'
       - 'tests/nova-launch-regression.ps1'
       - 'tests/nova-tasks-regression.ps1'
+      - 'tests/nova-chat-regression.ps1'
       - '.github/workflows/nova-windows.yml'
   workflow_dispatch:
 
@@ -23,7 +25,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run actual Windows PowerShell 5.1 parser regressions
         shell: powershell
-        run: .\tests\nova-tasks-regression.ps1
+        run: |
+          .\tests\nova-tasks-regression.ps1
+          .\tests\nova-chat-regression.ps1
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
