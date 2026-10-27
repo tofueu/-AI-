@@ -36,41 +36,7 @@ $timer.Add_Tick({
         $http = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:4173/api/tasks" -TimeoutSec 1
         $response = ConvertTo-NovaTaskArray -Json ([string]$http.Content)
 
-        $hasError = $false
-        $hasRunning = $false
-        $hasHandoff = $false
-        $hasDone = $false
-        $hasBlockedQueued = $false
-        $hasWaiting = $false
-
-        foreach ($task in $response) {
-            switch ($task.status) {
-                'error' { $hasError = $true }
-                'running' { $hasRunning = $true }
-                'handoff' { $hasHandoff = $true }
-                'done' { $hasDone = $true }
-                'blocked' { $hasBlockedQueued = $true }
-                'queued' { $hasBlockedQueued = $true }
-                'waiting_research' { $hasWaiting = $true }
-                'ready_for_approval' { $hasWaiting = $true }
-            }
-        }
-
-        $color = "Gray" # Default
-
-        if ($hasError) {
-            $color = "Red"
-        } elseif ($hasRunning) {
-            $color = "Blue"
-        } elseif ($hasHandoff) {
-            $color = "Yellow"
-        } elseif ($hasWaiting) {
-            $color = "Orange"
-        } elseif ($hasDone) {
-            $color = "Green"
-        } elseif ($hasBlockedQueued) {
-            $color = "Gray"
-        }
+        $color = Get-NovaTaskColor -Tasks $response
 
         $brush = (New-Object System.Windows.Media.BrushConverter).ConvertFromString($color)
         $orb.Fill = $brush
