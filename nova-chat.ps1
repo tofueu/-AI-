@@ -6,7 +6,7 @@ function New-NovaChatTaskPayload {
         [Parameter(Mandatory = $true)][string]$Prompt,
         [string]$Workspace = ''
     )
-    if ($Agent -notin @('gemini', 'perplexity', 'grok', 'custom')) {
+    if ($Agent -notin @('gemini', 'codex', 'perplexity', 'grok', 'custom')) {
         throw 'Unsupported AI provider; select one configured in AI Workbench.'
     }
     if ([string]::IsNullOrWhiteSpace($Prompt)) { throw 'Enter a message.' }
@@ -30,8 +30,8 @@ function Format-NovaChatHistory {
         $status = [string]$task.status
         $prompt = [string]$task.prompt
         $response = [string]$task.response
-        if ($prompt.Length -gt 500) { $prompt = $prompt.Substring(0, 500) + '…' }
-        if ($response.Length -gt 1500) { $response = $response.Substring(0, 1500) + '…' }
+        if ($prompt.Length -gt 500) { $prompt = $prompt.Substring(0, 500) + '...' }
+        if ($response.Length -gt 1500) { $response = $response.Substring(0, 1500) + '...' }
         $lines.Add(('[' + $agent + ' / ' + $status + '] ' + $prompt))
         if ($response) { $lines.Add(('Reply: ' + $response)) }
         if ($status -eq 'handoff') {
@@ -59,6 +59,7 @@ function Show-NovaChatWindow {
             <TextBlock Text="AI provider:" VerticalAlignment="Center" Margin="0,0,8,0"/>
             <ComboBox x:Name="Provider" Width="195" SelectedIndex="0">
                 <ComboBoxItem Content="Gemini CLI" Tag="gemini"/>
+                <ComboBoxItem Content="Codex (handoff)" Tag="codex"/>
                 <ComboBoxItem Content="Perplexity (handoff)" Tag="perplexity"/>
                 <ComboBoxItem Content="Grok (handoff)" Tag="grok"/>
                 <ComboBoxItem Content="Custom (handoff)" Tag="custom"/>
@@ -74,11 +75,11 @@ function Show-NovaChatWindow {
         </StackPanel>
         <TextBox x:Name="Prompt" Grid.Row="3" AcceptsReturn="True"
                  TextWrapping="Wrap" VerticalScrollBarVisibility="Auto"/>
-        <DockPanel Grid.Row="4" Margin="0,8,0,0">
-            <TextBlock x:Name="Status" Text="Local workbench task channel"
-                       VerticalAlignment="Center" TextWrapping="Wrap"/>
+        <DockPanel Grid.Row="4" Margin="0,8,0,0" LastChildFill="True">
             <Button x:Name="Send" Content="Send" DockPanel.Dock="Right"
                     HorizontalAlignment="Right" Padding="18,5"/>
+            <TextBlock x:Name="Status" Text="Local workbench task channel"
+                       VerticalAlignment="Center" TextWrapping="Wrap"/>
         </DockPanel>
     </Grid>
 </Window>
