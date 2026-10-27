@@ -7,6 +7,8 @@ on:
       - 'nova-tasks.ps1'
       - 'tests/nova-tasks-regression.ps1'
       - 'tests/nova-startup-regression.ps1'
+      - 'tests/nova-api-integration.ps1'
+      - 'server.js'
       - 'start.bat'
       - '.github/workflows/nova-windows.yml'
   workflow_dispatch:
@@ -26,3 +28,6 @@ jobs:
       - name: Verify NOVA integrated startup and PowerShell syntax
         shell: powershell
         run: .\tests\nova-startup-regression.ps1
+      - name: Verify live Workbench API to NOVA status handoff (local only)
+        shell: powershell
+        run: .\tests\nova-api-integration.ps1
