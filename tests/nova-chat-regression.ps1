@@ -19,6 +19,9 @@ if ($parsed.agent -ne 'grok' -or $parsed.prompt -ne 'hello') {
 if ($parsed.PSObject.Properties.Match('workspace').Count -ne 0) {
     throw 'Non-CLI handoff should not require a workspace'
 }
+$codex = ConvertFrom-Json -InputObject (New-NovaChatTaskPayload -Agent 'codex' -Prompt 'review')
+if ($codex.agent -ne 'codex') { throw 'Codex must be selectable without forcing GPT as the main provider' }
+
 $rejected = $false
 try { $null = New-NovaChatTaskPayload -Agent 'not-configured' -Prompt 'hello' } catch { $rejected = $true }
 if (-not $rejected) { throw 'Unknown provider must be rejected' }
