@@ -112,6 +112,39 @@ test('Integration Test', async (t) => {
     });
     assert.strictEqual(noGeminiWorkspace.status, 400);
 
+    // Manual results are only allowed for external AI tasks in handoff state.
+    // In particular, they cannot forge completion of a Gemini CLI task.
+    const team = await request('/api/tasks', 'POST', {
+      mode: 'team', agent: 'gemini', workspace: tempDir,
+      prompt: 'Test real state transitions'
+    });
+    assert.strictEqual(team.status, 201);
+    const research = team.body.children.find(t => t.agent === 'perplexity');
+    const implementation = team.body.children.find(t => t.agent === 'gemini');
+    assert.strictEqual(research.status, 'planned');
+    assert.strictEqual(implementation.status, 'blocked');
+
+    const earlyResult = await request('/api/tasks/' + research.id + '/result',
+      'POST', { response: 'Unverified answer' });
+    assert.strictEqual(earlyResult.status, 409);
+    const blockedDispatch = await request('/api/tasks/' + implementation.id + '/dispatch', 'POST');
+    assert.strictEqual(blockedDispatch.status, 409);
+    const forgedGeminiResult = await request('/api/tasks/' + implementation.id + '/result',
+      'POST', { response: 'Pretend Gemini finished' });
+    assert.strictEqual(forgedGeminiResult.status, 409);
+
+    const handedOff = await request('/api/tasks/' + research.id + '/dispatch', 'POST');
+    assert.strictEqual(handedOff.status, 200);
+    assert.strictEqual(handedOff.body.task.status, 'handoff');
+    const pasted = await request('/api/tasks/' + research.id + '/result',
+      'POST', { response: 'Actual manually supplied research' });
+    assert.strictEqual(pasted.status, 200);
+    const duplicatePaste = await request('/api/tasks/' + research.id + '/result',
+      'POST', { response: 'Overwrite finished work' });
+    assert.strictEqual(duplicatePaste.status, 409);
+    const reopenFinished = await request('/api/tasks/' + research.id + '/dispatch', 'POST');
+    assert.strictEqual(reopenFinished.status, 409);
+
   } finally {
     serverProcess.kill();
     rmSync(tempDir, { recursive: true, force: true });
