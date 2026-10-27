@@ -189,7 +189,7 @@ const server = http.createServer(async (req, res) => {
     let body;
     try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
     const { agent, prompt, workspace, mode, projectName, repoUrl, issueUrl } = body;
-    if (!['gemini', 'perplexity', 'grok', 'custom'].includes(agent)) return json(res, 400, { error: '請選擇有效的 AI 助理。' });
+    if (!['gemini', 'codex', 'perplexity', 'grok', 'custom'].includes(agent)) return json(res, 400, { error: '請選擇有效的 AI 助理。' });
     if (typeof prompt !== 'string' || !prompt.trim()) return json(res, 400, { error: '請輸入任務內容。' });
     if ((mode === 'team' || agent === 'gemini') && !validWorkspace(workspace)) return json(res, 400, { error: 'Gemini 任務需要有效的絕對專案資料夾路徑。' });
     if (mode === 'team') {
@@ -206,7 +206,7 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, { ...rootTask, children });
     }
     const task = {
-      id: randomUUID(), kind: 'standalone', agent, role: agent === 'gemini' ? '程式實作' : agent === 'perplexity' ? '研究與查證' : '獨立審查', prompt: prompt.trim(), workspace: workspace || '',
+      id: randomUUID(), kind: 'standalone', agent, role: agent === 'gemini' ? '程式實作' : agent === 'perplexity' ? '研究與查證' : agent === 'codex' ? 'Codex（待授權）' : '獨立審查', prompt: prompt.trim(), workspace: workspace || '',
       status: agent === 'gemini' ? 'queued' : 'handoff', response: '', logs: '',
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
