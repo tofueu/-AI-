@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import http from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 
@@ -148,5 +148,39 @@ test('Integration Test', async (t) => {
   } finally {
     serverProcess.kill();
     rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+// The NOVA overlay and control panel share this durable file. A malformed
+// ledger must fail startup without replacing prior tasks with an empty list.
+test('Corrupted task ledger fails closed without overwriting data', async () => {
+  for (const [label, raw] of [
+    ['invalid-json', '{"tasks":'],
+    ['wrong-shape', '{"tasks":[]}'],
+    ['invalid-task', '[null]']
+  ]) {
+    const tempDir = mkdtempSync(path.join(tmpdir(), 'nova-corrupt-ledger-'));
+    const dataPath = path.join(tempDir, 'tasks.json');
+    writeFileSync(dataPath, raw, 'utf8');
+    const child = spawn(process.execPath, ['server.js'], {
+      stdio: 'ignore',
+      env: { ...process.env, PORT: '4175', TEST_DATA_FILE: dataPath }
+    });
+    try {
+      const exit = await Promise.race([
+        new Promise((resolve, reject) => {
+          child.once('exit', code => resolve(code));
+          child.once('error', reject);
+        }),
+        sleep(5000).then(() => null)
+      ]);
+      assert.notStrictEqual(exit, null, label + ': server must not keep running');
+      assert.notStrictEqual(exit, 0, label + ': startup must fail');
+      assert.strictEqual(readFileSync(dataPath, 'utf8'), raw,
+        label + ': task history must remain untouched');
+    } finally {
+      child.kill();
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   }
 });
