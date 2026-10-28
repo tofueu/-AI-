@@ -21,8 +21,19 @@ mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
 function loadTasks() {
-  try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
-  catch { return []; }
+  // Never turn a corrupt/unreadable task ledger into an empty queue: the next
+  // write would otherwise silently erase every NOVA/control-panel task.
+  let tasks;
+  try {
+    tasks = JSON.parse(readFileSync(DATA_FILE, 'utf8'));
+  } catch {
+    throw new Error('Task ledger is unreadable or invalid JSON; refusing to reset it');
+  }
+  if (!Array.isArray(tasks) || !tasks.every(task =>
+    task !== null && typeof task === 'object' && !Array.isArray(task))) {
+    throw new Error('Task ledger must be an array of task objects; refusing to reset it');
+  }
+  return tasks;
 }
 
 const initialTasks = loadTasks();
