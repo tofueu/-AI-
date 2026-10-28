@@ -2,6 +2,7 @@ const $ = (s) => document.querySelector(s);
 const promptBox = $('#prompt'), workspaceInput = $('#workspace'), taskList = $('#taskList'), dialog = $('#resultDialog');
 const agentInfo = {
   gemini: { name: 'Gemini · Antigravity', icon: '✦', url: 'https://antigravity.google/' },
+  codex: { name: 'Codex（待授權）', icon: '◇', url: '' },
   perplexity: { name: 'Perplexity Pro', icon: '◉', url: 'https://www.perplexity.ai/' },
   grok: { name: 'SuperGrok · Grok Bot', icon: '𝕏', url: 'https://grok.com/' },
   custom: { name: '其他 AI（手動交辦）', icon: '◇', url: '' }
@@ -14,8 +15,25 @@ function stateText(s) { return ({waiting_research:'等待研究',queued:'排隊�
 function rootProgress(root, children) { const done=children.filter(t=>t.status==='done').length; return {done,total:children.length,percent:children.length?Math.round(done/children.length*100):0}; }
 
 async function checkHealth() {
-  try { const data=await fetch('/api/health').then(r=>r.json());const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace; }
-  catch { $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線'; }
+  try {
+    const data=await fetch('/api/health').then(r=>r.json());
+    const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);
+
+    const perpEl = $('#perpStatus');
+    perpEl.innerHTML = data.perplexity ? `<i class="status-dot offline"></i>網站可達・授權未驗證` : `<i class="status-dot offline"></i>網站不可達`;
+    perpEl.classList.add('offline');
+
+    const grokEl = $('#grokStatus');
+    grokEl.innerHTML = data.grok ? `<i class="status-dot offline"></i>網站可達・授權未驗證` : `<i class="status-dot offline"></i>網站不可達`;
+    grokEl.classList.add('offline');
+
+    if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace;
+  }
+  catch {
+    $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#perpStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#grokStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+  }
 }
 function renderTasks() {
   const allRoots=taskCache.filter(t=>t.kind==='parent'||(!t.parentId&&t.kind!=='child'));
@@ -44,13 +62,15 @@ async function loadTasks(){try{taskCache=await fetch('/api/tasks').then(r=>r.jso
 async function createTask() {
   const prompt=promptBox.value.trim(), workspace=workspaceInput.value.trim();
   if(!prompt)return notify('先輸入主任務內容。');
-  if(!workspace)return notify('請輸入要處理的本機專案資料夾完整路徑。');
+  const mode=$('#mode').value;
+  const agent=mode==='team' ? 'gemini' : $('#primaryAgent').value;
+  if((mode==='team'||agent==='gemini')&&!workspace)return notify('Gemini／團隊任務需要本機專案資料夾完整路徑。');
   const button=$('#runBtn');button.disabled=true;button.querySelector('span').textContent='建立分工中…';
   try{
-    const body={agent:'gemini',mode:$('#mode').value,projectName:$('#projectName').value.trim(),repoUrl:$('#repoUrl').value.trim(),issueUrl:$('#issueUrl').value.trim(),prompt,workspace};
+    const body={agent,mode,projectName:$('#projectName').value.trim(),repoUrl:$('#repoUrl').value.trim(),issueUrl:$('#issueUrl').value.trim(),prompt,workspace};
     const res=await fetch('/api/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),data=await res.json();
     if(!res.ok)throw new Error(data.error||'建立失敗');
-    promptBox.value='';notify('主任務已建立。先交辦研究；貼回結果後才會自動開始程式實作。');await loadTasks();
+    promptBox.value='';notify(mode==='team'?'團隊任務已建立；研究與審查仍需真實授權／交接。':(agent==='gemini'?'Gemini 任務已排入工作台佇列。':'AI 任務已記錄；待授權或手動交接，尚未執行模型。'));await loadTasks();
   }catch(e){notify(e.message);}finally{button.disabled=false;button.querySelector('span').textContent='建立分工';}
 }
 async function dispatchExternal(id){
