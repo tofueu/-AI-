@@ -1,4 +1,5 @@
 import http from 'node:http';
+import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
@@ -10,19 +11,43 @@ import { fileURLToPath } from 'node:url';
 const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'tasks.json');
+const DATA_FILE = process.env.TEST_DATA_FILE ? path.resolve(process.env.TEST_DATA_FILE) : path.join(DATA_DIR, 'tasks.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
-mkdirSync(DATA_DIR, { recursive: true });
+mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
 function loadTasks() {
-  try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
-  catch { return []; }
+  // Never turn a corrupt/unreadable task ledger into an empty queue: the next
+  // write would otherwise silently erase every NOVA/control-panel task.
+  let tasks;
+  try {
+    tasks = JSON.parse(readFileSync(DATA_FILE, 'utf8'));
+  } catch {
+    throw new Error('Task ledger is unreadable or invalid JSON; refusing to reset it');
+  }
+  if (!Array.isArray(tasks) || !tasks.every(task =>
+    task !== null && typeof task === 'object' && !Array.isArray(task))) {
+    throw new Error('Task ledger must be an array of task objects; refusing to reset it');
+  }
+  return tasks;
 }
+
+const initialTasks = loadTasks();
+let changed = false;
+for (const task of initialTasks) {
+  if (task.status === 'running') {
+    task.status = 'error';
+    task.error = 'Server restarted while running';
+    task.updatedAt = new Date().toISOString();
+    changed = true;
+  }
+}
+if (changed) writeFileSync(DATA_FILE, JSON.stringify(initialTasks, null, 2), 'utf8');
+
 function saveTasks(tasks) { writeFileSync(DATA_FILE, JSON.stringify(tasks, null, 2), 'utf8'); }
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -87,7 +112,6 @@ async function advanceTeam(taskId) {
     const context = `\n\n以下是研究 AI 已完成的資料，請以它為依據實作：\n${research.response}`;
     updateTask(implementation.id, { status: 'queued', prompt: implementation.prompt + context });
     updateTask(parent.id, { status: 'running' });
-    runGemini(taskById(implementation.id));
     return;
   }
   if (completed.id === implementation?.id && review?.status === 'blocked') {
@@ -105,6 +129,17 @@ async function advanceTeam(taskId) {
 function validWorkspace(value) {
   if (typeof value !== 'string' || !path.isAbsolute(value)) return false;
   try { return statSync(value).isDirectory(); } catch { return false; }
+}
+
+async function checkProvider(url) {
+  return new Promise((resolve) => {
+    const req = https.get(url, { timeout: 3000 }, (res) => {
+      resolve(res.statusCode >= 200 && res.statusCode < 400);
+      res.resume();
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+  });
 }
 
 async function checkAntigravity() {
@@ -153,15 +188,19 @@ function sendFile(res, filePath) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
   if (req.method === 'GET' && url.pathname === '/api/health') {
-    const cli = await checkAntigravity();
-    return json(res, 200, { ok: true, cli, platform: os.platform(), defaultWorkspace: process.cwd() });
+    const [cli, perplexity, grok] = await Promise.all([
+      checkAntigravity(),
+      checkProvider('https://www.perplexity.ai/'),
+      checkProvider('https://grok.com/')
+    ]);
+    return json(res, 200, { ok: true, cli, perplexity, grok, platform: os.platform(), defaultWorkspace: process.cwd() });
   }
   if (req.method === 'GET' && url.pathname === '/api/tasks') return json(res, 200, loadTasks().sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
   if (req.method === 'POST' && url.pathname === '/api/tasks') {
     let body;
     try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
     const { agent, prompt, workspace, mode, projectName, repoUrl, issueUrl } = body;
-    if (!['gemini', 'perplexity', 'grok', 'custom'].includes(agent)) return json(res, 400, { error: '請選擇有效的 AI 助理。' });
+    if (!['gemini', 'codex', 'perplexity', 'grok', 'custom'].includes(agent)) return json(res, 400, { error: '請選擇有效的 AI 助理。' });
     if (typeof prompt !== 'string' || !prompt.trim()) return json(res, 400, { error: '請輸入任務內容。' });
     if ((mode === 'team' || agent === 'gemini') && !validWorkspace(workspace)) return json(res, 400, { error: 'Gemini 任務需要有效的絕對專案資料夾路徑。' });
     if (mode === 'team') {
@@ -178,20 +217,23 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, { ...rootTask, children });
     }
     const task = {
-      id: randomUUID(), kind: 'standalone', agent, role: agent === 'gemini' ? '程式實作' : agent === 'perplexity' ? '研究與查證' : '獨立審查', prompt: prompt.trim(), workspace: workspace || '',
+      id: randomUUID(), kind: 'standalone', agent, role: agent === 'gemini' ? '程式實作' : agent === 'perplexity' ? '研究與查證' : agent === 'codex' ? 'Codex（待授權）' : '獨立審查', prompt: prompt.trim(), workspace: workspace || '',
       status: agent === 'gemini' ? 'queued' : 'handoff', response: '', logs: '',
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
     const tasks = loadTasks(); tasks.push(task); saveTasks(tasks);
-    if (agent === 'gemini') runGemini(task);
     return json(res, 201, task);
   }
   const dispatchMatch = url.pathname.match(/^\/api\/tasks\/([\w-]+)\/dispatch$/);
   if (req.method === 'POST' && dispatchMatch) {
     const task = loadTasks().find(item => item.id === dispatchMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
-    if (task.status === 'blocked') return json(res, 409, { error: '這個任務要等前一個子任務完成後才會解鎖。' });
-    updateTask(task.id, { status: 'handoff', dispatchedAt: new Date().toISOString() });
+    // Only external planned tasks can be handed off. Never turn a queued/running
+    // Gemini job or a completed/cancelled task into a manual handoff.
+    if (task.agent === 'gemini' || !['planned', 'handoff'].includes(task.status)) {
+      return json(res, 409, { error: '只有等待交辦的外部 AI 任務可以手動交接。' });
+    }
+    if (task.status === 'planned') updateTask(task.id, { status: 'handoff', dispatchedAt: new Date().toISOString() });
     return json(res, 200, { ok: true, task: { ...task, status: 'handoff' } });
   }
   const resultMatch = url.pathname.match(/^\/api\/tasks\/([\w-]+)\/result$/);
@@ -201,6 +243,11 @@ const server = http.createServer(async (req, res) => {
     if (typeof body.response !== 'string' || !body.response.trim()) return json(res, 400, { error: '請貼上 AI 回覆。' });
     const task = loadTasks().find(item => item.id === resultMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
+    // A pasted response is evidence of manual handoff only; it must never
+    // overwrite a CLI task or fabricate success for blocked/completed work.
+    if (task.agent === 'gemini' || task.status !== 'handoff') {
+      return json(res, 409, { error: '僅允許已交辦的外部 AI 任務貼回真實回覆。' });
+    }
     updateTask(task.id, { response: body.response.trim(), status: 'done', finishedAt: new Date().toISOString() });
     await advanceTeam(task.id);
     return json(res, 200, { ok: true });
@@ -215,5 +262,13 @@ const server = http.createServer(async (req, res) => {
   if (!file.startsWith(PUBLIC_DIR) || !existsSync(file) || statSync(file).isDirectory()) return json(res, 404, { error: 'Not found' });
   sendFile(res, file);
 });
+
+
+setInterval(() => {
+  const tasks = loadTasks();
+  if (tasks.some(t => t.agent === 'gemini' && t.status === 'running')) return;
+  const queuedTask = tasks.find(t => t.agent === 'gemini' && t.status === 'queued');
+  if (queuedTask) runGemini(queuedTask);
+}, 3000);
 
 server.listen(PORT, HOST, () => console.log(`AI Workbench is running at http://${HOST}:${PORT}`));

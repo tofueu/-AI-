@@ -1,0 +1,40 @@
+name: NOVA Windows PowerShell regression
+
+on:
+  pull_request:
+    paths:
+      - 'nova.ps1'
+      - 'nova-tasks.ps1'
+      - 'nova-chat.ps1'
+      - 'start.bat'
+      - 'server.js'
+      - 'tests/nova-launch-regression.ps1'
+      - 'tests/nova-tasks-regression.ps1'
+      - 'tests/nova-chat-regression.ps1'
+      - 'tests/integration.test.js'
+      - '.github/workflows/nova-windows.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  nova-json:
+    runs-on: windows-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run actual Windows PowerShell 5.1 parser regressions
+        shell: powershell
+        run: |
+          .\tests\nova-tasks-regression.ps1
+          .\tests\nova-chat-regression.ps1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify shared NOVA task API and Codex handoff
+        shell: pwsh
+        run: npm test
+      - name: Verify backend survives launcher exit and repeat launch
+        shell: powershell
+        run: .\tests\nova-launch-regression.ps1
