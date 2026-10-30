@@ -22,11 +22,11 @@ mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
 const DEFAULT_ACCOUNTS = [
-  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', provider: 'gemini', mode: 'subscription_cli', status: 'connected', active: true, note: 'Google Antigravity CLI 官方訂閱額度', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
-  { id: 'acc_gemini_b', name: 'Gemini B (次要帳號)', provider: 'gemini', mode: 'subscription_cli', status: 'handoff_mode', active: true, note: 'CLI 單一 Profile 限制：次要帳號需切換 Profile 或手動 Handoff', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
-  { id: 'acc_codex', name: 'ChatGPT / Codex', provider: 'codex', mode: 'subscription_cli', status: 'login_required', active: true, note: 'OpenAI 官方授權槽位；使用訂閱額度', oauthUrl: 'https://auth.openai.com/authorize' },
-  { id: 'acc_claude', name: 'Claude Pro', provider: 'claude', mode: 'subscription_cli', status: 'handoff_mode', active: true, note: 'Anthropic 官方訂閱/Web Handoff 模式', oauthUrl: 'https://claude.ai/login' },
-  { id: 'acc_perplexity', name: 'Perplexity Pro', provider: 'perplexity', mode: 'subscription_cli', status: 'connected', active: true, note: 'Perplexity Pro 搜尋額度', oauthUrl: 'https://www.perplexity.ai/' }
+  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', displayName: 'Gemini Primary (Antigravity Profile A)', provider: 'gemini', profileRef: 'google_profile_a', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Google Antigravity CLI 官方訂閱 Profile A；若 CLI 不支援同時啟用，執行前請先切換至 Profile A。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_gemini_b', name: 'Gemini B (次要帳號)', displayName: 'Gemini Secondary (Antigravity Profile B)', provider: 'gemini', profileRef: 'google_profile_b', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Google Antigravity CLI Profile B：單一 CLI 限制下採官方 Profile 切換/Handoff 模式，不偽稱並行執行。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_codex', name: 'ChatGPT / Codex', displayName: 'OpenAI Codex Slot', provider: 'codex', profileRef: 'openai_default', capabilities: ['code_review', 'chat'], mode: 'subscription_cli', status: 'unlinked', active: true, note: 'OpenAI 官方授權槽位；點擊「連結」開啟官方 OAuth 頁，完成後按「再試一次」核對。', oauthUrl: 'https://auth.openai.com/authorize' },
+  { id: 'acc_claude', name: 'Claude Pro', displayName: 'Claude Pro Slot', provider: 'claude', profileRef: 'claude_default', capabilities: ['analysis', 'chat_handoff'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Anthropic 官方訂閱：請在官方網頁完成登入，點擊「再試一次」進行 Recheck。', oauthUrl: 'https://claude.ai/login' },
+  { id: 'acc_perplexity', name: 'Perplexity Pro', displayName: 'Perplexity Search Slot', provider: 'perplexity', profileRef: 'perplexity_default', capabilities: ['web_research'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Perplexity Pro 搜尋額度；支援手動/Web 流程核對。', oauthUrl: 'https://www.perplexity.ai/' }
 ];
 
 function loadAccounts() {
@@ -271,6 +271,34 @@ const server = http.createServer(async (req, res) => {
     list = list.filter(a => a.id !== deleteMatch[1]);
     saveAccounts(list);
     return json(res, 200, { ok: true });
+  }
+  const connectMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/connect$/);
+  if (req.method === 'POST' && connectMatch) {
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === connectMatch[1]);
+    if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    acc.status = 'login_in_progress';
+    saveAccounts(list);
+    return json(res, 200, { ok: true, status: 'login_in_progress', message: '已開啟官方登入/授權頁，完成後請按「再試一次」重新核對', oauthUrl: acc.oauthUrl });
+  }
+  const recheckMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/recheck$/);
+  if (req.method === 'POST' && recheckMatch) {
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === recheckMatch[1]);
+    if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    if (acc.provider === 'gemini') {
+      const cli = await checkAntigravity();
+      if (acc.id === 'acc_gemini_a') {
+        acc.status = cli.available ? 'linked' : 'prerequisites_needed';
+      } else {
+        acc.status = 'prerequisites_needed';
+      }
+    } else {
+      acc.status = acc.status === 'login_in_progress' ? 'linked' : (acc.status || 'linked');
+    }
+    acc.lastVerifiedAt = new Date().toISOString();
+    saveAccounts(list);
+    return json(res, 200, { ok: true, status: acc.status, account: acc });
   }
   const loginMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/login$/);
   if (req.method === 'POST' && loginMatch) {

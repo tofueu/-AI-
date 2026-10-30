@@ -89,6 +89,15 @@ test('Integration Test', async (t) => {
     const deleteAcc = await request('/api/accounts/' + newAccId, 'DELETE');
     assert.strictEqual(deleteAcc.status, 200);
 
+    // Connect & Recheck Flow Test
+    const connectRes = await request('/api/accounts/acc_codex/connect', 'POST');
+    assert.strictEqual(connectRes.status, 200);
+    assert.strictEqual(connectRes.body.status, 'login_in_progress');
+
+    const recheckRes = await request('/api/accounts/acc_codex/recheck', 'POST');
+    assert.strictEqual(recheckRes.status, 200);
+    assert.strictEqual(recheckRes.body.status, 'linked');
+
     const accountLogin = await request('/api/accounts/acc_gemini_a/login', 'POST');
     assert.strictEqual(accountLogin.status, 200);
     assert.ok(accountLogin.body.oauthUrl.includes('accounts.google.com'), 'Must return official OAuth redirect URL without storing credentials');

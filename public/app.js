@@ -43,18 +43,26 @@ async function loadAccounts() {
     const res = await fetch('/api/accounts').then(r=>r.json());
     if(!res.ok || !res.accounts) { container.innerHTML='<div class="empty-state">無法讀取帳號槽位資料。</div>'; return; }
     container.innerHTML = res.accounts.map(acc => {
-      const statusText = !acc.active ? '已停用' : acc.status === 'connected' ? '已連線' : acc.status === 'handoff_mode' ? 'Handoff 模式' : '需要登入';
-      const statusClass = !acc.active ? 'disabled' : acc.status === 'connected' ? 'connected' : acc.status === 'handoff_mode' ? 'handoff' : 'login';
+      const stateMap = {
+        unlinked: { text: '未連結', cls: 'unlinked' },
+        login_in_progress: { text: '官方登入進行中', cls: 'progress' },
+        linked: { text: '已連結', cls: 'connected' },
+        prerequisites_needed: { text: '需完成網站前置條件', cls: 'handoff' },
+        failed_retryable: { text: '連結失敗・可重試', cls: 'login' }
+      };
+      const st = !acc.active ? { text: '已停用', cls: 'disabled' } : (stateMap[acc.status] || { text: acc.status, cls: 'handoff' });
       const modeTag = acc.mode === 'paid_api' ? '<span class="mode-tag warning">付費 API</span>' : '<span class="mode-tag">官方訂閱/CLI</span>';
+      const profRef = acc.profileRef ? `<span class="profile-ref-tag">Profile: ${esc(acc.profileRef)}</span>` : '';
       return `<article class="account-card ${acc.active ? '' : 'inactive'}">
         <div class="account-top">
           <div><strong>${esc(acc.name)}</strong> ${modeTag}</div>
-          <span class="account-badge ${statusClass}">${statusText}</span>
+          <span class="account-badge ${st.cls}">${st.text}</span>
         </div>
         <p class="account-note">${esc(acc.note)}</p>
-        <div class="account-meta">Provider: ${esc(acc.provider.toUpperCase())} · 最後驗證：${time(acc.lastVerifiedAt)}</div>
+        <div class="account-meta">Provider: ${esc(acc.provider.toUpperCase())} ${profRef} · 最後驗證：${time(acc.lastVerifiedAt)}</div>
         <div class="account-foot">
-          <a class="mini-btn run-btn-link" href="${esc(acc.oauthUrl)}" target="_blank" rel="noopener">官方 OAuth 登入 ↗</a>
+          <button class="mini-btn run-btn-link" onclick="connectAccount('${esc(acc.id)}', '${esc(acc.oauthUrl)}')">連結 (Connect) ↗</button>
+          <button class="mini-btn text-btn highlight" onclick="recheckAccount('${esc(acc.id)}')">再試一次 (Recheck) ↻</button>
           <button class="mini-btn text-btn" onclick="toggleAccountActive('${esc(acc.id)}', ${!acc.active})">${acc.active ? '停用' : '啟用'}</button>
           <button class="mini-btn text-btn danger" onclick="deleteAccount('${esc(acc.id)}')">刪除</button>
         </div>
@@ -63,6 +71,25 @@ async function loadAccounts() {
   } catch {
     container.innerHTML = '<div class="empty-state">讀取帳號槽位失敗。</div>';
   }
+}
+
+async function connectAccount(id, url) {
+  try {
+    const res = await fetch(`/api/accounts/${id}/connect`, { method: 'POST' });
+    const data = await res.json();
+    if (url) window.open(url, '_blank', 'noopener');
+    notify(data.message || '已跳轉官方登入頁，完成後按「再試一次」核對。');
+    loadAccounts();
+  } catch(e) { notify('發起連結失敗'); }
+}
+
+async function recheckAccount(id) {
+  try {
+    const res = await fetch(`/api/accounts/${id}/recheck`, { method: 'POST' });
+    const data = await res.json();
+    notify(`帳號狀態已更新：${data.status}`);
+    loadAccounts();
+  } catch(e) { notify('重新核對失敗'); }
 }
 
 async function toggleAccountActive(id, active) {
