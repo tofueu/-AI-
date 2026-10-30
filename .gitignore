@@ -1,0 +1,7 @@
+node_modules/
+*.log
+.env
+# Personal artist PSD originals and extracted artwork must remain on localhost.
+data/nova-installed-mods/
+public/assets/nova-psd-templates/
+public/assets/nova-official/
