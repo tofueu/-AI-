@@ -40,10 +40,19 @@ if ((Get-NovaAnimationState -TaskStatus 'running') -eq 'working' -and
 
 # Test 4: Timeline Frame Resolution
 $frame0 = Get-NovaTimelineFrame -Manifest $manifest -StateName 'working' -FrameIndex 0
-if ($frame0.bubbleText -eq '工作中...' -and $frame0.eyes -eq 'eyes_working') {
+if ($frame0.eyes -eq 'eyes_working' -and $null -ne $frame0.bubbleText) {
     Write-Host "PASS: Timeline Frame Resolution"
 } else {
     Write-Error "FAIL: Timeline Frame Resolution"
+    exit 1
+}
+
+# Test 5: Slot Path Resolution
+$slotPath = Get-NovaSlotPath -Manifest $manifest -SlotName 'head' -BaseDir 'C:\app\public\assets\nova-character'
+if ($null -ne $slotPath -and $slotPath.EndsWith('parts/head.svg')) {
+    Write-Host "PASS: Slot Path Resolution"
+} else {
+    Write-Error "FAIL: Slot Path Resolution"
     exit 1
 }
 

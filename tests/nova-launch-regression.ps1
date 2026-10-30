@@ -7,6 +7,7 @@ if ($listener) { throw "Port 4173 is already in use before the launcher test" }
 
 $env:NOVA_NO_OVERLAY = '1'
 $env:NOVA_NO_BROWSER = '1'
+$env:NOVA_NO_APP_WINDOW = "1"
 try {
     Push-Location $root
     try {
