@@ -61,6 +61,7 @@ export async function installPsdCharacter(root,psdBytes,style,{id=null}={}){
  const partById=new Map(rig.parts.map(p=>[p.id,p]));
  const rest=worldMatrices(rig,{});
  const planned=[];const warnings=[];const choices=new Map();
+ rig.variantPivots={};
  let baseCount=0;
  for(const layer of raw.layers){
   const part=partById.get(layer.part);
