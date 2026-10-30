@@ -153,20 +153,48 @@ $window.Add_MouseLeftButtonDown({
 # Right-click opens NOVA chat window
 $window.Add_MouseRightButtonUp({ Show-NovaChatWindow })
 
-$frameStep = 0
+# Separate 12-fps animation from 1-second Workbench API polling.
+# Otherwise the old 500ms timer only displayed 2 frames/second.
+$script:novaFrameStep = 0
+$script:novaCachedTasks = @()
+$script:novaApiOnline = $false
+$script:novaNextPoll = [DateTime]::MinValue
+$script:novaLastAction = ''
+$script:novaLastStyle = ''
+$script:novaActionStarted = [DateTime]::UtcNow
 $timer = New-Object System.Windows.Threading.DispatcherTimer
-$timer.Interval = [TimeSpan]::FromMilliseconds(500)
+$timer.Interval = [TimeSpan]::FromMilliseconds(83)
 
 $timer.Add_Tick({
     try {
-        $http = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:4173/api/tasks" -TimeoutSec 1
-        $response = ConvertTo-NovaTaskArray -Json ([string]$http.Content)
-
-        $colorName = Get-NovaTaskColor -Tasks $response
-        $animState = Get-NovaAnimationState -TaskStatus ($response | Select-Object -First 1).status
-
-        $frameStep++
-        $frame = Get-NovaTimelineFrame -Manifest $mod -StateName $animState -FrameIndex $frameStep
+        if ([DateTime]::UtcNow -ge $script:novaNextPoll) {
+            $script:novaNextPoll = [DateTime]::UtcNow.AddSeconds(1)
+            try {
+                $http = Invoke-WebRequest -UseBasicParsing -Uri "http://127.0.0.1:4173/api/tasks" -TimeoutSec 1
+                $script:novaCachedTasks = @(ConvertTo-NovaTaskArray -Json ([string]$http.Content))
+                $script:novaApiOnline = $true
+            } catch { $script:novaApiOnline = $false }
+            if ($null -eq $officialManifest) {
+                try {
+                    $officialManifest = Get-NovaOfficialManifest -Path (Join-Path $officialRoot 'manifest.json')
+                } catch { $officialManifest = $null }
+            }
+        }
+        $response = @($script:novaCachedTasks)
+        $colorName = if ($script:novaApiOnline) { Get-NovaTaskColor -Tasks $response } else { 'Gray' }
+        # Select the highest priority active task, not simply the most recent task.
+        $currentStatus = 'idle'
+        if ($script:novaApiOnline) {
+            foreach ($candidate in @('error', 'running', 'handoff', 'ready_for_approval', 'waiting_research', 'queued', 'done')) {
+                if (@($response | Where-Object { $_.status -eq $candidate }).Count -gt 0) {
+                    $currentStatus = $candidate
+                    break
+                }
+            }
+        }
+        $animState = Get-NovaAnimationState -TaskStatus $currentStatus
+        $script:novaFrameStep++
+        $frame = Get-NovaTimelineFrame -Manifest $mod -StateName $animState -FrameIndex $script:novaFrameStep
 
         # Render timeline frame values
         if ($null -ne $frame.headY) { $headTransY.Y = [double]$frame.headY }
@@ -175,7 +203,17 @@ $timer.Add_Tick({
         if ($null -ne $frame.bubbleText) { $bubbleText.Text = [string]$frame.bubbleText }
         if ($null -ne $officialManifest) {
             try {
-                $imagePath = Get-NovaOfficialFrame -Manifest $officialManifest -Root $officialRoot -Style $script:activeOfficialStyle -Action $animState -FrameIndex $frameStep
+                if ($script:novaLastAction -ne $animState -or $script:novaLastStyle -ne $script:activeOfficialStyle) {
+                    $script:novaActionStarted = [DateTime]::UtcNow
+                    $script:novaLastAction = $animState
+                    $script:novaLastStyle = $script:activeOfficialStyle
+                }
+                $character = $officialManifest.characters.($script:activeOfficialStyle)
+                $timeline = $character.animations.$animState
+                if ($null -eq $timeline) { $timeline = $character.animations.idle }
+                $fps = if ($null -ne $timeline) { [double]$timeline.fps } else { 8.0 }
+                $actualFrame = [int][math]::Floor(([DateTime]::UtcNow - $script:novaActionStarted).TotalSeconds * $fps)
+                $imagePath = Get-NovaOfficialFrame -Manifest $officialManifest -Root $officialRoot -Style $script:activeOfficialStyle -Action $animState -FrameIndex $actualFrame
                 if ($imagePath -and $imagePath -ne $script:lastOfficialPath) {
                     Set-NovaOfficialImage -Image $officialSprite -Path $imagePath
                     $script:lastOfficialPath = $imagePath
@@ -183,7 +221,13 @@ $timer.Add_Tick({
                     $officialSprite.Visibility = 'Collapsed'
                     $script:lastOfficialPath = ''
                 }
-                if ($script:activeOfficialStyle -eq 'mature') { $bubbleText.Text = '成熟版：動作分層待製作' }
+                if ($script:novaApiOnline) {
+                    if ($currentStatus -eq 'running') { $bubbleText.Text = '打電腦中…' }
+                    elseif ($currentStatus -eq 'error') { $bubbleText.Text = '任務出錯' }
+                    elseif ($currentStatus -eq 'handoff') { $bubbleText.Text = '等待授權' }
+                    elseif ($currentStatus -eq 'done') { $bubbleText.Text = '完成！' }
+                    else { $bubbleText.Text = 'NOVA 陪伴中' }
+                } else { $bubbleText.Text = '工作台離線' }
             } catch {
                 $officialSprite.Visibility = 'Collapsed'
                 $bubbleText.Text = 'NOVA MOD 素材讀取失敗'
