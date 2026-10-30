@@ -1,42 +1,66 @@
-# NOVA 官方角色與 AI Workbench 整合 — 2026-10-30
+# NOVA 官方形象：原圖永久保存、逐格動畫與工作台整合
 
-## 已完成
-- 新增工作台網頁版 NOVA MOD 播放器、可拖曳浮窗、Q／成熟版切換、呼叫真實任務 API 的對話交辦、動畫狀態轉換。
-- MOD 2.0 格式只接受本機相對 PNG/WEBP 資源，不接受腳本、外部網址或路徑穿越。
-- 角色設計嚴格以使用者提供的兩張 NOVA 圖為準，不以幾何替身冒充正式角色。
+更新：2026-10-30。只在功能分支與 Draft PR #22 修改；未合併 main。
 
-## 官方角色素材的實際狀態
-- Q 版：官方原始透明圖裁切待機、表情、部分動畫幀，未完成全部小幀的逐格美術檢查。
-- 成熟版：原始角色三視圖參考，背景尚非透明，沒有完整動作與 PSD 分層。
-- rig.json：僅有關節位置模板，尚未完成真正可動 PSD、蒙皮權重、物理模擬。
-- 官方角色 ZIP 是另行交付的使用者素材；本 PR 不含 ZIP 二進位，因此未解壓時 UI 明確顯示尚未安裝，不會假裝載入成功。
-- Windows WPF 的 nova.ps1 已新增以官方 PNG 格式取代舊幾何圖的 renderer，缺少素材時提示安裝，尚未完成 Windows 真機驗收。
+## 資料真實狀態
 
-## 如何安裝素材
-把 NOVA 官方角色 MOD 初版 ZIP 解壓到此 repo 的 public/assets/nova-official/ ，目錄下應有 manifest.json 和 characters/chibi/sprites/idle.png。
-啟動 npm start，在工作台右下角切換角色，點「對話」提交真實任務。
-Gemini 必須有實際絕對工作區路徑；Codex、Perplexity、Grok 目前仍有 handoff，不代表自動執行成功。
+- **使用者提供的 Q 版與成熟版兩張原始 PNG**：以原始位元組備份在 Git 的 source split ZIP 中，能校驗並恢復；保留它們作為官方形象的唯一原始設定。
+- **動畫 MOD**：已從使用者 Q 版原圖，以及依照原圖衍生的打電腦姿勢圖，產生並保存共 **96 個檔案**；包含真正不同的 Q 版打電腦 **12 幀**、成熟版打電腦 **12 幀**，**12 fps**。不是把一張工作圖重複引用。
+- **其他動作**：Q／成熟版待機各 8 幀；Q 版揮手 8 幀、睡眠 8 幀、走路 8 幀、跑步 8 幀、跳躍 6 幀。所有列入 manifest 的檔案皆存在。
+- **動畫品質限制**：目前屬 2D 逐格／圖層平移動畫原型（手部敲擊、身體起伏、微晃）；不是已綁定權重的 Live2D、不是完整手肘／手腕骨架，也不是完成的 PSD。成熟版打字姿勢是 AI 衍生圖而非官方原圖本身。
+- **工作台**：Web NOVA MOD player 使用 /api/tasks 真實狀態與對話交辦；Windows WPF 角色現已支援 PNG 逐幀播放、12fps timer、約每秒 API 同步與影格快取；**還沒有 Windows 真機 UI 驗收**。
+- **外部 AI 登入**：只達到真實資料收集與 fail-closed UI；Codex/Perplexity/Grok 仍可能是 handoff，不能偽稱登入成功。
 
-## MOD manifest v2
-頂層 format 必須是 nova.character.mod，manifestVersion 為數字 2。
-characters.chibi / characters.mature 各自提供 root 相對素材目錄；animations 為每個狀態的 fps、frames 陣列。
-成熟版尚無動畫時，可用 views.front 顯示參考圖。
-不能執行 MOD 提供的 JavaScript、PowerShell 或 Python；ZIP 安裝器尚未製作，之後應檢查數量、檔案大小、壓縮炸彈、CRC、符號連結和重複路徑。
+## Git 位置：永久保存不再靠對話附件
 
-## Buzz 與 PlayPort
-Buzz 借鏡：每個 Agent 獨立身份、群組對話、官方本機 harness、真實任務狀態。
-PlayPort 借鏡：不同服務的授權 session 隔離、持久化、登入失敗需要真實狀態。
-不能把可打開登入網站視為已取得授權，也不能聲稱 Gemini/Codex 多帳號已被自動驗證。
+```text
+art/nova-official/
+├── runtime/
+│   └── NOVA_official_runtime_v0.2.zip.part00..15  (96 個 MOD 檔案)
+└── source/
+    └── NOVA_official_source_v0.2.zip.part00..27   (兩張原始 PNG)
+nova-official-installer.js
+nova-official-sprite.ps1
+public/nova-official-player.js
+public/nova-official-player.css
+tests/nova-official-assets.test.js
+scripts/restore-nova-source.js
+```
 
-## 仍待完成
-1. 高解析來源的 Q／成熟版 PSD 分層、關節綁定、動作補幀與正式對齊。
-2. WPF PNG renderer 已加入，但仍需 Windows 真機測試、逐幀對齊及後續真正 Live2D/關節蒙皮。
-3. 多帳號官方 OAuth/CLI 實際核驗、獨立 session 與可靠恢復。
-4. 真機安裝與 UI 測試、MOD 一鍵匯入與安全驗證。
-5. 本 PR 必須在 CI 通過及真機驗收後才可合併。
+**runtime 原 ZIP SHA-256**：
+`7cd65ca41ba949ff2387c8e9a7a6e762aea92bc5dd156b9044a95b1beec37905`
 
-## 開發測試
-Node.js 22: npm test ; npm run check。
+**source 原 ZIP SHA-256**：
+`23f9fe676e9eabed1cdf9122dcf5ff38e49afc3b66bae4f265662e9bc15debf7`
 
-## Windows 啟動
-在 Windows PowerShell 5.1 執行 nova.ps1；若尚未把官方 PNG ZIP 解壓至 public/assets/nova-official，桌寵顯示缺少素材而不使用幾何人物冒充。右鍵選官方 Q 版或成熟版；成熟版目前是靜態參考圖，不能宣稱已綁定關節。
+原始 Q 版 PNG SHA-256：
+`fbee4aea0cb5bf14a77b3af7be4690b10675d492e153be78954d05e85394617d`
+
+原始成熟版 PNG SHA-256：
+`c4fe14e3d8ee5b8172755bcb4bdb900c683dc8164529bc1467b4d12b75954744`
+
+GitHub connector 的單次二進位上傳量有限，因此 **ZIP 分割成固定大小的真正 Git blob**；每個 part 不是文字連結、不是外部依賴。安裝程式用編號組合後核對完整 SHA-256，再檢查 ZIP CRC、路徑穿越、檔案數與檔案大小，才展開透明 PNG。
+
+## 啟動與還原
+
+1. 下載包含本 PR 的 Git checkout，在 Windows 裝好 Node.js 22。
+2. `npm start`。伺服器啟動時自動從 Git 的 16 個 runtime part 還原并安裝至 `public/assets/nova-official/`。不必重複傳圖、不必自己手動解包。
+3. 在 Web 工作台右下角可看到 NOVA；選 Q 版或成熟版。任務為 running 時讀取 `working` 動作，**每秒播放 12 張不同 PNG**；離線時不偽造成功。
+4. Windows 原生桌寵使用 PowerShell 5.1 執行 `nova.ps1`，需先啟動伺服器完成素材安裝。右鍵可切換官方 Q 版與成熟版。
+5. 如需恢復未加工的原始圖片：`node scripts/restore-nova-source.js`，得到 `art/nova-official/NOVA_official_source_v0.2.zip`，解壓得到兩張原圖。
+
+## 動畫規格
+
+`manifest.json` = `format: nova.character.mod`、`manifestVersion: 2`，每個角色有獨立的 `root`、`animations`、`fps`、`frames`。動作循環期間依 frame index 播放，不能只用一張 PNG 假裝 12 幀。Q／成熟版 `working` / `typing` 各 12 幀，12fps；每個 SHA-256 不相同。
+
+## 安全與授權
+
+- 官方 archive 只允許安全的本機 PNG、JSON、README；不能放可執行 MOD 程式，ZIP 解包必須通過 CRC、完整性、反穿越路徑等檢查。
+- 原圖由使用者提供，社群散佈授權 **尚未被確認**。請在公開釋出前明確取得權利並選擇 MOD 授權，不要擅自宣稱 MIT/CC BY 適用於美術。
+- Buzz 可參考分工聊天與代理身份；PlayPort 可參考多帳號 session 隔離；本 PR 沒有藉此假裝已獲得任一第三方 AI 的 OAuth 授權。
+
+## 測試與剩餘工作
+
+`npm run check`、`npm test`、Windows 原生 `nova.ps1`。新增測試檢查 96 個檔案、24 張打字幀唯一性、兩張原圖的 SHA 與 ZIP 損壞拒絕。
+
+**仍待**：完整 Live2D/PSD 關節分層、表情嘴型與物理髮絲、成熟版完整動作（走、跑、跳）、Windows 真機視覺驗收、外部提供者多帳號登入驗證、第三方 MOD 一鍵匯入與作者上傳平台。
