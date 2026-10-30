@@ -46,6 +46,34 @@ export function validateRig(raw) {
     assert(Array.isArray(p.pivot) && p.pivot.length===2 && p.pivot.every(n=>bounded(n,-4096,4096)),'part pivot invalid');
     assert(p.z===undefined||bounded(p.z,-1000,1000),'part z-order invalid');
   }
+  // Every wardrobe option is pure image data. No scripts, remote URLs, or arbitrary bone names.
+  if(raw.wardrobe!==undefined){
+    assert(raw.wardrobe && typeof raw.wardrobe==='object' && !Array.isArray(raw.wardrobe),'wardrobe must be a category map');
+    const categories=Object.keys(raw.wardrobe);
+    assert(categories.length<=8,'too many wardrobe categories');
+    for(const category of categories){
+      assert(/^[a-z][a-z0-9_]{1,29}$/.test(category),'invalid wardrobe category');
+      const options=raw.wardrobe[category];
+      assert(options && typeof options==='object' && !Array.isArray(options),'invalid wardrobe options');
+      const keys=Object.keys(options);
+      assert(keys.length>=1 && keys.length<=20,'wardrobe option count invalid');
+      for(const option of keys){
+        assert(/^[a-z][a-z0-9_]{1,29}$/.test(option),'invalid wardrobe option name');
+        const overrides=options[option];
+        assert(overrides && typeof overrides==='object' && !Array.isArray(overrides),'invalid wardrobe override');
+        for(const [partId,file] of Object.entries(overrides)){
+          assert(parts.has(partId),'wardrobe refers to unknown part '+partId);
+          assert(file===null||safeImagePath(file),'wardrobe images must be local PNG/WebP paths');
+        }
+      }
+      if(raw.defaultAppearance?.[category]!==undefined)
+        assert(own(options,raw.defaultAppearance[category]),'default wardrobe option is missing');
+    }
+  }
+  if(raw.defaultAppearance!==undefined){
+    assert(raw.defaultAppearance && typeof raw.defaultAppearance==='object' && !Array.isArray(raw.defaultAppearance),'invalid default appearance');
+    for(const category of Object.keys(raw.defaultAppearance))assert(own(raw.wardrobe||{},category),'default appearance has unknown category');
+  }
   assert(raw.clips && typeof raw.clips==='object' && !Array.isArray(raw.clips) && Object.keys(raw.clips).length<=32,'invalid clips');
   for(const [name,clip] of Object.entries(raw.clips)){
     assert(/^[a-z][a-z0-9_]{1,29}$/.test(name),'invalid clip name');
@@ -107,13 +135,28 @@ export function worldMatrices(rig,pose){
   }
   return output;
 }
+/** Returns named categories and available variants, for a data-only visual outfit selector. */
+export function wardrobeChoices(rig){
+  return Object.fromEntries(Object.entries(rig.wardrobe||{}).map(([category,options])=>[category,Object.keys(options)]));
+}
+/** Resolve a layer after applying choices. A null variant hides the layer. */
+export function resolveLayer(rig,part,appearance={}){
+  let file=part.file;
+  const selection={...(rig.defaultAppearance||{}),...appearance};
+  for(const [category,option] of Object.entries(selection)){
+    const values=rig.wardrobe?.[category]?.[option];
+    if(values && own(values,part.id))file=values[part.id];
+  }
+  return file;
+}
 /** Draw uploaded artist layers against the shared rig. Image resources are already validated. */
-export function paintRig(ctx,rig,pose,images){
+export function paintRig(ctx,rig,pose,images,appearance={}){
   const world=worldMatrices(rig,pose);
   const sorted=[...rig.parts].sort((a,b)=>(a.z||0)-(b.z||0));
   ctx.save();
   for(const p of sorted){
-    const img=images[p.file];if(!img)continue;
+    const file=resolveLayer(rig,p,appearance);if(!file)continue;
+    const img=images[file];if(!img)continue;
     const [a,b,c,d,tx,ty]=world[p.bone];
     ctx.setTransform(a,b,c,d,tx,ty);
     ctx.drawImage(img,-p.pivot[0],-p.pivot[1]);
