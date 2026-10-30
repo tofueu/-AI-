@@ -81,7 +81,7 @@ export async function installPsdCharacter(root,psdBytes,style,{id=null}={}){
   if(layer.kind==='part'){
    part.file=filename;
    part.pivot=pivot;
-  }else rig.wardrobe[layer.category][layer.option][part.id]=filename;
+  }else{rig.wardrobe[layer.category][layer.option][part.id]=filename;rig.variantPivots[filename]=pivot;}
  }
  if(baseCount<2 || !planned.some(x=>x.layer.kind==='part'&&x.part.id==='head') || !planned.some(x=>x.layer.kind==='part'&&x.part.id==='torso'))
   throw Error('至少需要在 PART__head 和 PART__torso 畫出非透明內容；目前模板仍是空白，不能安裝');
