@@ -43,17 +43,20 @@ async function loadAccounts() {
     const res = await fetch('/api/accounts').then(r=>r.json());
     if(!res.ok || !res.accounts) { container.innerHTML='<div class="empty-state">無法讀取帳號槽位資料。</div>'; return; }
     container.innerHTML = res.accounts.map(acc => {
-      const statusText = acc.status === 'connected' ? '已連線' : acc.status === 'handoff_mode' ? 'Handoff 模式' : '需要登入';
-      const statusClass = acc.status === 'connected' ? 'connected' : acc.status === 'handoff_mode' ? 'handoff' : 'login';
-      return `<article class="account-card">
+      const statusText = !acc.active ? '已停用' : acc.status === 'connected' ? '已連線' : acc.status === 'handoff_mode' ? 'Handoff 模式' : '需要登入';
+      const statusClass = !acc.active ? 'disabled' : acc.status === 'connected' ? 'connected' : acc.status === 'handoff_mode' ? 'handoff' : 'login';
+      const modeTag = acc.mode === 'paid_api' ? '<span class="mode-tag warning">付費 API</span>' : '<span class="mode-tag">官方訂閱/CLI</span>';
+      return `<article class="account-card ${acc.active ? '' : 'inactive'}">
         <div class="account-top">
-          <strong>${esc(acc.name)}</strong>
+          <div><strong>${esc(acc.name)}</strong> ${modeTag}</div>
           <span class="account-badge ${statusClass}">${statusText}</span>
         </div>
         <p class="account-note">${esc(acc.note)}</p>
-        <div class="account-meta">最後驗證：${time(acc.lastVerifiedAt)}</div>
+        <div class="account-meta">Provider: ${esc(acc.provider.toUpperCase())} · 最後驗證：${time(acc.lastVerifiedAt)}</div>
         <div class="account-foot">
           <a class="mini-btn run-btn-link" href="${esc(acc.oauthUrl)}" target="_blank" rel="noopener">官方 OAuth 登入 ↗</a>
+          <button class="mini-btn text-btn" onclick="toggleAccountActive('${esc(acc.id)}', ${!acc.active})">${acc.active ? '停用' : '啟用'}</button>
+          <button class="mini-btn text-btn danger" onclick="deleteAccount('${esc(acc.id)}')">刪除</button>
         </div>
       </article>`;
     }).join('');
@@ -61,6 +64,50 @@ async function loadAccounts() {
     container.innerHTML = '<div class="empty-state">讀取帳號槽位失敗。</div>';
   }
 }
+
+async function toggleAccountActive(id, active) {
+  try {
+    const res = await fetch(`/api/accounts/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ active })
+    });
+    if(!res.ok) throw new Error('更新失敗');
+    notify(active ? '帳號槽位已啟用' : '帳號槽位已停用');
+    loadAccounts();
+  } catch(e) { notify(e.message); }
+}
+
+async function deleteAccount(id) {
+  if(!confirm('確定要移除此帳號槽位？')) return;
+  try {
+    const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
+    if(!res.ok) throw new Error('刪除失敗');
+    notify('帳號槽位已刪除');
+    loadAccounts();
+  } catch(e) { notify(e.message); }
+}
+
+$('#addAccountBtn')?.addEventListener('click', () => { $('#addAccountDialog').showModal(); });
+$('#saveAccountBtn')?.addEventListener('click', async () => {
+  const name = $('#newAccName').value.trim();
+  const provider = $('#newAccProvider').value;
+  const mode = $('#newAccMode').value;
+  if(!name) return notify('請輸入帳號名稱');
+  try {
+    const res = await fetch('/api/accounts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, provider, mode })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || '新增失敗');
+    $('#newAccName').value = '';
+    $('#addAccountDialog').close();
+    notify('帳號槽位新增成功');
+    loadAccounts();
+  } catch(e) { notify(e.message); }
+});
 function renderTasks() {
   const allRoots=taskCache.filter(t=>t.kind==='parent'||(!t.parentId&&t.kind!=='child'));
   const roots=onlyActive?allRoots.filter(root=>root.status!=='done'):allRoots;

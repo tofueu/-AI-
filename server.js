@@ -12,6 +12,7 @@ const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
 const DATA_FILE = process.env.TEST_DATA_FILE ? path.resolve(process.env.TEST_DATA_FILE) : path.join(DATA_DIR, 'tasks.json');
+const ACCOUNTS_FILE = process.env.TEST_ACCOUNTS_FILE ? path.resolve(process.env.TEST_ACCOUNTS_FILE) : path.join(DATA_DIR, 'accounts.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
@@ -19,6 +20,28 @@ const PUBLIC_DIR = path.join(ROOT, 'public');
 
 mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
+
+const DEFAULT_ACCOUNTS = [
+  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', provider: 'gemini', mode: 'subscription_cli', status: 'connected', active: true, note: 'Google Antigravity CLI 官方訂閱額度', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_gemini_b', name: 'Gemini B (次要帳號)', provider: 'gemini', mode: 'subscription_cli', status: 'handoff_mode', active: true, note: 'CLI 單一 Profile 限制：次要帳號需切換 Profile 或手動 Handoff', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_codex', name: 'ChatGPT / Codex', provider: 'codex', mode: 'subscription_cli', status: 'login_required', active: true, note: 'OpenAI 官方授權槽位；使用訂閱額度', oauthUrl: 'https://auth.openai.com/authorize' },
+  { id: 'acc_claude', name: 'Claude Pro', provider: 'claude', mode: 'subscription_cli', status: 'handoff_mode', active: true, note: 'Anthropic 官方訂閱/Web Handoff 模式', oauthUrl: 'https://claude.ai/login' },
+  { id: 'acc_perplexity', name: 'Perplexity Pro', provider: 'perplexity', mode: 'subscription_cli', status: 'connected', active: true, note: 'Perplexity Pro 搜尋額度', oauthUrl: 'https://www.perplexity.ai/' }
+];
+
+function loadAccounts() {
+  try {
+    if (!existsSync(ACCOUNTS_FILE)) {
+      writeFileSync(ACCOUNTS_FILE, JSON.stringify(DEFAULT_ACCOUNTS, null, 2), 'utf8');
+      return DEFAULT_ACCOUNTS;
+    }
+    const data = JSON.parse(readFileSync(ACCOUNTS_FILE, 'utf8'));
+    return Array.isArray(data) ? data : DEFAULT_ACCOUNTS;
+  } catch {
+    return DEFAULT_ACCOUNTS;
+  }
+}
+function saveAccounts(accounts) { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2), 'utf8'); }
 
 function loadTasks() {
   // Never turn a corrupt/unreadable task ledger into an empty queue: the next
@@ -196,44 +219,65 @@ const server = http.createServer(async (req, res) => {
     return json(res, 200, { ok: true, cli, perplexity, grok, platform: os.platform(), defaultWorkspace: process.cwd() });
   }
   if (req.method === 'GET' && url.pathname === '/api/accounts') {
-    const cli = await checkAntigravity();
+    const accounts = loadAccounts();
     const now = new Date().toISOString();
-    const accounts = [
-      {
-        id: 'gemini_a',
-        name: 'Gemini A (主帳號)',
-        provider: 'gemini',
-        status: cli.available ? 'connected' : 'login_required',
-        lastVerifiedAt: now,
-        oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-        note: 'Antigravity CLI 主要登入槽位。'
-      },
-      {
-        id: 'gemini_b',
-        name: 'Gemini B (次要帳號)',
-        provider: 'gemini',
-        status: 'handoff_mode',
-        lastVerifiedAt: now,
-        oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
-        note: 'CLI 單一 Profile 限制：切換次要帳號採官方 Profile 登出/切換手動 Handoff 模式，不偽稱雙帳號同時背景執行。'
-      },
-      {
-        id: 'codex',
-        name: 'ChatGPT / Codex',
-        provider: 'codex',
-        status: 'login_required',
-        lastVerifiedAt: now,
-        oauthUrl: 'https://auth.openai.com/authorize',
-        note: 'OpenAI 官方授權槽位；僅跳轉官方登入，不內嵌密碼或複製 Cookie。'
-      }
-    ];
-    return json(res, 200, { ok: true, accounts });
+    return json(res, 200, { ok: true, accounts: accounts.map(a => ({ ...a, lastVerifiedAt: now })) });
   }
-  if (req.method === 'POST' && url.pathname.match(/^\/api\/accounts\/([\w-]+)\/login$/)) {
-    const match = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/login$/);
-    const slotId = match[1];
-    const targetUrl = slotId.startsWith('gemini') ? 'https://accounts.google.com/o/oauth2/v2/auth' : 'https://auth.openai.com/authorize';
-    return json(res, 200, { ok: true, message: '請在開啟的官方瀏覽器頁面完成登入與授權', oauthUrl: targetUrl });
+  if (req.method === 'POST' && url.pathname === '/api/accounts') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+    const { name, provider, mode } = body;
+    if (!name || typeof name !== 'string' || !name.trim()) return json(res, 400, { error: '請輸入帳號名稱' });
+    const validProviders = ['gemini', 'codex', 'claude', 'copilot', 'grok', 'perplexity', 'mistral', 'deepseek', 'meta', 'qwen', 'kimi', 'poe', 'huggingface', 'ollama', 'custom'];
+    if (!validProviders.includes(provider)) return json(res, 400, { error: '請選擇有效的 Provider' });
+    const isPaid = mode === 'paid_api';
+    const oauthUrls = {
+      gemini: 'https://accounts.google.com/o/oauth2/v2/auth',
+      codex: 'https://auth.openai.com/authorize',
+      claude: 'https://claude.ai/login',
+      perplexity: 'https://www.perplexity.ai/',
+      grok: 'https://grok.com/'
+    };
+    const newAcc = {
+      id: 'acc_' + randomUUID().slice(0, 8),
+      name: name.trim(),
+      provider,
+      mode: isPaid ? 'paid_api' : 'subscription_cli',
+      status: 'login_required',
+      active: true,
+      note: isPaid ? '警告：已手動啟用付費 API 模式，可能產生額外費用；不會自動 Fallback。' : '使用官方登入訂閱額度／官方 CLI 工具。',
+      oauthUrl: oauthUrls[provider] || 'https://google.com'
+    };
+    const list = loadAccounts();
+    list.push(newAcc);
+    saveAccounts(list);
+    return json(res, 201, { ok: true, account: newAcc });
+  }
+  const patchMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)$/);
+  if (req.method === 'PATCH' && patchMatch) {
+    let body;
+    try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === patchMatch[1]);
+    if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    if (typeof body.active === 'boolean') acc.active = body.active;
+    if (typeof body.name === 'string' && body.name.trim()) acc.name = body.name.trim();
+    saveAccounts(list);
+    return json(res, 200, { ok: true, account: acc });
+  }
+  const deleteMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)$/);
+  if (req.method === 'DELETE' && deleteMatch) {
+    let list = loadAccounts();
+    list = list.filter(a => a.id !== deleteMatch[1]);
+    saveAccounts(list);
+    return json(res, 200, { ok: true });
+  }
+  const loginMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/login$/);
+  if (req.method === 'POST' && loginMatch) {
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === loginMatch[1]);
+    const oauthUrl = acc?.oauthUrl || 'https://accounts.google.com/o/oauth2/v2/auth';
+    return json(res, 200, { ok: true, message: '請在開啟的官方瀏覽器頁面完成登入與授權', oauthUrl });
   }
   if (req.method === 'GET' && url.pathname === '/api/tasks') return json(res, 200, loadTasks().sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
   if (req.method === 'POST' && url.pathname === '/api/tasks') {

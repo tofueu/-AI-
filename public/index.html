@@ -45,7 +45,7 @@
         </div>
       </section>
 
-      <section class="section" id="accountsView"><div class="section-head"><div><h2>帳號設定 (Settings > Accounts)</h2><p>具名帳號槽位與官方授權連線狀態</p></div><button class="text-btn" id="refreshAccountsBtn">重新驗證帳號 ↻</button></div>
+      <section class="section" id="accountsView"><div class="section-head"><div><h2>帳號與 Provider 註冊庫 (Settings > Accounts)</h2><p>新增、命名、停用與管理動態 AI 帳號槽位</p></div><button class="run-btn" id="addAccountBtn"><span>新增帳號槽位</span><b>+</b></button></div>
         <div class="account-slots-grid" id="accountSlotsList"></div>
       </section>
 
@@ -54,6 +54,32 @@
     </main>
   </div>
   <div class="toast" id="toast"></div>
+  <dialog id="addAccountDialog"><form method="dialog"><div class="dialog-top"><div><span class="eyebrow">ACCOUNT REGISTRY</span><h2>新增 Provider / 帳號槽位</h2></div><button class="icon-btn" value="close">×</button></div>
+    <div class="modal-form"><label>帳號名稱<input id="newAccName" placeholder="例如：Gemini 團隊帳號 B / Claude 工作室"></label>
+    <label>Provider 類型<select id="newAccProvider">
+      <option value="gemini">Gemini / Jules / Antigravity</option>
+      <option value="codex">ChatGPT / Codex</option>
+      <option value="claude">Claude</option>
+      <option value="copilot">Copilot</option>
+      <option value="grok">Grok</option>
+      <option value="perplexity">Perplexity</option>
+      <option value="mistral">Mistral</option>
+      <option value="deepseek">DeepSeek</option>
+      <option value="meta">Meta Llama</option>
+      <option value="qwen">Qwen</option>
+      <option value="kimi">Kimi</option>
+      <option value="poe">Poe</option>
+      <option value="huggingface">Hugging Face</option>
+      <option value="ollama">Ollama / LM Studio (Local)</option>
+      <option value="custom">自訂 Provider</option>
+    </select></label>
+    <label>訂閱 / 扣款模式<select id="newAccMode">
+      <option value="subscription_cli">預設：官方登入/訂閱額度 (免額外 API 費)</option>
+      <option value="paid_api">付費 API 模式 (需手動另選，可能產生費用)</option>
+    </select></label></div>
+    <div class="dialog-actions"><button class="secondary-btn" value="close">取消</button><button class="run-btn" type="button" id="saveAccountBtn">建立槽位 <b>✓</b></button></div>
+  </form></dialog>
+
   <dialog id="resultDialog"><form method="dialog"><div class="dialog-top"><div><span class="eyebrow">TASK RESULT</span><h2 id="dialogTitle">任務結果</h2></div><button class="icon-btn">×</button></div><pre id="resultText"></pre><div id="pasteArea" class="paste-area hidden"><label>貼上 Perplexity / Grok 的回覆<textarea id="manualResult" placeholder="把官方介面的回答貼在這裡，儲存後就會加入任務紀錄。"></textarea></label><button type="button" class="run-btn" id="saveResult">儲存回覆 <b>✓</b></button></div><div class="dialog-actions"><button class="secondary-btn" value="close">關閉</button><button class="run-btn" type="button" id="copyPrompt">複製任務內容 <b>⧉</b></button></div></form></dialog>
   <script src="/app.js" defer></script>
 </body>

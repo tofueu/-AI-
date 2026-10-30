@@ -61,15 +61,35 @@ test('Integration Test', async (t) => {
     assert.strictEqual(typeof health.body.perplexity, 'boolean');
     assert.strictEqual(typeof health.body.grok, 'boolean');
 
-    // 1b. Check Named Account Slots (/api/accounts)
+    // 1b. Check Dynamic Provider Account Registry (/api/accounts)
     const accounts = await request('/api/accounts');
     assert.strictEqual(accounts.status, 200);
     assert.ok(Array.isArray(accounts.body.accounts), 'Accounts list should be an array');
-    assert.ok(accounts.body.accounts.some(a => a.id === 'gemini_a'), 'Gemini A account slot must exist');
-    assert.ok(accounts.body.accounts.some(a => a.id === 'gemini_b'), 'Gemini B account slot must exist');
-    assert.ok(accounts.body.accounts.some(a => a.id === 'codex'), 'ChatGPT / Codex account slot must exist');
+    assert.ok(accounts.body.accounts.some(a => a.id === 'acc_gemini_a'), 'Gemini A account slot must exist');
 
-    const accountLogin = await request('/api/accounts/gemini_a/login', 'POST');
+    // Create a new account slot dynamically
+    const createAcc = await request('/api/accounts', 'POST', {
+      name: 'Claude Test Studio',
+      provider: 'claude',
+      mode: 'paid_api'
+    });
+    assert.strictEqual(createAcc.status, 201);
+    assert.strictEqual(createAcc.body.account.name, 'Claude Test Studio');
+    assert.strictEqual(createAcc.body.account.mode, 'paid_api');
+    assert.match(createAcc.body.account.note, /警告：已手動啟用付費 API 模式/);
+
+    const newAccId = createAcc.body.account.id;
+
+    // Toggle active status
+    const toggleAcc = await request('/api/accounts/' + newAccId, 'PATCH', { active: false });
+    assert.strictEqual(toggleAcc.status, 200);
+    assert.strictEqual(toggleAcc.body.account.active, false);
+
+    // Delete account
+    const deleteAcc = await request('/api/accounts/' + newAccId, 'DELETE');
+    assert.strictEqual(deleteAcc.status, 200);
+
+    const accountLogin = await request('/api/accounts/acc_gemini_a/login', 'POST');
     assert.strictEqual(accountLogin.status, 200);
     assert.ok(accountLogin.body.oauthUrl.includes('accounts.google.com'), 'Must return official OAuth redirect URL without storing credentials');
 
