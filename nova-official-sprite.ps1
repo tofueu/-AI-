@@ -52,12 +52,18 @@ function Set-NovaOfficialImage {
     param([Parameter(Mandatory=$true)]$Image,[string]$Path)
     if (-not $Path) { $Image.Visibility='Collapsed'; return }
     # Image uses true original PNG transparency. No WPF-drawn pretend character.
-    $bitmap=New-Object System.Windows.Media.Imaging.BitmapImage
-    $bitmap.BeginInit()
-    $bitmap.CacheOption=[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
-    $bitmap.UriSource=[Uri]::new($Path, [UriKind]::Absolute)
-    $bitmap.EndInit()
-    $bitmap.Freeze()
-    $Image.Source=$bitmap
+    # Decoding from disk 12 times/second would stall the UI.
+    # Cache each immutable frame per path, then only switch Image.Source.
+    if ($null -eq $script:NovaBitmapCache) { $script:NovaBitmapCache = @{} }
+    if (-not $script:NovaBitmapCache.ContainsKey($Path)) {
+        $bitmap=New-Object System.Windows.Media.Imaging.BitmapImage
+        $bitmap.BeginInit()
+        $bitmap.CacheOption=[System.Windows.Media.Imaging.BitmapCacheOption]::OnLoad
+        $bitmap.UriSource=[Uri]::new($Path, [UriKind]::Absolute)
+        $bitmap.EndInit()
+        $bitmap.Freeze()
+        $script:NovaBitmapCache[$Path]=$bitmap
+    }
+    $Image.Source=$script:NovaBitmapCache[$Path]
     $Image.Visibility='Visible'
 }
