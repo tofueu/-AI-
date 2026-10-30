@@ -29,3 +29,15 @@ test('real task priority controls NOVA animation, no fabricated success',()=>{
  assert.equal(taskState([{status:'handoff'}]).action,'waiting_auth');
  assert.throws(()=>taskState({status:'done'}));
 });
+
+test('NOVA follows the newest real task rather than an old failed run',()=>{
+ const tasks=[
+  {id:'old',status:'error',updatedAt:'2026-10-29T00:00:00Z'},
+  {id:'new',status:'running',updatedAt:'2026-10-31T00:00:00Z'}
+ ];
+ assert.equal(taskState(tasks).action,'working');
+ assert.equal(taskState([...tasks,{id:'latest',status:'done',updatedAt:'2026-10-31T01:00:00Z'}]).action,'done');
+ assert.equal(taskState([{status:'handoff',updatedAt:'2026-10-31T01:00:00Z'}]).action,'waiting_auth');
+ assert.equal(taskState([{status:'queued',updatedAt:'invalid'}]).action,'thinking');
+ assert.equal(taskState([{status:'cancelled'}]).action,'idle');
+});
