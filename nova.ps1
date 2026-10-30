@@ -2,19 +2,48 @@
 Add-Type -AssemblyName PresentationFramework
 . (Join-Path $PSScriptRoot 'nova-tasks.ps1')
 . (Join-Path $PSScriptRoot 'nova-chat.ps1')
+. (Join-Path $PSScriptRoot 'nova-pet-engine.ps1')
 
-# Canonical Asset Specification Reference: public/assets/nova-character/NOVA_ASSET_SPEC.md
-# SVG Asset Reference: public/assets/nova-character/nova-purple-character.svg
-# SHA-256 Hash: d409d9ff40766aefbd02c555b947bbdc79c2dc30956271d646e948a372cbc9a4
+# Load MOD Manifest with Safe Fallback
+$manifestPath = Join-Path $PSScriptRoot 'public/assets/nova-character/manifest.json'
+try {
+    $mod = Get-NovaModManifest -Path $manifestPath
+} catch {
+    # Default Fallback Data Structure
+    $mod = [PSCustomObject]@{
+        name = "NOVA Fallback Character"
+        slots = [PSCustomObject]@{
+            head = "parts/head.svg"
+            body = "parts/body.svg"
+        }
+        timelines = [PSCustomObject]@{
+            idle = [PSCustomObject]@{
+                fps = 2
+                frames = @(
+                    [PSCustomObject]@{ headY = 0; armLeftRot = -5; armRightRot = 5; bubbleText = "NOVA"; eyes = "eyes_normal" },
+                    [PSCustomObject]@{ headY = -2; armLeftRot = -8; armRightRot = 8; bubbleText = "NOVA"; eyes = "eyes_normal" }
+                )
+            }
+        }
+    }
+}
 
-# Visual Purple Character Desktop Pet Window
+# Animated Character WPF Window
 $xaml = @"
 <Window
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    Title="NOVA Desktop Character Pet" Height="110" Width="100"
+    Title="NOVA Animated Character Pet" Height="120" Width="100"
     WindowStyle="None" AllowsTransparency="True" Background="Transparent"
     Topmost="True" ShowInTaskbar="False">
+    <Window.ContextMenu>
+        <ContextMenu>
+            <MenuItem Header="開啟對話 (Chat)" x:Name="MenuChat"/>
+            <MenuItem Header="最小化 (Minimize)" x:Name="MenuMinimize"/>
+            <Separator/>
+            <MenuItem Header="關閉 (Close)" x:Name="MenuClose"/>
+        </ContextMenu>
+    </Window.ContextMenu>
     <Grid x:Name="PetContainer" Cursor="Hand">
         <!-- Speech / Status Bubble -->
         <Border x:Name="SpeechBubble" Background="#241d3d" BorderBrush="#a38aff" BorderThickness="1.5"
@@ -24,13 +53,27 @@ $xaml = @"
                        FontWeight="Bold" TextAlignment="Center"/>
         </Border>
 
-        <!-- Purple Character Body & Halo -->
-        <Canvas Width="70" Height="70" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5">
-            <!-- Halo Star / Crown -->
+        <!-- Animated Skeletal Character Canvas -->
+        <Canvas Width="70" Height="75" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,5">
+            <!-- Halo Star / Crown Slot -->
             <Polygon Points="35,2 38,10 46,10 40,15 42,23 35,18 28,23 30,15 24,10 32,10"
                      Fill="#ffd166" x:Name="HaloStar"/>
 
-            <!-- Main Purple Body Silhouette -->
+            <!-- Left Arm Slot -->
+            <Path x:Name="ArmLeft" Fill="#6a1b9a" Data="M 16 38 Q 10 45 14 52" Stroke="#c77dff" StrokeThickness="2">
+                <Path.RenderTransform>
+                    <RotateTransform x:Name="ArmLeftRot" Angle="0" CenterX="16" CenterY="38"/>
+                </Path.RenderTransform>
+            </Path>
+
+            <!-- Right Arm Slot -->
+            <Path x:Name="ArmRight" Fill="#6a1b9a" Data="M 54 38 Q 60 45 56 52" Stroke="#c77dff" StrokeThickness="2">
+                <Path.RenderTransform>
+                    <RotateTransform x:Name="ArmRightRot" Angle="0" CenterX="54" CenterY="38"/>
+                </Path.RenderTransform>
+            </Path>
+
+            <!-- Main Body Torso Slot -->
             <Path x:Name="BodyPath" Fill="#7b2cbf" Stroke="#c77dff" StrokeThickness="2">
                 <Path.Data>
                     <PathGeometry>
@@ -45,20 +88,24 @@ $xaml = @"
                 </Path.Data>
             </Path>
 
-            <!-- Character Eyes -->
-            <Ellipse x:Name="LeftEye" Canvas.Left="24" Canvas.Top="32" Width="6" Height="8" Fill="#ffffff"/>
-            <Ellipse x:Name="RightEye" Canvas.Left="40" Canvas.Top="32" Width="6" Height="8" Fill="#ffffff"/>
+            <!-- Head Group Slot -->
+            <Canvas x:Name="HeadGroup" Canvas.Left="0" Canvas.Top="0">
+                <Canvas.RenderTransform>
+                    <TranslateTransform x:Name="HeadTransY" Y="0"/>
+                </Canvas.RenderTransform>
+                <!-- Eyes Slot -->
+                <Ellipse x:Name="LeftEye" Canvas.Left="24" Canvas.Top="32" Width="6" Height="8" Fill="#ffffff"/>
+                <Ellipse x:Name="RightEye" Canvas.Left="40" Canvas.Top="32" Width="6" Height="8" Fill="#ffffff"/>
+                <Ellipse x:Name="LeftPupil" Canvas.Left="26" Canvas.Top="34" Width="3" Height="4" Fill="#10002b"/>
+                <Ellipse x:Name="RightPupil" Canvas.Left="42" Canvas.Top="34" Width="3" Height="4" Fill="#10002b"/>
 
-            <!-- Character Pupils -->
-            <Ellipse x:Name="LeftPupil" Canvas.Left="26" Canvas.Top="34" Width="3" Height="4" Fill="#10002b"/>
-            <Ellipse x:Name="RightPupil" Canvas.Left="42" Canvas.Top="34" Width="3" Height="4" Fill="#10002b"/>
+                <!-- Blush Cheeks -->
+                <Ellipse Canvas.Left="20" Canvas.Top="40" Width="7" Height="4" Fill="#ff9eaf" Opacity="0.7"/>
+                <Ellipse Canvas.Left="43" Canvas.Top="40" Width="7" Height="4" Fill="#ff9eaf" Opacity="0.7"/>
 
-            <!-- Character Blush / Cheeks -->
-            <Ellipse Canvas.Left="20" Canvas.Top="40" Width="7" Height="4" Fill="#ff9eaf" Opacity="0.7"/>
-            <Ellipse Canvas.Left="43" Canvas.Top="40" Width="7" Height="4" Fill="#ff9eaf" Opacity="0.7"/>
-
-            <!-- Character Mouth -->
-            <Path x:Name="MouthPath" Stroke="#ffffff" StrokeThickness="1.5" Data="M 31 44 Q 35 48 39 44"/>
+                <!-- Mouth Expression Slot -->
+                <Path x:Name="MouthPath" Stroke="#ffffff" StrokeThickness="1.5" Data="M 31 44 Q 35 48 39 44"/>
+            </Canvas>
         </Canvas>
     </Grid>
 </Window>
@@ -70,6 +117,17 @@ $window = [Windows.Markup.XamlReader]::Load($reader)
 $bubbleText = $window.FindName("BubbleText")
 $bodyPath = $window.FindName("BodyPath")
 $haloStar = $window.FindName("HaloStar")
+$headTransY = $window.FindName("HeadTransY")
+$armLeftRot = $window.FindName("ArmLeftRot")
+$armRightRot = $window.FindName("ArmRightRot")
+
+$menuChat = $window.FindName("MenuChat")
+$menuMinimize = $window.FindName("MenuMinimize")
+$menuClose = $window.FindName("MenuClose")
+
+if ($null -ne $menuChat) { $menuChat.Add_Click({ Show-NovaChatWindow }) }
+if ($null -ne $menuMinimize) { $menuMinimize.Add_Click({ $window.WindowState = 'Minimized' }) }
+if ($null -ne $menuClose) { $menuClose.Add_Click({ $window.Close() }) }
 
 $window.Add_MouseLeftButtonDown({
     try { $window.DragMove() } catch { }
@@ -78,8 +136,9 @@ $window.Add_MouseLeftButtonDown({
 # Right-click opens NOVA chat window
 $window.Add_MouseRightButtonUp({ Show-NovaChatWindow })
 
+$frameStep = 0
 $timer = New-Object System.Windows.Threading.DispatcherTimer
-$timer.Interval = [TimeSpan]::FromSeconds(2)
+$timer.Interval = [TimeSpan]::FromMilliseconds(500)
 
 $timer.Add_Tick({
     try {
@@ -87,35 +146,39 @@ $timer.Add_Tick({
         $response = ConvertTo-NovaTaskArray -Json ([string]$http.Content)
 
         $colorName = Get-NovaTaskColor -Tasks $response
+        $animState = Get-NovaAnimationState -TaskStatus ($response | Select-Object -First 1).status
+
+        $frameStep++
+        $frame = Get-NovaTimelineFrame -Manifest $mod -StateName $animState -FrameIndex $frameStep
+
+        # Render timeline frame values
+        if ($null -ne $frame.headY) { $headTransY.Y = [double]$frame.headY }
+        if ($null -ne $frame.armLeftRot) { $armLeftRot.Angle = [double]$frame.armLeftRot }
+        if ($null -ne $frame.armRightRot) { $armRightRot.Angle = [double]$frame.armRightRot }
+        if ($null -ne $frame.bubbleText) { $bubbleText.Text = [string]$frame.bubbleText }
 
         switch ($colorName) {
             'Blue' {
-                $bubbleText.Text = "工作中..."
                 $bodyPath.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#5a189a")
                 $haloStar.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#4cc9f0")
             }
             'Yellow' {
-                $bubbleText.Text = "等待授權"
                 $bodyPath.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#7209b7")
                 $haloStar.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#ffb703")
             }
             'Orange' {
-                $bubbleText.Text = "待審查"
                 $bodyPath.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#7b2cbf")
                 $haloStar.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#fb8500")
             }
             'Red' {
-                $bubbleText.Text = "需處理!"
                 $bodyPath.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#3c096c")
                 $haloStar.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#f72585")
             }
             'Green' {
-                $bubbleText.Text = "完成!"
                 $bodyPath.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#9d4edd")
                 $haloStar.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#06d6a0")
             }
             Default {
-                $bubbleText.Text = "NOVA"
                 $bodyPath.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#7b2cbf")
                 $haloStar.Fill = (New-Object System.Windows.Media.BrushConverter).ConvertFromString("#ffd166")
             }
