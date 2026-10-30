@@ -10,7 +10,7 @@ const agentInfo = {
 let taskCache = [], activeTask = null, onlyActive = false;
 function esc(s='') { return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function notify(text) { const el=$('#toast');el.textContent=text;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2800); }
-function time(s) { return new Intl.DateTimeFormat('zh-TW',{hour:'2-digit',minute:'2-digit'}).format(new Date(s)); }
+function time(s) { if(!s)return '未完成授權驗證'; const d=new Date(s);return Number.isNaN(d.getTime())?'未完成授權驗證':new Intl.DateTimeFormat('zh-TW',{hour:'2-digit',minute:'2-digit'}).format(d); }
 function stateText(s) { return ({waiting_research:'等待研究',queued:'排隊中',running:'正在處理',planned:'待交辦',blocked:'等待前一關',handoff:'已交辦／待回覆',done:'完成',ready_for_approval:'等待你確認',error:'需要處理',cancelled:'已取消'})[s]||s; }
 function rootProgress(root, children) { const done=children.filter(t=>t.status==='done').length; return {done,total:children.length,percent:children.length?Math.round(done/children.length*100):0}; }
 
@@ -46,7 +46,7 @@ async function loadAccounts() {
       const stateMap = {
         unlinked: { text: '未連結', cls: 'unlinked' },
         login_in_progress: { text: '官方登入進行中', cls: 'progress' },
-        linked: { text: '已連結', cls: 'connected' },
+        linked: { text: '待重新核實授權', cls: 'handoff' },
         prerequisites_needed: { text: '需完成網站前置條件', cls: 'handoff' },
         failed_retryable: { text: '連結失敗・可重試', cls: 'login' }
       };
@@ -87,7 +87,7 @@ async function recheckAccount(id) {
   try {
     const res = await fetch(`/api/accounts/${id}/recheck`, { method: 'POST' });
     const data = await res.json();
-    notify(`帳號狀態已更新：${data.status}`);
+    notify(data.status==='prerequisites_needed'?'未取得可核實的官方帳號授權，不能標示已連線。':`帳號狀態已更新：${data.status}`);
     loadAccounts();
   } catch(e) { notify('重新核對失敗'); }
 }
