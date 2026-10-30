@@ -15,12 +15,27 @@ export function validateNovaMod(mod){
  }
  return mod;
 }
+/** Choose a real, currently relevant task. Historical terminal failures should not
+ * hold NOVA red forever after a newer job starts. No invented task events. */
 export function taskState(tasks){
  if(!Array.isArray(tasks))throw Error('Task API must return an array');
- const set=new Set(tasks.map(t=>t?.status));
- for(const status of ['error','running','handoff','ready_for_approval','waiting_research','queued','done']){
-  if(set.has(status))return {status,action:stateMap[status],label:stateLabels[status]};
+ const rank=['error','running','ready_for_approval','handoff','waiting_research','queued','planned','done'];
+ const known=tasks.filter(t=>t&&typeof t==='object'&&rank.includes(t.status));
+ const timestamp=t=>{
+  const raw=t.updatedAt||t.completedAt||t.createdAt;
+  const value=typeof raw==='string'?Date.parse(raw):NaN;
+  return Number.isFinite(value)?value:null;
+ };
+ const dated=known.filter(t=>timestamp(t)!==null);
+ let relevant=known;
+ if(dated.length){
+  // A newer task takes precedence over completed/failed work from previous runs.
+  const newest=Math.max(...dated.map(timestamp));
+  const current=dated.filter(t=>timestamp(t)===newest);
+  if(current.length)relevant=current;
  }
+ const active=rank.find(status=>relevant.some(t=>t.status===status));
+ if(active)return {status:active,action:stateMap[active]||'idle',label:stateLabels[active]||'NOVA 陪伴中'};
  return {status:'idle',action:'idle',label:stateLabels.idle};
 }
 export function spriteFrame(mod,style,action,timeMs){
