@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {validateRig,sampleClip,blendPoses,worldMatrices,RigAnimator,paintRig,defaultStateToMotion} from './nova-rig-runtime.js';
-import {indexArtistFiles} from './nova-rig-import.js';
-const readRig=style=>JSON.parse(readFileSync(new URL(`./templates/character-mod/${style}/rig.json`,import.meta.url),'utf8'));
+import {validateRig,sampleClip,blendPoses,worldMatrices,RigAnimator,paintRig,defaultStateToMotion} from '../public/nova-rig-runtime.js';
+import {indexArtistFiles} from '../public/nova-rig-import.js';
+const readRig=style=>JSON.parse(readFileSync(new URL(`../templates/nova-character-mod/${style}/rig.json`,import.meta.url),'utf8'));
 for(const style of ['chibi','mature']){
  test(`${style} template validates standard humanoid joints and actions`,()=>{
   const rig=validateRig(readRig(style));
