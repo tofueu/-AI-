@@ -70,6 +70,13 @@ export function validateRig(raw) {
         assert(own(options,raw.defaultAppearance[category]),'default wardrobe option is missing');
     }
   }
+  if(raw.variantPivots!==undefined){
+    assert(raw.variantPivots && typeof raw.variantPivots==='object' && !Array.isArray(raw.variantPivots),'invalid variant pivot map');
+    assert(Object.keys(raw.variantPivots).length<=200,'too many variant pivots');
+    for(const [file,pivot] of Object.entries(raw.variantPivots)){
+      assert(safeImagePath(file)&&Array.isArray(pivot)&&pivot.length===2&&pivot.every(n=>bounded(n,-4096,4096)),'unsafe variant pivot');
+    }
+  }
   if(raw.defaultAppearance!==undefined){
     assert(raw.defaultAppearance && typeof raw.defaultAppearance==='object' && !Array.isArray(raw.defaultAppearance),'invalid default appearance');
     for(const category of Object.keys(raw.defaultAppearance))assert(own(raw.wardrobe||{},category),'default appearance has unknown category');
@@ -159,7 +166,8 @@ export function paintRig(ctx,rig,pose,images,appearance={}){
     const img=images[file];if(!img)continue;
     const [a,b,c,d,tx,ty]=world[p.bone];
     ctx.setTransform(a,b,c,d,tx,ty);
-    ctx.drawImage(img,-p.pivot[0],-p.pivot[1]);
+    const pivot=rig.variantPivots?.[file]||p.pivot;
+    ctx.drawImage(img,-pivot[0],-pivot[1]);
   }
   ctx.restore();
 }
