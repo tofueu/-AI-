@@ -13,3 +13,8 @@
 .nova-mod-pet .nova-chat textarea{min-height:80px;resize:vertical}
 .nova-mod-pet .nova-reply{font-size:11px;line-height:1.5;white-space:pre-wrap;user-select:text;margin:0}
 @media (prefers-reduced-motion:reduce){.nova-mod-pet *{transition:none!important;animation:none!important}}
+
+/* Custom artist MOD: same compact NOVA overlay, joint animation drawn on canvas. */
+.nova-mod-pet .nova-rig-canvas{width:100%;height:205px;object-fit:contain;display:block;pointer-events:none}
+.nova-mod-pet .nova-rig-canvas[hidden],.nova-mod-pet .nova-rig-folder[hidden]{display:none!important}
+.nova-mod-pet .nova-actions button[data-import-rig]{background:#7253ab}
