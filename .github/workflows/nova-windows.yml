@@ -20,7 +20,13 @@ jobs:
           node-version: 22
 
       - name: Install Dependencies
-        run: npm ci || npm install
+        shell: pwsh
+        run: |
+          if (Test-Path package-lock.json) {
+            npm ci --no-audit --no-fund
+          } else {
+            npm install --no-audit --no-fund
+          }
 
       - name: Execute Node Integration Tests
         run: npm test
