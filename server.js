@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { ModelRouter, PROVIDERS, safeModelId } from './lib/model-router.js';
 import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -185,8 +186,37 @@ function sendFile(res, filePath) {
   res.end(readFileSync(filePath));
 }
 
+const modelRouter = new ModelRouter();
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
+  // Issue #14: all provider states are obtained from actual CLI/API checks.
+  if (req.method === 'GET' && url.pathname === '/api/model-providers') {
+    return json(res, 200, Object.entries(PROVIDERS).map(([id, p]) => ({
+      id, kind: p.kind, configured: p.kind === 'cli' ? null : Boolean(process.env[p.keyEnv]),
+      quota: 'UNKNOWN', modelListVerified: false
+    })));
+  }
+  if (req.method === 'GET' && ['opencode','deepseek','glm','nvidia'].some(p => url.pathname === '/api/model-providers/' + p + '/models')) {
+    const provider = url.pathname.split('/')[3];
+    return json(res, 200, await modelRouter.discover(provider));
+  }
+  if (req.method === 'POST' && url.pathname === '/api/model-tasks/opencode') {
+    let body;
+    try { body = await readBody(req); } catch (error) { return json(res, 400, { error: error.message }); }
+    if (!safeModelId(body.model) || typeof body.prompt !== 'string' || !body.prompt.trim() ||
+        body.prompt.length > 120000 || !validWorkspace(body.workspace)) {
+      return json(res, 400, { error: 'Valid model, prompt and local workspace required' });
+    }
+    // Explicit manual execution only: never silently retry an agent that may have edited files.
+    try {
+      const result = await modelRouter.execute({
+        provider: 'opencode', model: body.model, prompt: body.prompt, cwd: body.workspace
+      });
+      return json(res, 200, { state: 'COMPLETED', model: result.model, output: result.output.slice(-24000) });
+    } catch (error) {
+      return json(res, 502, { state: 'FAILED', error: 'OpenCode CLI execution failed; inspect local logs before retry' });
+    }
+  }
   if (req.method === 'GET' && url.pathname === '/api/health') {
     const [cli, perplexity, grok] = await Promise.all([
       checkAntigravity(),

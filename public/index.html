@@ -44,6 +44,18 @@
         </div>
       </section>
 
+      <section class="section" id="models">
+        <div class="section-head"><div><h2>模型管理 · 真實連線</h2><p>模型由 CLI 或供應商 API 即時取得；額度未知時不顯示免費或已連線。</p></div><button class="text-btn" id="modelsRefresh">重新偵測 ↻</button></div>
+        <div class="card" style="padding:18px">
+          <div id="modelProviders" aria-live="polite">尚未檢測模型</div>
+          <div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">
+            <label>OpenCode 模型 <select id="opencodeModel"><option value="">請先偵測</option></select></label>
+            <button class="mini-btn" id="runOpenCode">用 OpenCode 執行目前主任務</button>
+          </div>
+          <p id="modelActionStatus" role="status">只有按下執行才會呼叫本機 OpenCode；不會自動啟用付費 API。</p>
+        </div>
+      </section>
+
       <section class="section tasks-section" id="tasks"><div class="section-head"><div><h2>任務分工樹</h2><p>展開主任務，追蹤每位 AI 的負責項目與狀態</p></div><button class="text-btn" id="clearView">只看進行中</button></div><div id="taskList" class="task-list"></div></section>
       <footer>PRO AI WORKBENCH <span>·</span> 使用你已有的訂閱額度</footer>
     </main>
