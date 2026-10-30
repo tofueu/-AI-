@@ -1,4 +1,5 @@
 import http from 'node:http';
+import { installOfficialNova } from './nova-official-installer.js';
 import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -17,6 +18,15 @@ const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
 const PUBLIC_DIR = path.join(ROOT, 'public');
+// Restore the actual Git-tracked NOVA sprites before serving the Workbench.
+// Missing or corrupt art must not prevent the task API from starting.
+try {
+  const installed = installOfficialNova(ROOT);
+  if (!installed.installed) console.warn('[NOVA]', installed.reason);
+  else console.log('[NOVA] bundled official MOD ready', installed.cached ? '(cached)' : '(extracted)', installed.files ?? '');
+} catch (error) {
+  console.error('[NOVA] Official sprite pack failed verification; no fake avatar will be shown:', error.message);
+}
 
 mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
