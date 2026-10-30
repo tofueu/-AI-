@@ -15,7 +15,7 @@ if errorlevel 1 (
 
 rem Do not mistake an open browser for a running backend.
 rem A separately launched Node process keeps NOVA task updates alive after
-rem the browser or this launcher window closes.
+rem the application window or this launcher closes.
 call :wait_for_api 1
 if errorlevel 1 (
   start "AI Workbench backend" /min node "%~dp0server.js"
@@ -27,12 +27,12 @@ if errorlevel 1 (
   )
 )
 
-rem CI can validate the real backend without opening interactive WPF or a browser.
+rem CI can validate the real backend without opening interactive WPF.
 if not "%NOVA_NO_OVERLAY%"=="1" (
   start "NOVA Desktop Pet" /min powershell.exe -NoProfile -STA -File "%~dp0nova.ps1"
 )
-if not "%NOVA_NO_BROWSER%"=="1" (
-  start "" "http://127.0.0.1:4173"
+if not "%NOVA_NO_APP_WINDOW%"=="1" (
+  start "AI Workbench Desktop App" powershell.exe -NoProfile -STA -File "%~dp0nova-app.ps1"
 )
 exit /b 0
 
