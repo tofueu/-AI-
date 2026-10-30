@@ -16,8 +16,9 @@ const MAX_UNCOMPRESSED = 45 * 1024 * 1024;
 const MAX_ENTRY = 12 * 1024 * 1024;
 const MAX_FILES = 200;
 
-export function readNovaParts(root, {prefix=OFFICIAL_PART_PREFIX, expectedSha256=OFFICIAL_ZIP_SHA256}={}) {
-  const dir=path.join(root,'art','nova-official','runtime');
+export function readNovaParts(root, {prefix=OFFICIAL_PART_PREFIX, expectedSha256=OFFICIAL_ZIP_SHA256, subdir='runtime'}={}) {
+  if (!['runtime','source'].includes(subdir)) throw Error('Unknown NOVA asset collection');
+  const dir=path.join(root,'art','nova-official',subdir);
   if (!fs.existsSync(dir)) return null;
   const names=fs.readdirSync(dir).filter(name=>name.startsWith(prefix)).sort();
   if (names.length<1 || names.length>64) throw Error('NOVA split archive is missing or too large');
