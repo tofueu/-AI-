@@ -57,3 +57,35 @@ export async function importArtistRigFolder(files){
  }catch(e){for(const i of Object.values(images))i.close?.();throw e;}
  return {rig,images,dispose(){for(const i of Object.values(images))i.close?.();}};
 }
+/** Reload locally installed PSD-derived layers after restarting Workbench.
+ * Fetches from the user's own localhost Workbench, never an external provider.
+ */
+export async function loadInstalledPsdRig(id,{fetcher=fetch}={}){
+ if(!/^[a-z0-9-]{8,64}$/.test(id))throw Error('不合法角色 ID');
+ const prefix='/api/nova/characters/'+id;
+ const response=await fetcher(prefix+'/rig',{cache:'no-store'});
+ if(!response.ok)throw Error('找不到已安裝的角色骨架');
+ const rig=validateRig(await response.json());
+ const variantFiles=Object.values(rig.wardrobe||{}).flatMap(options=>
+   Object.values(options).flatMap(o=>Object.values(o).filter(Boolean)));
+ const names=[...new Set([...rig.parts.map(p=>p.file),...variantFiles])];
+ const images=Object.create(null);
+ const chunked=8;const all=[];
+ try{
+  for(let i=0;i<names.length;i+=chunked){
+   await Promise.all(names.slice(i,i+chunked).map(async name=>{
+    if(!validRelative(name))throw Error('角色圖片路徑不安全');
+    const url=prefix+'/files/'+name.split('/').map(encodeURIComponent).join('/');
+    const r=await fetcher(url);
+    if(r.status===404)return; // unpainted optional component
+    if(!r.ok)throw Error('角色圖片讀取失敗：'+name);
+    const file=await r.blob();
+    if(file.size>MAX_IMAGE_BYTES)throw Error('角色圖層過大');
+    const image=await decodeImage(file);
+    images[name]=image;all.push(image);
+   }));
+  }
+  if(!images['parts/head.png']||!images['parts/torso.png'])throw Error('角色缺少頭與身體圖層');
+  return {rig,images,dispose(){for(const image of all)image.close?.();}};
+ }catch(error){for(const image of all)image.close?.();throw error;}
+}
