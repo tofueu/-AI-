@@ -35,6 +35,32 @@ async function checkHealth() {
     $('#grokStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
   }
 }
+
+async function loadAccounts() {
+  const container = $('#accountSlotsList');
+  if(!container) return;
+  try {
+    const res = await fetch('/api/accounts').then(r=>r.json());
+    if(!res.ok || !res.accounts) { container.innerHTML='<div class="empty-state">無法讀取帳號槽位資料。</div>'; return; }
+    container.innerHTML = res.accounts.map(acc => {
+      const statusText = acc.status === 'connected' ? '已連線' : acc.status === 'handoff_mode' ? 'Handoff 模式' : '需要登入';
+      const statusClass = acc.status === 'connected' ? 'connected' : acc.status === 'handoff_mode' ? 'handoff' : 'login';
+      return `<article class="account-card">
+        <div class="account-top">
+          <strong>${esc(acc.name)}</strong>
+          <span class="account-badge ${statusClass}">${statusText}</span>
+        </div>
+        <p class="account-note">${esc(acc.note)}</p>
+        <div class="account-meta">最後驗證：${time(acc.lastVerifiedAt)}</div>
+        <div class="account-foot">
+          <a class="mini-btn run-btn-link" href="${esc(acc.oauthUrl)}" target="_blank" rel="noopener">官方 OAuth 登入 ↗</a>
+        </div>
+      </article>`;
+    }).join('');
+  } catch {
+    container.innerHTML = '<div class="empty-state">讀取帳號槽位失敗。</div>';
+  }
+}
 function renderTasks() {
   const allRoots=taskCache.filter(t=>t.kind==='parent'||(!t.parentId&&t.kind!=='child'));
   const roots=onlyActive?allRoots.filter(root=>root.status!=='done'):allRoots;
@@ -95,8 +121,9 @@ $('#saveResult').addEventListener('click',async()=>{if(!activeTask)return;const 
 $('#runBtn').addEventListener('click',createTask);
 document.querySelectorAll('.mini-btn[data-agent]').forEach(btn=>btn.addEventListener('click',()=>{const p=btn.closest('.agent-card');promptBox.value=`請負責${p.querySelector('h3').textContent}的工作，針對目前主專案提供結果。`;promptBox.focus();notify('請補充主目標，再建立套娃分工。');}));
 document.querySelectorAll('.project-link').forEach(btn=>btn.addEventListener('click',()=>{promptBox.value=btn.dataset.prompt;promptBox.focus();}));
-$('#refreshBtn').addEventListener('click',()=>{checkHealth();loadTasks();notify('任務與連線狀態已更新。');});
+$('#refreshBtn').addEventListener('click',()=>{checkHealth();loadTasks();loadAccounts();notify('任務與連線狀態已更新。');});
+$('#refreshAccountsBtn')?.addEventListener('click',()=>{loadAccounts();notify('帳號槽位狀態已更新。');});
 $('#clearView').addEventListener('click',()=>{onlyActive=!onlyActive;$('#clearView').textContent=onlyActive?'顯示全部主任務':'只看進行中';renderTasks();});
 $('#settingsBtn').addEventListener('click',()=>notify('權限設定與啟動方式請看 README。'));
 workspaceInput.value=localStorage.getItem('pro-ai-workbench-workspace')||'';workspaceInput.addEventListener('change',()=>localStorage.setItem('pro-ai-workbench-workspace',workspaceInput.value.trim()));
-checkHealth();loadTasks();setInterval(()=>{loadTasks();checkHealth();},3500);
+checkHealth();loadTasks();loadAccounts();setInterval(()=>{loadTasks();checkHealth();},3500);

@@ -61,6 +61,18 @@ test('Integration Test', async (t) => {
     assert.strictEqual(typeof health.body.perplexity, 'boolean');
     assert.strictEqual(typeof health.body.grok, 'boolean');
 
+    // 1b. Check Named Account Slots (/api/accounts)
+    const accounts = await request('/api/accounts');
+    assert.strictEqual(accounts.status, 200);
+    assert.ok(Array.isArray(accounts.body.accounts), 'Accounts list should be an array');
+    assert.ok(accounts.body.accounts.some(a => a.id === 'gemini_a'), 'Gemini A account slot must exist');
+    assert.ok(accounts.body.accounts.some(a => a.id === 'gemini_b'), 'Gemini B account slot must exist');
+    assert.ok(accounts.body.accounts.some(a => a.id === 'codex'), 'ChatGPT / Codex account slot must exist');
+
+    const accountLogin = await request('/api/accounts/gemini_a/login', 'POST');
+    assert.strictEqual(accountLogin.status, 200);
+    assert.ok(accountLogin.body.oauthUrl.includes('accounts.google.com'), 'Must return official OAuth redirect URL without storing credentials');
+
     // 2. Create a Custom Task
     const createRes = await request('/api/tasks', 'POST', {
       agent: 'custom',

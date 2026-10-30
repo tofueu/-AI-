@@ -15,6 +15,7 @@
         <div class="nav-label">工作區</div>
         <a class="nav-item active" href="#home"><span class="nav-icon">▦</span>總覽</a>
         <a class="nav-item" href="#agents"><span class="nav-icon">◈</span>AI 助理 <span class="nav-count">3</span></a>
+        <a class="nav-item" href="#accountsView"><span class="nav-icon">⚙</span>帳號設定</a>
         <a class="nav-item" href="#tasks"><span class="nav-icon">◷</span>任務紀錄</a>
         <div class="nav-label space-top">你的專案</div>
         <button class="project-link" data-prompt="整理這個專案目前的狀態、待辦和風險。先檢查檔案，不要修改程式。"><i class="project-dot violet"></i>程式開發</button>
@@ -32,7 +33,7 @@
         <div class="composer-head"><div class="composer-label"><span class="compose-icon">✎</span><strong>建立主任務</strong></div><span class="hint">建立後展開成可追蹤的子任務</span></div>
         <div class="project-fields"><input id="projectName" placeholder="專案名稱（例如：AI 交易面板）"><input id="repoUrl" placeholder="GitHub Repository 網址（選填）"><input id="issueUrl" placeholder="Issue / PR 網址（選填）"></div>
         <textarea id="prompt" placeholder="描述主目標，例如：打造多 AI 工作台，讓 Gemini 負責實作、Perplexity 查證、Grok 審查…"></textarea>
-        <div class="composer-bottom"><div class="composer-options"><label class="select-wrap"><span class="option-label">分工模式</span><select id="mode"><option value="team">套娃分工 · 研究＋實作＋審查</option><option value="single">單一 AI 交辦</option></select></label><label class="select-wrap"><span class="option-label">單一任務 AI（團隊模式採固定分工）</span><select id="primaryAgent"><option value="gemini">Gemini CLI</option><option value="codex">Codex（授權後執行）</option><option value="perplexity">Perplexity（手動交接）</option><option value="grok">Grok（手動交接）</option><option value="custom">其他 AI（手動交接）</option></select></label><label class="workspace-wrap"><span class="option-label">本機專案資料夾</span><input id="workspace" placeholder="完整路徑，例如 C:\\Projects\\my-app" autocomplete="off"></label></div><button class="run-btn" id="runBtn"><span>建立分工</span><b>↗</b></button></div>
+        <div class="composer-bottom"><div class="composer-options"><label class="select-wrap"><span class="option-label">分工模式</span><select id="mode"><option value="team">套娃分工 · 研究＋實作＋審查</option><option value="single">單一 AI 交辦</option></select></label><label class="select-wrap"><span class="option-label">單一任務 AI</span><select id="primaryAgent"><option value="gemini">Gemini CLI</option><option value="codex">Codex（授權後執行）</option><option value="perplexity">Perplexity（手動交接）</option><option value="grok">Grok（手動交接）</option><option value="custom">其他 AI（手動交接）</option></select></label><label class="select-wrap"><span class="option-label">帳號槽位</span><select id="accountSlot"><option value="gemini_a">Gemini A (主帳號)</option><option value="gemini_b">Gemini B (次要帳號 - Handoff)</option><option value="codex">ChatGPT / Codex</option></select></label><label class="workspace-wrap"><span class="option-label">本機專案資料夾</span><input id="workspace" placeholder="完整路徑，例如 C:\\Projects\\my-app" autocomplete="off"></label></div><button class="run-btn" id="runBtn"><span>建立分工</span><b>↗</b></button></div>
         <div class="workspace-help">主任務會展開成任務樹：總控 → 研究、實作、審查。Gemini 在指定資料夾自動改檔；其他 AI 的進度與回覆也記在同一專案。</div>
       </section>
 
@@ -42,6 +43,10 @@
           <article class="agent-card perplexity-card"><div class="agent-top"><div class="agent-symbol perplexity-symbol">◉</div><span class="agent-status ready" id="perpStatus"><i class="status-dot checking"></i>檢查中</span></div><h3>Perplexity</h3><p class="agent-model">Research</p><p class="agent-desc">使用 Pro 搜尋研究；從官方介面把結果帶回工作台。</p><div class="agent-foot"><span class="quota-tag">Pro 搜尋</span><button class="mini-btn" data-agent="perplexity">交辦任務 <b>↗</b></button></div></article>
           <article class="agent-card grok-card"><div class="agent-top"><div class="agent-symbol grok-symbol">𝕏</div><span class="agent-status ready" id="grokStatus"><i class="status-dot checking"></i>檢查中</span></div><h3>Grok</h3><p class="agent-model">SuperGrok · Grok Bot</p><p class="agent-desc">透過 SuperGrok／Grok Bot 使用週額度，審查想法與內容。</p><div class="agent-foot"><span class="quota-tag">週額度</span><button class="mini-btn" data-agent="grok">交辦任務 <b>↗</b></button></div></article>
         </div>
+      </section>
+
+      <section class="section" id="accountsView"><div class="section-head"><div><h2>帳號設定 (Settings > Accounts)</h2><p>具名帳號槽位與官方授權連線狀態</p></div><button class="text-btn" id="refreshAccountsBtn">重新驗證帳號 ↻</button></div>
+        <div class="account-slots-grid" id="accountSlotsList"></div>
       </section>
 
       <section class="section tasks-section" id="tasks"><div class="section-head"><div><h2>任務分工樹</h2><p>展開主任務，追蹤每位 AI 的負責項目與狀態</p></div><button class="text-btn" id="clearView">只看進行中</button></div><div id="taskList" class="task-list"></div></section>

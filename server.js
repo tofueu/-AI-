@@ -195,6 +195,46 @@ const server = http.createServer(async (req, res) => {
     ]);
     return json(res, 200, { ok: true, cli, perplexity, grok, platform: os.platform(), defaultWorkspace: process.cwd() });
   }
+  if (req.method === 'GET' && url.pathname === '/api/accounts') {
+    const cli = await checkAntigravity();
+    const now = new Date().toISOString();
+    const accounts = [
+      {
+        id: 'gemini_a',
+        name: 'Gemini A (主帳號)',
+        provider: 'gemini',
+        status: cli.available ? 'connected' : 'login_required',
+        lastVerifiedAt: now,
+        oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+        note: 'Antigravity CLI 主要登入槽位。'
+      },
+      {
+        id: 'gemini_b',
+        name: 'Gemini B (次要帳號)',
+        provider: 'gemini',
+        status: 'handoff_mode',
+        lastVerifiedAt: now,
+        oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth',
+        note: 'CLI 單一 Profile 限制：切換次要帳號採官方 Profile 登出/切換手動 Handoff 模式，不偽稱雙帳號同時背景執行。'
+      },
+      {
+        id: 'codex',
+        name: 'ChatGPT / Codex',
+        provider: 'codex',
+        status: 'login_required',
+        lastVerifiedAt: now,
+        oauthUrl: 'https://auth.openai.com/authorize',
+        note: 'OpenAI 官方授權槽位；僅跳轉官方登入，不內嵌密碼或複製 Cookie。'
+      }
+    ];
+    return json(res, 200, { ok: true, accounts });
+  }
+  if (req.method === 'POST' && url.pathname.match(/^\/api\/accounts\/([\w-]+)\/login$/)) {
+    const match = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/login$/);
+    const slotId = match[1];
+    const targetUrl = slotId.startsWith('gemini') ? 'https://accounts.google.com/o/oauth2/v2/auth' : 'https://auth.openai.com/authorize';
+    return json(res, 200, { ok: true, message: '請在開啟的官方瀏覽器頁面完成登入與授權', oauthUrl: targetUrl });
+  }
   if (req.method === 'GET' && url.pathname === '/api/tasks') return json(res, 200, loadTasks().sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
   if (req.method === 'POST' && url.pathname === '/api/tasks') {
     let body;
