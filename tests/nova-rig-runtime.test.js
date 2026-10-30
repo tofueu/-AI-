@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
-import {validateRig,sampleClip,blendPoses,worldMatrices,RigAnimator,paintRig,defaultStateToMotion} from '../public/nova-rig-runtime.js';
+import {validateRig,sampleClip,blendPoses,worldMatrices,RigAnimator,paintRig,resolveLayer,defaultStateToMotion} from '../public/nova-rig-runtime.js';
 import {indexArtistFiles} from '../public/nova-rig-import.js';
 const readRig=style=>JSON.parse(readFileSync(new URL(`../templates/nova-character-mod/${style}/rig.json`,import.meta.url),'utf8'));
 for(const style of ['chibi','mature']){
@@ -50,7 +50,7 @@ test('renderer paints different part transforms using connected hierarchy',()=>{
  const rig=readRig('mature'),ctx={calls:[],save(){},restore(){},setTransform(...args){this.calls.push(args);},drawImage(){}};
  const images=Object.fromEntries(rig.parts.map(p=>[p.file,{width:256,height:256}]));
  paintRig(ctx,rig,sampleClip(rig,'typing',250),images);
- assert.equal(ctx.calls.length,rig.parts.length);
+ assert.equal(ctx.calls.length,rig.parts.filter(p=>resolveLayer(rig,p)).length);
  assert.notDeepEqual(ctx.calls[0],ctx.calls[1]);
 });
 test('local folder import indexes only files under manifest root and rejects paths/duplicates',()=>{
