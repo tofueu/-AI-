@@ -1,4 +1,6 @@
 // NOVA Official MOD: use real user artwork, never fake a provider reply.
+import {paintRig,RigAnimator} from './nova-rig-runtime.js';
+import {importArtistRigFolder} from './nova-rig-import.js';
 export const stateMap={error:'error',running:'working',handoff:'waiting_auth',ready_for_approval:'waiting_auth',waiting_research:'thinking',queued:'thinking',done:'done',planned:'thinking',cancelled:'idle'};
 export const stateLabels={error:'任務失敗',running:'AI 執行中',handoff:'等待交接',ready_for_approval:'待確認',waiting_research:'等待研究',queued:'排隊中',done:'已完成',idle:'NOVA 陪伴中'};
 const validPath=s=>typeof s==='string'&&!s.startsWith('/')&&!s.includes('\\')&&!s.split('/').some(x=>!x||x==='.'||x==='..')&&/^[\w./-]+\.(png|webp)$/i.test(s);
@@ -29,12 +31,15 @@ export function spriteFrame(mod,style,action,timeMs){
 }
 export async function mountNovaPet({fetcher=fetch}={}){
  const el=document.createElement('aside');el.className='nova-mod-pet';
- el.innerHTML='<div class="nova-drag">✦ NOVA <span class="nova-state">載入中</span></div><img class="nova-sprite" alt="NOVA 官方角色" hidden><p class="nova-notice" hidden></p><div class="nova-actions"><button data-style="chibi">Q 版</button><button data-style="mature">成熟版</button><button data-chat>對話</button><button data-close>×</button></div><form class="nova-chat" hidden><select name="agent"><option value="gemini">Gemini CLI</option><option value="codex">Codex（待授權）</option><option value="perplexity">Perplexity（交接）</option><option value="grok">Grok（交接）</option></select><input name="workspace" placeholder="Gemini 專案絕對路徑"><textarea name="prompt" required placeholder="交辦給工作台的任務"></textarea><button type="submit">送出任務</button><p class="nova-reply" aria-live="polite">顯示真實任務，不生成假回覆。</p></form>';
+ el.innerHTML='<div class="nova-drag">✦ NOVA <span class="nova-state">載入中</span></div><img class="nova-sprite" alt="NOVA 官方角色" hidden><canvas class="nova-rig-canvas" aria-label="匯入的關節角色" hidden></canvas><p class="nova-notice" hidden></p><div class="nova-actions"><button data-style="chibi">Q 版</button><button data-style="mature">成熟版</button><button data-import-rig>匯入角色</button><button data-return-official>官方角色</button><button data-chat>對話</button><button data-close>×</button></div><input class="nova-rig-folder" type="file" multiple hidden><form class="nova-chat" hidden><select name="agent"><option value="gemini">Gemini CLI</option><option value="codex">Codex（待授權）</option><option value="perplexity">Perplexity（交接）</option><option value="grok">Grok（交接）</option></select><input name="workspace" placeholder="Gemini 專案絕對路徑"><textarea name="prompt" required placeholder="交辦給工作台的任務"></textarea><button type="submit">送出任務</button><p class="nova-reply" aria-live="polite">顯示真實任務，不生成假回覆。</p></form>';
  document.body.appendChild(el);
  const image=el.querySelector('.nova-sprite'),notice=el.querySelector('.nova-notice'),label=el.querySelector('.nova-state'),chat=el.querySelector('.nova-chat'),reply=el.querySelector('.nova-reply');
+ const canvas=el.querySelector('.nova-rig-canvas'),ctx=canvas.getContext('2d'),folder=el.querySelector('.nova-rig-folder');
  let mod=null,style='chibi',action='idle',since=performance.now(),lastSrc='',disposed=false,drag=null;
+ let localRig=null,animator=null,currentStatus='idle';
  function setMessage(message){notice.hidden=!message;notice.textContent=message||'';}
  function changeStyle(next){
+  if(localRig){localRig.dispose();localRig=null;animator=null;canvas.hidden=true;}
   style=next;since=performance.now();lastSrc='';
   const c=mod?.characters[style];
   setMessage(!c?'缺少角色':!c.animations?'成熟版目前只有三視圖，分層及關節動畫仍未完成。':'');
@@ -43,12 +48,16 @@ export async function mountNovaPet({fetcher=fetch}={}){
   try{
    const r=await fetcher('/api/tasks',{cache:'no-store'});
    if(!r.ok)throw Error('HTTP '+r.status);
-   const st=taskState(await r.json());action=st.action;label.textContent=st.label;
-  }catch{action='idle';label.textContent='工作台離線';}
+   const st=taskState(await r.json());action=st.action;currentStatus=st.status;label.textContent=st.label;
+   if(animator)animator.setTaskStatus(currentStatus,performance.now());
+  }catch{action='idle';currentStatus='idle';label.textContent='工作台離線';if(animator)animator.setTaskStatus('idle',performance.now());}
  }
  function draw(){
   if(disposed)return;
-  if(mod){
+  if(localRig && animator){
+   ctx.clearRect(0,0,canvas.width,canvas.height);
+   paintRig(ctx,localRig.rig,animator.sample(performance.now()),localRig.images);
+  }else if(mod){
    const next=spriteFrame(mod,style,action,performance.now()-since);
    if(next!==lastSrc){lastSrc=next;if(next){image.src=next;image.hidden=false;}else image.hidden=true;}
   }
@@ -61,8 +70,25 @@ export async function mountNovaPet({fetcher=fetch}={}){
   changeStyle('chibi');
  }catch(e){setMessage('官方素材尚未安裝：'+e.message);label.textContent='NOVA MOD 尚未就緒';}
  el.querySelectorAll('[data-style]').forEach(b=>b.addEventListener('click',()=>changeStyle(b.dataset.style)));
+ // Only the selected local folder is read. No account credentials or artwork are uploaded.
+ folder.setAttribute('webkitdirectory','');folder.setAttribute('directory','');
+ el.querySelector('[data-import-rig]').addEventListener('click',()=>folder.click());
+ folder.addEventListener('change',async()=>{
+  try{
+   const loaded=await importArtistRigFolder(folder.files);
+   if(localRig)localRig.dispose();
+   localRig=loaded;
+   animator=new RigAnimator(loaded.rig,{transitionMs:220});
+   animator.setTaskStatus(currentStatus,performance.now());
+   canvas.width=loaded.rig.canvas[0];canvas.height=loaded.rig.canvas[1];
+   canvas.hidden=false;image.hidden=true;
+   setMessage('本機匯入成功：'+(loaded.rig.name||'自訂角色')+'。已套用共用骨架動作，素材只保存在瀏覽器記憶體。');
+  }catch(err){setMessage('匯入失敗：'+err.message);}
+  finally{folder.value='';}
+ });
+ el.querySelector('[data-return-official]').addEventListener('click',()=>changeStyle(style));
  el.querySelector('[data-chat]').addEventListener('click',()=>chat.hidden=!chat.hidden);
- el.querySelector('[data-close]').addEventListener('click',()=>{disposed=true;clearInterval(timer);el.remove();});
+ el.querySelector('[data-close]').addEventListener('click',()=>{disposed=true;clearInterval(timer);localRig?.dispose();el.remove();});
  const handle=el.querySelector('.nova-drag');
  handle.addEventListener('pointerdown',e=>{if(e.button!==0)return;drag={x:e.clientX,y:e.clientY,left:el.offsetLeft,top:el.offsetTop};handle.setPointerCapture(e.pointerId);});
  handle.addEventListener('pointermove',e=>{if(!drag)return;el.style.left=Math.max(0,drag.left+e.clientX-drag.x)+'px';el.style.top=Math.max(0,drag.top+e.clientY-drag.y)+'px';el.style.right='auto';el.style.bottom='auto';});
@@ -77,5 +103,5 @@ export async function mountNovaPet({fetcher=fetch}={}){
   }catch(e){reply.textContent='交辦失敗：'+e.message;}
  });
  await sync();const timer=setInterval(sync,3500);requestAnimationFrame(draw);
- return {element:el,sync,close(){disposed=true;clearInterval(timer);el.remove();}};
+ return {element:el,sync,close(){disposed=true;clearInterval(timer);localRig?.dispose();el.remove();}};
 }
