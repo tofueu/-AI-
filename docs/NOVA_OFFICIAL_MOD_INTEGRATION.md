@@ -10,7 +10,7 @@
 - 成熟版：原始角色三視圖參考，背景尚非透明，沒有完整動作與 PSD 分層。
 - rig.json：僅有關節位置模板，尚未完成真正可動 PSD、蒙皮權重、物理模擬。
 - 官方角色 ZIP 是另行交付的使用者素材；本 PR 不含 ZIP 二進位，因此未解壓時 UI 明確顯示尚未安裝，不會假裝載入成功。
-- 本 PR 修改的是工作台網頁浮窗，原生 Windows WPF 的 nova.ps1 尚未換成 PNG renderer。
+- Windows WPF 的 nova.ps1 已新增以官方 PNG 格式取代舊幾何圖的 renderer，缺少素材時提示安裝，尚未完成 Windows 真機驗收。
 
 ## 如何安裝素材
 把 NOVA 官方角色 MOD 初版 ZIP 解壓到此 repo 的 public/assets/nova-official/ ，目錄下應有 manifest.json 和 characters/chibi/sprites/idle.png。
@@ -30,10 +30,13 @@ PlayPort 借鏡：不同服務的授權 session 隔離、持久化、登入失�
 
 ## 仍待完成
 1. 高解析來源的 Q／成熟版 PSD 分層、關節綁定、動作補幀與正式對齊。
-2. WPF Windows 原生桌寵從幾何圖替換成真實 PNG/Live2D renderer。
+2. WPF PNG renderer 已加入，但仍需 Windows 真機測試、逐幀對齊及後續真正 Live2D/關節蒙皮。
 3. 多帳號官方 OAuth/CLI 實際核驗、獨立 session 與可靠恢復。
 4. 真機安裝與 UI 測試、MOD 一鍵匯入與安全驗證。
 5. 本 PR 必須在 CI 通過及真機驗收後才可合併。
 
 ## 開發測試
 Node.js 22: npm test ; npm run check。
+
+## Windows 啟動
+在 Windows PowerShell 5.1 執行 nova.ps1；若尚未把官方 PNG ZIP 解壓至 public/assets/nova-official，桌寵顯示缺少素材而不使用幾何人物冒充。右鍵選官方 Q 版或成熟版；成熟版目前是靜態參考圖，不能宣稱已綁定關節。
