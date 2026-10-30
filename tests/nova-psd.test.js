@@ -9,8 +9,9 @@ import {parseNovaPsd,psdLayerId} from '../public/nova-psd-parser.js';
 import {psdTemplateBytes,installPsdTemplates} from '../nova-psd-templates.js';
 import {installPsdCharacter,getActiveCharacter,readCharacter,characterFile,setActiveCharacter} from '../nova-psd-mod.js';
 import {validateRig} from '../public/nova-rig-runtime.js';
+import {makeTestPsd} from './nova-psd-fixture.js';
 const root=path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const fixture=zlib.gunzipSync(Buffer.from(fs.readFileSync(path.join(root,'tests','fixtures','nova-painted-test.psd.gz.b64'),'utf8'),'base64'));
+const fixture=makeTestPsd();
 const setup=()=>{const p=fs.mkdtempSync(path.join(os.tmpdir(),'nova-psd-roundtrip-'));fs.mkdirSync(path.join(p,'templates','nova-character-mod'),{recursive:true});for(const style of ['chibi','mature']){const folder=path.join(p,'templates','nova-character-mod',style);fs.mkdirSync(folder,{recursive:true});fs.copyFileSync(path.join(root,'templates','nova-character-mod',style,'rig.json'),path.join(folder,'rig.json'));}return p;};
 for(const style of ['chibi','mature']){
  test(`${style}: original, editable layered PSD template is recovered from Git and guides are separate`,async()=>{
