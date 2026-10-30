@@ -68,7 +68,8 @@ function Get-NovaSlotPath {
     if ($null -ne $Manifest.slots -and $Manifest.slots.PSObject.Properties.Match($SlotName).Count) {
         $relativePath = $Manifest.slots.$SlotName
         if ($BaseDir -and -not [System.IO.Path]::IsPathRooted($relativePath)) {
-            return Join-Path $BaseDir $relativePath
+            $combined = Join-Path $BaseDir $relativePath
+            return $combined.Replace('/', [System.IO.Path]::DirectorySeparatorChar)
         }
         return $relativePath
     }

@@ -49,10 +49,10 @@ if ($frame0.eyes -eq 'eyes_working' -and $null -ne $frame0.bubbleText) {
 
 # Test 5: Slot Path Resolution
 $slotPath = Get-NovaSlotPath -Manifest $manifest -SlotName 'head' -BaseDir 'C:\app\public\assets\nova-character'
-if ($null -ne $slotPath -and $slotPath.EndsWith('parts/head.svg')) {
+if ($null -ne $slotPath -and ($slotPath -like '*parts*head.svg')) {
     Write-Host "PASS: Slot Path Resolution"
 } else {
-    Write-Error "FAIL: Slot Path Resolution"
+    Write-Error "FAIL: Slot Path Resolution ($slotPath)"
     exit 1
 }
 
