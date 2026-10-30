@@ -31,7 +31,7 @@ export function spriteFrame(mod,style,action,timeMs){
 }
 export async function mountNovaPet({fetcher=fetch}={}){
  const el=document.createElement('aside');el.className='nova-mod-pet';
- el.innerHTML='<div class="nova-drag">✦ NOVA <span class="nova-state">載入中</span></div><img class="nova-sprite" alt="NOVA 官方角色" hidden><canvas class="nova-rig-canvas" aria-label="匯入的關節角色" hidden></canvas><p class="nova-notice" hidden></p><div class="nova-actions"><button data-style="chibi">Q 版</button><button data-style="mature">成熟版</button><button data-import-psd>上傳 PSD</button><button data-import-rig>匯入 PNG 資料夾</button><button data-return-official>官方角色</button><button data-chat>對話</button><button data-close>×</button></div><input class="nova-psd-file" type="file" accept=".psd,application/vnd.adobe.photoshop" hidden><input class="nova-rig-folder" type="file" multiple hidden><div class="nova-wardrobe" hidden></div><form class="nova-chat" hidden><select name="agent"><option value="gemini">Gemini CLI</option><option value="codex">Codex（待授權）</option><option value="perplexity">Perplexity（交接）</option><option value="grok">Grok（交接）</option></select><input name="workspace" placeholder="Gemini 專案絕對路徑"><textarea name="prompt" required placeholder="交辦給工作台的任務"></textarea><button type="submit">送出任務</button><p class="nova-reply" aria-live="polite">顯示真實任務，不生成假回覆。</p></form>';
+ el.innerHTML='<div class="nova-drag">✦ NOVA <span class="nova-state">載入中</span></div><img class="nova-sprite" alt="NOVA 官方角色" hidden><canvas class="nova-rig-canvas" aria-label="匯入的關節角色" hidden></canvas><p class="nova-notice" hidden></p><div class="nova-actions"><button data-style="chibi">Q 版</button><button data-style="mature">成熟版</button><button data-download-psd>下載 PSD 模板</button><button data-import-psd>上傳 PSD</button><button data-import-rig>匯入 PNG 資料夾</button><button data-return-official>官方角色</button><button data-chat>對話</button><button data-close>×</button></div><input class="nova-psd-file" type="file" accept=".psd,application/vnd.adobe.photoshop" hidden><input class="nova-rig-folder" type="file" multiple hidden><div class="nova-wardrobe" hidden></div><form class="nova-chat" hidden><select name="agent"><option value="gemini">Gemini CLI</option><option value="codex">Codex（待授權）</option><option value="perplexity">Perplexity（交接）</option><option value="grok">Grok（交接）</option></select><input name="workspace" placeholder="Gemini 專案絕對路徑"><textarea name="prompt" required placeholder="交辦給工作台的任務"></textarea><button type="submit">送出任務</button><p class="nova-reply" aria-live="polite">顯示真實任務，不生成假回覆。</p></form>';
  document.body.appendChild(el);
  const image=el.querySelector('.nova-sprite'),notice=el.querySelector('.nova-notice'),label=el.querySelector('.nova-state'),chat=el.querySelector('.nova-chat'),reply=el.querySelector('.nova-reply');
  const canvas=el.querySelector('.nova-rig-canvas'),ctx=canvas.getContext('2d'),folder=el.querySelector('.nova-rig-folder');
@@ -112,6 +112,12 @@ psdInput.addEventListener('change',async()=>{
   applyRig(installed,'PSD 安裝完成！'+result.paintedParts+' 個已繪製部位、'+result.assets+' 張透明圖層，已永久保存在本機工作台。'+(result.warnings?.length?' 注意：'+result.warnings.join('；'):''));
  }catch(error){setMessage('PSD 匯入失敗：'+error.message);}
  finally{psdInput.value='';}
+});
+el.querySelector('[data-download-psd]').addEventListener('click',()=>{
+ const a=document.createElement('a');
+ a.href='/assets/nova-psd-templates/NOVA_Artist_'+style+'_Layer_Template_v1.psd';
+ a.download='NOVA_Artist_'+style+'_Layer_Template_v1.psd';
+ document.body.append(a);a.click();a.remove();
 });
 el.querySelector('[data-import-psd]').addEventListener('click',()=>psdInput.click());
  // Only the selected local folder is read. No account credentials or artwork are uploaded.
