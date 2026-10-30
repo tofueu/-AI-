@@ -5,6 +5,7 @@
   <meta name="theme-color" content="#080b12">
   <title>Pro AI 工作台</title>
   <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/nova-official-player.css">
 </head>
 <body>
   <div class="shell">
@@ -82,5 +83,6 @@
 
   <dialog id="resultDialog"><form method="dialog"><div class="dialog-top"><div><span class="eyebrow">TASK RESULT</span><h2 id="dialogTitle">任務結果</h2></div><button class="icon-btn">×</button></div><pre id="resultText"></pre><div id="pasteArea" class="paste-area hidden"><label>貼上 Perplexity / Grok 的回覆<textarea id="manualResult" placeholder="把官方介面的回答貼在這裡，儲存後就會加入任務紀錄。"></textarea></label><button type="button" class="run-btn" id="saveResult">儲存回覆 <b>✓</b></button></div><div class="dialog-actions"><button class="secondary-btn" value="close">關閉</button><button class="run-btn" type="button" id="copyPrompt">複製任務內容 <b>⧉</b></button></div></form></dialog>
   <script src="/app.js" defer></script>
+  <script type="module">import {mountNovaPet} from "/nova-official-player.js"; mountNovaPet();</script>
 </body>
 </html>
