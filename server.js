@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { installOfficialNova } from './nova-official-installer.js';
+import { installPsdTemplates } from './nova-psd-templates.js';
 import { installPsdCharacter, readCharacter, characterFile, getActiveCharacter, setActiveCharacter } from './nova-psd-mod.js';
 import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
@@ -29,6 +30,12 @@ try {
   console.error('[NOVA] Official sprite pack failed verification; no fake avatar will be shown:', error.message);
 }
 
+try{
+  const installedPsd=installPsdTemplates(ROOT);
+  console.log('[NOVA] Q/成熟版 Photoshop 分層模板已準備',installedPsd);
+}catch(error){
+  console.error('[NOVA] Git PSD 模板損壞或缺失：',error.message);
+}
 mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
@@ -229,7 +236,7 @@ function runGemini(task) {
 
 function sendFile(res, filePath) {
   const ext = path.extname(filePath);
-  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp' };
+  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.psd': 'application/vnd.adobe.photoshop' };
   res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': 'no-cache' });
   res.end(readFileSync(filePath));
 }
