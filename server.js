@@ -1,5 +1,6 @@
 import http from 'node:http';
 import { installOfficialNova } from './nova-official-installer.js';
+import { installPsdCharacter, readCharacter, characterFile, getActiveCharacter, setActiveCharacter } from './nova-psd-mod.js';
 import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -97,6 +98,21 @@ function readBody(req) {
       try { resolve(JSON.parse(data || '{}')); } catch { reject(new Error('Invalid JSON')); }
     });
     req.on('error', reject);
+  });
+}
+function readPsdBinary(req){
+  const MAX=30*1024*1024;
+  return new Promise((resolve,reject)=>{
+    const incoming=Number(req.headers['content-length']||0);
+    if(incoming>MAX){reject(Error('PSD 太大；最大 30 MB'));req.resume();return;}
+    let len=0,failed=false;const parts=[];
+    req.on('data',data=>{
+      len+=data.length;
+      if(len>MAX){if(!failed){failed=true;reject(Error('PSD 太大；最大 30 MB'));}return;}
+      if(!failed)parts.push(data);
+    });
+    req.on('end',()=>{if(!failed)resolve(Buffer.concat(parts,len));});
+    req.on('error',err=>{if(!failed){failed=true;reject(err);}});
   });
 }
 function addLog(taskId, chunk, stream = 'out') {
@@ -220,6 +236,37 @@ function sendFile(res, filePath) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
+  // One local PSD upload -> safe PNG layers, rig and persistent installed MOD.
+  if(req.method==='POST'&&url.pathname==='/api/nova/characters/psd'){
+    const style=url.searchParams.get('style')||'chibi';
+    if(!['chibi','mature'].includes(style))return json(res,400,{error:'角色格式必須是 chibi 或 mature'});
+    const type=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
+    if(!['application/octet-stream','application/vnd.adobe.photoshop','image/vnd.adobe.photoshop'].includes(type))
+      return json(res,415,{error:'請直接上傳原始 PSD，不要傳表單或遠端網址'});
+    try{
+      const psd=await readPsdBinary(req);
+      const installed=await installPsdCharacter(ROOT,psd,style);
+      return json(res,201,installed);
+    }catch(error){return json(res,400,{error:error.message});}
+  }
+  if(req.method==='GET'&&url.pathname==='/api/nova/characters/active')
+    return json(res,200,{id:getActiveCharacter(ROOT)});
+  if(req.method==='DELETE'&&url.pathname==='/api/nova/characters/active'){
+    setActiveCharacter(ROOT,null);
+    return json(res,200,{id:null});
+  }
+  const parts=url.pathname.split('/').filter(Boolean);
+  if(req.method==='GET'&&parts.length===5&&parts[0]==='api'&&parts[1]==='nova'&&parts[2]==='characters'&&parts[4]==='rig'){
+    try{return json(res,200,readCharacter(ROOT,parts[3]));}
+    catch{return json(res,404,{error:'找不到已安裝的角色'});}
+  }
+  if(req.method==='GET'&&parts.length>=6&&parts[0]==='api'&&parts[1]==='nova'&&parts[2]==='characters'&&parts[4]==='files'){
+    try{
+      const p=characterFile(ROOT,parts[3],parts.slice(5).join('/'));
+      if(!existsSync(p)||!statSync(p).isFile())return json(res,404,{error:'角色部位不存在'});
+      return sendFile(res,p);
+    }catch{return json(res,404,{error:'角色素材路徑不合法'});}
+  }
   if (req.method === 'GET' && url.pathname === '/api/health') {
     const [cli, perplexity, grok] = await Promise.all([
       checkAntigravity(),
