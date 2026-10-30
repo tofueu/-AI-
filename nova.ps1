@@ -3,6 +3,10 @@ Add-Type -AssemblyName PresentationFramework
 . (Join-Path $PSScriptRoot 'nova-tasks.ps1')
 . (Join-Path $PSScriptRoot 'nova-chat.ps1')
 
+# Canonical Asset Specification Reference: public/assets/nova-character/NOVA_ASSET_SPEC.md
+# SVG Asset Reference: public/assets/nova-character/nova-purple-character.svg
+# SHA-256 Hash: d409d9ff40766aefbd02c555b947bbdc79c2dc30956271d646e948a372cbc9a4
+
 # Visual Purple Character Desktop Pet Window
 $xaml = @"
 <Window
