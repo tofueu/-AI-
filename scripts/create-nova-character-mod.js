@@ -27,13 +27,17 @@ export function createArtistTemplate(style,dest){
  try{
   fs.writeFileSync(path.join(folder,'rig.json'),JSON.stringify(rig,null,2)+'\n');
   fs.copyFileSync(path.join(src,'README.md'),path.join(folder,'README.md'));
-  for(const file of new Set(rig.parts.map(p=>p.file))){
+  // A change of hat/hair/eyes/clothing must not need a brand-new animation rig.
+  // Generate every selectable appearance image as a transparent artist-editable template.
+  const variantFiles=Object.values(rig.wardrobe||{}).flatMap(choices=>
+    Object.values(choices).flatMap(overrides=>Object.values(overrides).filter(Boolean)));
+  for(const file of new Set([...rig.parts.map(p=>p.file),...variantFiles])){
    const out=path.join(folder,file);
    fs.mkdirSync(path.dirname(out),{recursive:true});
    fs.writeFileSync(out,blankPng());
   }
  }catch(err){fs.rmSync(folder,{recursive:true,force:true});throw err;}
- return {folder,style,parts:rig.parts.length};
+ return {folder,style,parts:rig.parts.length,wardrobe:Object.keys(rig.wardrobe||{})};
 }
 if(process.argv[1] && path.resolve(process.argv[1])===fileURLToPath(import.meta.url)){
  const style=process.argv[2],output=process.argv[3];
