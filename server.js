@@ -22,11 +22,11 @@ mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
 const DEFAULT_ACCOUNTS = [
-  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', displayName: 'Gemini Primary (Antigravity Profile A)', provider: 'gemini', profileRef: 'google_profile_a', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Google Antigravity CLI 官方訂閱 Profile A；若 CLI 不支援同時啟用，執行前請先切換至 Profile A。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', displayName: 'Gemini Primary (Antigravity Profile A)', provider: 'gemini', profileRef: 'google_profile_a', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Google Antigravity CLI 官方訂閱 Profile A；若 CLI 不支援同時啟用，執行前請先切換至 Profile A。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
   { id: 'acc_gemini_b', name: 'Gemini B (次要帳號)', displayName: 'Gemini Secondary (Antigravity Profile B)', provider: 'gemini', profileRef: 'google_profile_b', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Google Antigravity CLI Profile B：單一 CLI 限制下採官方 Profile 切換/Handoff 模式，不偽稱並行執行。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
   { id: 'acc_codex', name: 'ChatGPT / Codex', displayName: 'OpenAI Codex Slot', provider: 'codex', profileRef: 'openai_default', capabilities: ['code_review', 'chat'], mode: 'subscription_cli', status: 'unlinked', active: true, note: 'OpenAI 官方授權槽位；點擊「連結」開啟官方 OAuth 頁，完成後按「再試一次」核對。', oauthUrl: 'https://auth.openai.com/authorize' },
   { id: 'acc_claude', name: 'Claude Pro', displayName: 'Claude Pro Slot', provider: 'claude', profileRef: 'claude_default', capabilities: ['analysis', 'chat_handoff'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Anthropic 官方訂閱：請在官方網頁完成登入，點擊「再試一次」進行 Recheck。', oauthUrl: 'https://claude.ai/login' },
-  { id: 'acc_perplexity', name: 'Perplexity Pro', displayName: 'Perplexity Search Slot', provider: 'perplexity', profileRef: 'perplexity_default', capabilities: ['web_research'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Perplexity Pro 搜尋額度；支援手動/Web 流程核對。', oauthUrl: 'https://www.perplexity.ai/' }
+  { id: 'acc_perplexity', name: 'Perplexity Pro', displayName: 'Perplexity Search Slot', provider: 'perplexity', profileRef: 'perplexity_default', capabilities: ['web_research'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Perplexity Pro 搜尋額度；支援手動/Web 流程核對。', oauthUrl: 'https://www.perplexity.ai/' }
 ];
 
 function loadAccounts() {
@@ -203,7 +203,7 @@ function runGemini(task) {
 
 function sendFile(res, filePath) {
   const ext = path.extname(filePath);
-  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml' };
+  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp' };
   res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': 'no-cache' });
   res.end(readFileSync(filePath));
 }
@@ -220,8 +220,8 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && url.pathname === '/api/accounts') {
     const accounts = loadAccounts();
-    const now = new Date().toISOString();
-    return json(res, 200, { ok: true, accounts: accounts.map(a => ({ ...a, lastVerifiedAt: now })) });
+    // A saved label is not evidence of a valid authenticated provider session.
+    return json(res, 200, { ok: true, accounts: accounts.map(a => ({ ...a, status: a.status === 'linked' || a.status === 'connected' ? 'prerequisites_needed' : a.status, lastVerifiedAt: null })) });
   }
   if (req.method === 'POST' && url.pathname === '/api/accounts') {
     let body;
@@ -286,17 +286,18 @@ const server = http.createServer(async (req, res) => {
     const list = loadAccounts();
     const acc = list.find(a => a.id === recheckMatch[1]);
     if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    // --version proves CLI installation, not authorization to a particular account.
+    // Opening an OAuth page or clicking Recheck is never a successful auth handshake.
     if (acc.provider === 'gemini') {
       const cli = await checkAntigravity();
-      if (acc.id === 'acc_gemini_a') {
-        acc.status = cli.available ? 'linked' : 'prerequisites_needed';
-      } else {
-        acc.status = 'prerequisites_needed';
-      }
-    } else {
-      acc.status = acc.status === 'login_in_progress' ? 'linked' : (acc.status || 'linked');
+      acc.cliAvailable = cli.available;
+      acc.note = cli.available
+        ? '偵測到 Gemini/Antigravity CLI，但尚無可核實的帳號授權證據；請以官方驗證程序確認。'
+        : 'CLI 未安裝或不可用，尚無可核實的帳號授權證據。';
     }
-    acc.lastVerifiedAt = new Date().toISOString();
+    acc.status = 'prerequisites_needed';
+    acc.lastCheckedAt = new Date().toISOString();
+    acc.lastVerifiedAt = null;
     saveAccounts(list);
     return json(res, 200, { ok: true, status: acc.status, account: acc });
   }
