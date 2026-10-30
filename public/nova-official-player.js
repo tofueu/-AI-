@@ -23,9 +23,9 @@ export function taskState(tasks){
 }
 export function spriteFrame(mod,style,action,timeMs){
  const c=mod.characters[style],t=c?.animations?.[action]||c?.animations?.idle;
- if(!t)return c?.views?.front?('/'+c.root+'/'+c.views.front):null;
+ if(!t)return c?.views?.front?('/assets/nova-official/'+c.root+'/'+c.views.front):null;
  const i=Math.floor(Math.max(0,timeMs)*t.fps/1000)%t.frames.length;
- return '/'+c.root+'/'+t.frames[i];
+ return '/assets/nova-official/'+c.root+'/'+t.frames[i];
 }
 export async function mountNovaPet({fetcher=fetch}={}){
  const el=document.createElement('aside');el.className='nova-mod-pet';
