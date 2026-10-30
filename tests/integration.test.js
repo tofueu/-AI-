@@ -96,7 +96,7 @@ test('Integration Test', async (t) => {
 
     const recheckRes = await request('/api/accounts/acc_codex/recheck', 'POST');
     assert.strictEqual(recheckRes.status, 200);
-    assert.strictEqual(recheckRes.body.status, 'linked');
+    assert.strictEqual(recheckRes.body.status, 'prerequisites_needed', 'Opening a login URL is not proof of authorization');
 
     const accountLogin = await request('/api/accounts/acc_gemini_a/login', 'POST');
     assert.strictEqual(accountLogin.status, 200);
