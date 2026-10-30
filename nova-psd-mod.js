@@ -22,7 +22,7 @@ export function encodeRgbaPng(width,height,rgba){
  for(let y=0;y<height;y++)Buffer.from(rgba.buffer,rgba.byteOffset+y*width*4,width*4).copy(scanlines,y*(width*4+1)+1);
  return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),chunk('IHDR',IHDR),chunk('IDAT',zlib.deflateSync(scanlines,{level:6})),chunk('IEND',Buffer.alloc(0))]);
 }
-export function characterDir(root){return path.join(root,'data','nova-installed-mods');}
+export function characterDir(root){return process.env.TEST_NOVA_MOD_DIR?path.resolve(process.env.TEST_NOVA_MOD_DIR):path.join(root,'data','nova-installed-mods');}
 function ensureValidId(id){if(!MOD_ID.test(id))throw Error('Invalid character id');return id;}
 export function readCharacter(root,id){
  ensureValidId(id);const p=path.join(characterDir(root),id,'rig.json');
