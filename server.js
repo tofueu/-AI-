@@ -1,4 +1,7 @@
 import http from 'node:http';
+import { installOfficialNova } from './nova-official-installer.js';
+import { installPsdTemplates } from './nova-psd-templates.js';
+import { installPsdCharacter, readCharacter, characterFile, getActiveCharacter, setActiveCharacter } from './nova-psd-mod.js';
 import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -17,16 +20,31 @@ const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
 const PUBLIC_DIR = path.join(ROOT, 'public');
+// Restore the actual Git-tracked NOVA sprites before serving the Workbench.
+// Missing or corrupt art must not prevent the task API from starting.
+try {
+  const installed = installOfficialNova(ROOT);
+  if (!installed.installed) console.warn('[NOVA]', installed.reason);
+  else console.log('[NOVA] bundled official MOD ready', installed.cached ? '(cached)' : '(extracted)', installed.files ?? '');
+} catch (error) {
+  console.error('[NOVA] Official sprite pack failed verification; no fake avatar will be shown:', error.message);
+}
 
+try{
+  const installedPsd=installPsdTemplates(ROOT);
+  console.log('[NOVA] Q/成熟版 Photoshop 分層模板已準備',installedPsd);
+}catch(error){
+  console.error('[NOVA] Git PSD 模板損壞或缺失：',error.message);
+}
 mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
 const DEFAULT_ACCOUNTS = [
-  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', displayName: 'Gemini Primary (Antigravity Profile A)', provider: 'gemini', profileRef: 'google_profile_a', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Google Antigravity CLI 官方訂閱 Profile A；若 CLI 不支援同時啟用，執行前請先切換至 Profile A。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', displayName: 'Gemini Primary (Antigravity Profile A)', provider: 'gemini', profileRef: 'google_profile_a', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Google Antigravity CLI 官方訂閱 Profile A；若 CLI 不支援同時啟用，執行前請先切換至 Profile A。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
   { id: 'acc_gemini_b', name: 'Gemini B (次要帳號)', displayName: 'Gemini Secondary (Antigravity Profile B)', provider: 'gemini', profileRef: 'google_profile_b', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Google Antigravity CLI Profile B：單一 CLI 限制下採官方 Profile 切換/Handoff 模式，不偽稱並行執行。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
   { id: 'acc_codex', name: 'ChatGPT / Codex', displayName: 'OpenAI Codex Slot', provider: 'codex', profileRef: 'openai_default', capabilities: ['code_review', 'chat'], mode: 'subscription_cli', status: 'unlinked', active: true, note: 'OpenAI 官方授權槽位；點擊「連結」開啟官方 OAuth 頁，完成後按「再試一次」核對。', oauthUrl: 'https://auth.openai.com/authorize' },
   { id: 'acc_claude', name: 'Claude Pro', displayName: 'Claude Pro Slot', provider: 'claude', profileRef: 'claude_default', capabilities: ['analysis', 'chat_handoff'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Anthropic 官方訂閱：請在官方網頁完成登入，點擊「再試一次」進行 Recheck。', oauthUrl: 'https://claude.ai/login' },
-  { id: 'acc_perplexity', name: 'Perplexity Pro', displayName: 'Perplexity Search Slot', provider: 'perplexity', profileRef: 'perplexity_default', capabilities: ['web_research'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Perplexity Pro 搜尋額度；支援手動/Web 流程核對。', oauthUrl: 'https://www.perplexity.ai/' }
+  { id: 'acc_perplexity', name: 'Perplexity Pro', displayName: 'Perplexity Search Slot', provider: 'perplexity', profileRef: 'perplexity_default', capabilities: ['web_research'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Perplexity Pro 搜尋額度；支援手動/Web 流程核對。', oauthUrl: 'https://www.perplexity.ai/' }
 ];
 
 function loadAccounts() {
@@ -87,6 +105,21 @@ function readBody(req) {
       try { resolve(JSON.parse(data || '{}')); } catch { reject(new Error('Invalid JSON')); }
     });
     req.on('error', reject);
+  });
+}
+function readPsdBinary(req){
+  const MAX=30*1024*1024;
+  return new Promise((resolve,reject)=>{
+    const incoming=Number(req.headers['content-length']||0);
+    if(incoming>MAX){reject(Error('PSD 太大；最大 30 MB'));req.resume();return;}
+    let len=0,failed=false;const parts=[];
+    req.on('data',data=>{
+      len+=data.length;
+      if(len>MAX){if(!failed){failed=true;reject(Error('PSD 太大；最大 30 MB'));}return;}
+      if(!failed)parts.push(data);
+    });
+    req.on('end',()=>{if(!failed)resolve(Buffer.concat(parts,len));});
+    req.on('error',err=>{if(!failed){failed=true;reject(err);}});
   });
 }
 function addLog(taskId, chunk, stream = 'out') {
@@ -203,13 +236,44 @@ function runGemini(task) {
 
 function sendFile(res, filePath) {
   const ext = path.extname(filePath);
-  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml' };
+  const types = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.webp': 'image/webp', '.psd': 'application/vnd.adobe.photoshop' };
   res.writeHead(200, { 'content-type': types[ext] || 'application/octet-stream', 'cache-control': 'no-cache' });
   res.end(readFileSync(filePath));
 }
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
+  // One local PSD upload -> safe PNG layers, rig and persistent installed MOD.
+  if(req.method==='POST'&&url.pathname==='/api/nova/characters/psd'){
+    const style=url.searchParams.get('style')||'chibi';
+    if(!['chibi','mature'].includes(style))return json(res,400,{error:'角色格式必須是 chibi 或 mature'});
+    const type=String(req.headers['content-type']||'').split(';')[0].trim().toLowerCase();
+    if(!['application/octet-stream','application/vnd.adobe.photoshop','image/vnd.adobe.photoshop'].includes(type))
+      return json(res,415,{error:'請直接上傳原始 PSD，不要傳表單或遠端網址'});
+    try{
+      const psd=await readPsdBinary(req);
+      const installed=await installPsdCharacter(ROOT,psd,style);
+      return json(res,201,installed);
+    }catch(error){return json(res,400,{error:error.message});}
+  }
+  if(req.method==='GET'&&url.pathname==='/api/nova/characters/active')
+    return json(res,200,{id:getActiveCharacter(ROOT)});
+  if(req.method==='DELETE'&&url.pathname==='/api/nova/characters/active'){
+    setActiveCharacter(ROOT,null);
+    return json(res,200,{id:null});
+  }
+  const parts=url.pathname.split('/').filter(Boolean);
+  if(req.method==='GET'&&parts.length===5&&parts[0]==='api'&&parts[1]==='nova'&&parts[2]==='characters'&&parts[4]==='rig'){
+    try{return json(res,200,readCharacter(ROOT,parts[3]));}
+    catch{return json(res,404,{error:'找不到已安裝的角色'});}
+  }
+  if(req.method==='GET'&&parts.length>=6&&parts[0]==='api'&&parts[1]==='nova'&&parts[2]==='characters'&&parts[4]==='files'){
+    try{
+      const p=characterFile(ROOT,parts[3],parts.slice(5).join('/'));
+      if(!existsSync(p)||!statSync(p).isFile())return json(res,404,{error:'角色部位不存在'});
+      return sendFile(res,p);
+    }catch{return json(res,404,{error:'角色素材路徑不合法'});}
+  }
   if (req.method === 'GET' && url.pathname === '/api/health') {
     const [cli, perplexity, grok] = await Promise.all([
       checkAntigravity(),
@@ -220,8 +284,8 @@ const server = http.createServer(async (req, res) => {
   }
   if (req.method === 'GET' && url.pathname === '/api/accounts') {
     const accounts = loadAccounts();
-    const now = new Date().toISOString();
-    return json(res, 200, { ok: true, accounts: accounts.map(a => ({ ...a, lastVerifiedAt: now })) });
+    // A saved label is not evidence of a valid authenticated provider session.
+    return json(res, 200, { ok: true, accounts: accounts.map(a => ({ ...a, status: a.status === 'linked' || a.status === 'connected' ? 'prerequisites_needed' : a.status, lastVerifiedAt: null })) });
   }
   if (req.method === 'POST' && url.pathname === '/api/accounts') {
     let body;
@@ -286,17 +350,18 @@ const server = http.createServer(async (req, res) => {
     const list = loadAccounts();
     const acc = list.find(a => a.id === recheckMatch[1]);
     if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    // --version proves CLI installation, not authorization to a particular account.
+    // Opening an OAuth page or clicking Recheck is never a successful auth handshake.
     if (acc.provider === 'gemini') {
       const cli = await checkAntigravity();
-      if (acc.id === 'acc_gemini_a') {
-        acc.status = cli.available ? 'linked' : 'prerequisites_needed';
-      } else {
-        acc.status = 'prerequisites_needed';
-      }
-    } else {
-      acc.status = acc.status === 'login_in_progress' ? 'linked' : (acc.status || 'linked');
+      acc.cliAvailable = cli.available;
+      acc.note = cli.available
+        ? '偵測到 Gemini/Antigravity CLI，但尚無可核實的帳號授權證據；請以官方驗證程序確認。'
+        : 'CLI 未安裝或不可用，尚無可核實的帳號授權證據。';
     }
-    acc.lastVerifiedAt = new Date().toISOString();
+    acc.status = 'prerequisites_needed';
+    acc.lastCheckedAt = new Date().toISOString();
+    acc.lastVerifiedAt = null;
     saveAccounts(list);
     return json(res, 200, { ok: true, status: acc.status, account: acc });
   }

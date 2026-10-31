@@ -5,6 +5,7 @@ import http from 'node:http';
 import { mkdtempSync, rmSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
+import {makeTestPsd} from './nova-psd-fixture.js';
 
 const TEST_PORT = 4174;
 
@@ -31,6 +32,19 @@ function request(path, method = 'GET', body = null) {
   });
 }
 
+function uploadPsd(bytes,style='chibi'){
+ return new Promise((resolve,reject)=>{
+  const req=http.request({
+   hostname:'127.0.0.1',port:TEST_PORT,
+   path:'/api/nova/characters/psd?style='+style,method:'POST',
+   headers:{'content-type':'application/octet-stream','content-length':bytes.length}
+  },res=>{
+   const chunks=[];res.on('data',c=>chunks.push(c));
+   res.on('end',()=>{const body=Buffer.concat(chunks).toString('utf8');try{resolve({status:res.statusCode,body:JSON.parse(body)});}catch{resolve({status:res.statusCode,body});}});
+  });
+  req.on('error',reject);req.end(bytes);
+ });
+}
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -40,7 +54,7 @@ test('Integration Test', async (t) => {
   const tempDir = mkdtempSync(path.join(tmpdir(), 'nova-api-test-'));
   const serverProcess = spawn(process.execPath, ['server.js'], {
     stdio: 'pipe',
-    env: { ...process.env, PORT: String(TEST_PORT), TEST_DATA_FILE: path.join(tempDir, 'tasks.json') }
+    env: { ...process.env, PORT: String(TEST_PORT), TEST_DATA_FILE: path.join(tempDir, 'tasks.json'), TEST_NOVA_MOD_DIR:path.join(tempDir,'nova-installed-mods') }
   });
 
   // Poll only the local task endpoint; external provider health may be offline.
@@ -96,11 +110,32 @@ test('Integration Test', async (t) => {
 
     const recheckRes = await request('/api/accounts/acc_codex/recheck', 'POST');
     assert.strictEqual(recheckRes.status, 200);
-    assert.strictEqual(recheckRes.body.status, 'linked');
+    assert.strictEqual(recheckRes.body.status, 'prerequisites_needed', 'Opening a login URL is not proof of authorization');
 
     const accountLogin = await request('/api/accounts/acc_gemini_a/login', 'POST');
     assert.strictEqual(accountLogin.status, 200);
     assert.ok(accountLogin.body.oauthUrl.includes('accounts.google.com'), 'Must return official OAuth redirect URL without storing credentials');
+
+    // One edited Photoshop PSD is sufficient: backend extracts all PNG layers,
+    // inherits the rig, and keeps the original PSD for future editing.
+    const template=await request('/assets/nova-psd-templates/NOVA_Artist_chibi_Layer_Template_v1.psd');
+    assert.strictEqual(template.status,200,'Artist PSD template must be downloadable from Workbench');
+    const raw=makeTestPsd();
+    const uploaded=await uploadPsd(raw);
+    assert.strictEqual(uploaded.status,201,JSON.stringify(uploaded.body));
+    assert.strictEqual(uploaded.body.paintedParts,3);
+    const activeMod=await request('/api/nova/characters/active');
+    assert.strictEqual(activeMod.body.id,uploaded.body.id);
+    const rig=await request('/api/nova/characters/'+uploaded.body.id+'/rig');
+    assert.strictEqual(rig.status,200);
+    assert.ok(rig.body.parts.some(p=>p.id==='head'));
+    const headImage=await request('/api/nova/characters/'+uploaded.body.id+'/files/parts/head.png');
+    assert.strictEqual(headImage.status,200);
+    const traversal=await request('/api/nova/characters/'+uploaded.body.id+'/files/parts/%2e%2e/hidden.png');
+    assert.strictEqual(traversal.status,404);
+    const backToOfficial=await request('/api/nova/characters/active','DELETE');
+    assert.strictEqual(backToOfficial.status,200);
+    assert.strictEqual((await request('/api/nova/characters/active')).body.id,null);
 
     // 2. Create a Custom Task
     const createRes = await request('/api/tasks', 'POST', {
