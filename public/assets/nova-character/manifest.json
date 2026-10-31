@@ -1,0 +1,72 @@
+{
+  "manifestVersion": "1.0.0",
+  "id": "nova_chibi_purple_v1",
+  "name": "NOVA Chibi Purple Official Pet MOD",
+  "version": "1.0.0",
+  "style": "chibi",
+  "author": "AI Workbench Core Team",
+  "license": "CC-BY-4.0 / MIT",
+  "description": "Official Chibi Purple character MOD pack with jointed body slices and animated timelines for desktop pet NOVA.",
+  "slots": {
+    "head": "parts/head.svg",
+    "body": "parts/body.svg",
+    "arm_left": "parts/arm_left.svg",
+    "arm_right": "parts/arm_right.svg",
+    "leg_left": "parts/leg_left.svg",
+    "leg_right": "parts/leg_right.svg",
+    "eyes_normal": "parts/eyes_normal.svg",
+    "eyes_working": "parts/eyes_working.svg",
+    "eyes_error": "parts/eyes_error.svg",
+    "crown_star": "parts/crown_star.svg"
+  },
+  "timelines": {
+    "idle": {
+      "fps": 2,
+      "loop": true,
+      "frames": [
+        { "headY": 0, "armLeftRot": -5, "armRightRot": 5, "bubbleText": "NOVA", "eyes": "eyes_normal" },
+        { "headY": -2, "armLeftRot": -8, "armRightRot": 8, "bubbleText": "NOVA", "eyes": "eyes_normal" }
+      ]
+    },
+    "working": {
+      "fps": 4,
+      "loop": true,
+      "frames": [
+        { "headY": -1, "armLeftRot": -20, "armRightRot": 20, "bubbleText": "工作中...", "eyes": "eyes_working" },
+        { "headY": 1, "armLeftRot": -10, "armRightRot": 10, "bubbleText": "工作中...", "eyes": "eyes_working" }
+      ]
+    },
+    "thinking": {
+      "fps": 2,
+      "loop": true,
+      "frames": [
+        { "headY": -3, "armLeftRot": -30, "armRightRot": 0, "bubbleText": "思考中...", "eyes": "eyes_normal" },
+        { "headY": -2, "armLeftRot": -25, "armRightRot": 5, "bubbleText": "思考中...", "eyes": "eyes_normal" }
+      ]
+    },
+    "waiting_auth": {
+      "fps": 2,
+      "loop": true,
+      "frames": [
+        { "headY": 0, "armLeftRot": -15, "armRightRot": -15, "bubbleText": "等待授權", "eyes": "eyes_normal" },
+        { "headY": 2, "armLeftRot": -20, "armRightRot": -20, "bubbleText": "等待授權", "eyes": "eyes_normal" }
+      ]
+    },
+    "error": {
+      "fps": 3,
+      "loop": true,
+      "frames": [
+        { "headY": 2, "armLeftRot": 15, "armRightRot": -15, "bubbleText": "需處理!", "eyes": "eyes_error" },
+        { "headY": 0, "armLeftRot": 10, "armRightRot": -10, "bubbleText": "需處理!", "eyes": "eyes_error" }
+      ]
+    },
+    "done": {
+      "fps": 2,
+      "loop": true,
+      "frames": [
+        { "headY": -4, "armLeftRot": -35, "armRightRot": 35, "bubbleText": "完成!", "eyes": "eyes_working" },
+        { "headY": 0, "armLeftRot": -10, "armRightRot": 10, "bubbleText": "完成!", "eyes": "eyes_normal" }
+      ]
+    }
+  }
+}

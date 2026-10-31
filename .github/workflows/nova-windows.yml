@@ -1,0 +1,34 @@
+name: NOVA Windows Desktop Integration
+
+on:
+  push:
+    branches: ['main', 'feature/**']
+  pull_request:
+    branches: ['main']
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Dependencies
+        run: npm ci || npm install
+
+      - name: Execute Node Integration Tests
+        run: npm test
+
+      - name: Execute PowerShell Regression Tests
+        shell: powershell
+        run: |
+          & .\tests\nova-launch-regression.ps1
+          & .\tests\nova-tasks-regression.ps1
+          & .\tests\nova-chat-regression.ps1
+          & .\tests\nova-pet-engine-regression.ps1

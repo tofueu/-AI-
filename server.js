@@ -1,4 +1,5 @@
 import http from 'node:http';
+import https from 'node:https';
 import { spawn, execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
@@ -10,19 +11,66 @@ import { fileURLToPath } from 'node:url';
 const execFileAsync = promisify(execFile);
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = path.join(ROOT, 'data');
-const DATA_FILE = path.join(DATA_DIR, 'tasks.json');
+const DATA_FILE = process.env.TEST_DATA_FILE ? path.resolve(process.env.TEST_DATA_FILE) : path.join(DATA_DIR, 'tasks.json');
+const ACCOUNTS_FILE = process.env.TEST_ACCOUNTS_FILE ? path.resolve(process.env.TEST_ACCOUNTS_FILE) : path.join(DATA_DIR, 'accounts.json');
 const PORT = Number(process.env.PORT || 4173);
 const HOST = '127.0.0.1';
 const AGY = process.env.ANTIGRAVITY_CLI || 'agy';
 const PUBLIC_DIR = path.join(ROOT, 'public');
 
-mkdirSync(DATA_DIR, { recursive: true });
+mkdirSync(path.dirname(DATA_FILE), { recursive: true });
 if (!existsSync(DATA_FILE)) writeFileSync(DATA_FILE, '[]', 'utf8');
 
-function loadTasks() {
-  try { return JSON.parse(readFileSync(DATA_FILE, 'utf8')); }
-  catch { return []; }
+const DEFAULT_ACCOUNTS = [
+  { id: 'acc_gemini_a', name: 'Gemini A (主帳號)', displayName: 'Gemini Primary (Antigravity Profile A)', provider: 'gemini', profileRef: 'google_profile_a', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Google Antigravity CLI 官方訂閱 Profile A；若 CLI 不支援同時啟用，執行前請先切換至 Profile A。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_gemini_b', name: 'Gemini B (次要帳號)', displayName: 'Gemini Secondary (Antigravity Profile B)', provider: 'gemini', profileRef: 'google_profile_b', capabilities: ['code_execution', 'local_workspace_edits'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Google Antigravity CLI Profile B：單一 CLI 限制下採官方 Profile 切換/Handoff 模式，不偽稱並行執行。', oauthUrl: 'https://accounts.google.com/o/oauth2/v2/auth' },
+  { id: 'acc_codex', name: 'ChatGPT / Codex', displayName: 'OpenAI Codex Slot', provider: 'codex', profileRef: 'openai_default', capabilities: ['code_review', 'chat'], mode: 'subscription_cli', status: 'unlinked', active: true, note: 'OpenAI 官方授權槽位；點擊「連結」開啟官方 OAuth 頁，完成後按「再試一次」核對。', oauthUrl: 'https://auth.openai.com/authorize' },
+  { id: 'acc_claude', name: 'Claude Pro', displayName: 'Claude Pro Slot', provider: 'claude', profileRef: 'claude_default', capabilities: ['analysis', 'chat_handoff'], mode: 'subscription_cli', status: 'prerequisites_needed', active: true, note: 'Anthropic 官方訂閱：請在官方網頁完成登入，點擊「再試一次」進行 Recheck。', oauthUrl: 'https://claude.ai/login' },
+  { id: 'acc_perplexity', name: 'Perplexity Pro', displayName: 'Perplexity Search Slot', provider: 'perplexity', profileRef: 'perplexity_default', capabilities: ['web_research'], mode: 'subscription_cli', status: 'linked', active: true, note: 'Perplexity Pro 搜尋額度；支援手動/Web 流程核對。', oauthUrl: 'https://www.perplexity.ai/' }
+];
+
+function loadAccounts() {
+  try {
+    if (!existsSync(ACCOUNTS_FILE)) {
+      writeFileSync(ACCOUNTS_FILE, JSON.stringify(DEFAULT_ACCOUNTS, null, 2), 'utf8');
+      return DEFAULT_ACCOUNTS;
+    }
+    const data = JSON.parse(readFileSync(ACCOUNTS_FILE, 'utf8'));
+    return Array.isArray(data) ? data : DEFAULT_ACCOUNTS;
+  } catch {
+    return DEFAULT_ACCOUNTS;
+  }
 }
+function saveAccounts(accounts) { writeFileSync(ACCOUNTS_FILE, JSON.stringify(accounts, null, 2), 'utf8'); }
+
+function loadTasks() {
+  // Never turn a corrupt/unreadable task ledger into an empty queue: the next
+  // write would otherwise silently erase every NOVA/control-panel task.
+  let tasks;
+  try {
+    tasks = JSON.parse(readFileSync(DATA_FILE, 'utf8'));
+  } catch {
+    throw new Error('Task ledger is unreadable or invalid JSON; refusing to reset it');
+  }
+  if (!Array.isArray(tasks) || !tasks.every(task =>
+    task !== null && typeof task === 'object' && !Array.isArray(task))) {
+    throw new Error('Task ledger must be an array of task objects; refusing to reset it');
+  }
+  return tasks;
+}
+
+const initialTasks = loadTasks();
+let changed = false;
+for (const task of initialTasks) {
+  if (task.status === 'running') {
+    task.status = 'error';
+    task.error = 'Server restarted while running';
+    task.updatedAt = new Date().toISOString();
+    changed = true;
+  }
+}
+if (changed) writeFileSync(DATA_FILE, JSON.stringify(initialTasks, null, 2), 'utf8');
+
 function saveTasks(tasks) { writeFileSync(DATA_FILE, JSON.stringify(tasks, null, 2), 'utf8'); }
 function json(res, status, body) {
   res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
@@ -87,7 +135,6 @@ async function advanceTeam(taskId) {
     const context = `\n\n以下是研究 AI 已完成的資料，請以它為依據實作：\n${research.response}`;
     updateTask(implementation.id, { status: 'queued', prompt: implementation.prompt + context });
     updateTask(parent.id, { status: 'running' });
-    runGemini(taskById(implementation.id));
     return;
   }
   if (completed.id === implementation?.id && review?.status === 'blocked') {
@@ -105,6 +152,17 @@ async function advanceTeam(taskId) {
 function validWorkspace(value) {
   if (typeof value !== 'string' || !path.isAbsolute(value)) return false;
   try { return statSync(value).isDirectory(); } catch { return false; }
+}
+
+async function checkProvider(url) {
+  return new Promise((resolve) => {
+    const req = https.get(url, { timeout: 3000 }, (res) => {
+      resolve(res.statusCode >= 200 && res.statusCode < 400);
+      res.resume();
+    });
+    req.on('error', () => resolve(false));
+    req.on('timeout', () => { req.destroy(); resolve(false); });
+  });
 }
 
 async function checkAntigravity() {
@@ -153,15 +211,108 @@ function sendFile(res, filePath) {
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${HOST}:${PORT}`);
   if (req.method === 'GET' && url.pathname === '/api/health') {
-    const cli = await checkAntigravity();
-    return json(res, 200, { ok: true, cli, platform: os.platform(), defaultWorkspace: process.cwd() });
+    const [cli, perplexity, grok] = await Promise.all([
+      checkAntigravity(),
+      checkProvider('https://www.perplexity.ai/'),
+      checkProvider('https://grok.com/')
+    ]);
+    return json(res, 200, { ok: true, cli, perplexity, grok, platform: os.platform(), defaultWorkspace: process.cwd() });
+  }
+  if (req.method === 'GET' && url.pathname === '/api/accounts') {
+    const accounts = loadAccounts();
+    const now = new Date().toISOString();
+    return json(res, 200, { ok: true, accounts: accounts.map(a => ({ ...a, lastVerifiedAt: now })) });
+  }
+  if (req.method === 'POST' && url.pathname === '/api/accounts') {
+    let body;
+    try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+    const { name, provider, mode } = body;
+    if (!name || typeof name !== 'string' || !name.trim()) return json(res, 400, { error: '請輸入帳號名稱' });
+    const validProviders = ['gemini', 'codex', 'claude', 'copilot', 'grok', 'perplexity', 'mistral', 'deepseek', 'meta', 'qwen', 'kimi', 'poe', 'huggingface', 'ollama', 'custom'];
+    if (!validProviders.includes(provider)) return json(res, 400, { error: '請選擇有效的 Provider' });
+    const isPaid = mode === 'paid_api';
+    const oauthUrls = {
+      gemini: 'https://accounts.google.com/o/oauth2/v2/auth',
+      codex: 'https://auth.openai.com/authorize',
+      claude: 'https://claude.ai/login',
+      perplexity: 'https://www.perplexity.ai/',
+      grok: 'https://grok.com/'
+    };
+    const newAcc = {
+      id: 'acc_' + randomUUID().slice(0, 8),
+      name: name.trim(),
+      provider,
+      mode: isPaid ? 'paid_api' : 'subscription_cli',
+      status: 'login_required',
+      active: true,
+      note: isPaid ? '警告：已手動啟用付費 API 模式，可能產生額外費用；不會自動 Fallback。' : '使用官方登入訂閱額度／官方 CLI 工具。',
+      oauthUrl: oauthUrls[provider] || 'https://google.com'
+    };
+    const list = loadAccounts();
+    list.push(newAcc);
+    saveAccounts(list);
+    return json(res, 201, { ok: true, account: newAcc });
+  }
+  const patchMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)$/);
+  if (req.method === 'PATCH' && patchMatch) {
+    let body;
+    try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === patchMatch[1]);
+    if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    if (typeof body.active === 'boolean') acc.active = body.active;
+    if (typeof body.name === 'string' && body.name.trim()) acc.name = body.name.trim();
+    saveAccounts(list);
+    return json(res, 200, { ok: true, account: acc });
+  }
+  const deleteMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)$/);
+  if (req.method === 'DELETE' && deleteMatch) {
+    let list = loadAccounts();
+    list = list.filter(a => a.id !== deleteMatch[1]);
+    saveAccounts(list);
+    return json(res, 200, { ok: true });
+  }
+  const connectMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/connect$/);
+  if (req.method === 'POST' && connectMatch) {
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === connectMatch[1]);
+    if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    acc.status = 'login_in_progress';
+    saveAccounts(list);
+    return json(res, 200, { ok: true, status: 'login_in_progress', message: '已開啟官方登入/授權頁，完成後請按「再試一次」重新核對', oauthUrl: acc.oauthUrl });
+  }
+  const recheckMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/recheck$/);
+  if (req.method === 'POST' && recheckMatch) {
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === recheckMatch[1]);
+    if (!acc) return json(res, 404, { error: '找不到該帳號' });
+    if (acc.provider === 'gemini') {
+      const cli = await checkAntigravity();
+      if (acc.id === 'acc_gemini_a') {
+        acc.status = cli.available ? 'linked' : 'prerequisites_needed';
+      } else {
+        acc.status = 'prerequisites_needed';
+      }
+    } else {
+      acc.status = acc.status === 'login_in_progress' ? 'linked' : (acc.status || 'linked');
+    }
+    acc.lastVerifiedAt = new Date().toISOString();
+    saveAccounts(list);
+    return json(res, 200, { ok: true, status: acc.status, account: acc });
+  }
+  const loginMatch = url.pathname.match(/^\/api\/accounts\/([\w-]+)\/login$/);
+  if (req.method === 'POST' && loginMatch) {
+    const list = loadAccounts();
+    const acc = list.find(a => a.id === loginMatch[1]);
+    const oauthUrl = acc?.oauthUrl || 'https://accounts.google.com/o/oauth2/v2/auth';
+    return json(res, 200, { ok: true, message: '請在開啟的官方瀏覽器頁面完成登入與授權', oauthUrl });
   }
   if (req.method === 'GET' && url.pathname === '/api/tasks') return json(res, 200, loadTasks().sort((a,b) => b.createdAt.localeCompare(a.createdAt)));
   if (req.method === 'POST' && url.pathname === '/api/tasks') {
     let body;
     try { body = await readBody(req); } catch (e) { return json(res, 400, { error: e.message }); }
     const { agent, prompt, workspace, mode, projectName, repoUrl, issueUrl } = body;
-    if (!['gemini', 'perplexity', 'grok', 'custom'].includes(agent)) return json(res, 400, { error: '請選擇有效的 AI 助理。' });
+    if (!['gemini', 'codex', 'perplexity', 'grok', 'custom'].includes(agent)) return json(res, 400, { error: '請選擇有效的 AI 助理。' });
     if (typeof prompt !== 'string' || !prompt.trim()) return json(res, 400, { error: '請輸入任務內容。' });
     if ((mode === 'team' || agent === 'gemini') && !validWorkspace(workspace)) return json(res, 400, { error: 'Gemini 任務需要有效的絕對專案資料夾路徑。' });
     if (mode === 'team') {
@@ -178,20 +329,23 @@ const server = http.createServer(async (req, res) => {
       return json(res, 201, { ...rootTask, children });
     }
     const task = {
-      id: randomUUID(), kind: 'standalone', agent, role: agent === 'gemini' ? '程式實作' : agent === 'perplexity' ? '研究與查證' : '獨立審查', prompt: prompt.trim(), workspace: workspace || '',
+      id: randomUUID(), kind: 'standalone', agent, role: agent === 'gemini' ? '程式實作' : agent === 'perplexity' ? '研究與查證' : agent === 'codex' ? 'Codex（待授權）' : '獨立審查', prompt: prompt.trim(), workspace: workspace || '',
       status: agent === 'gemini' ? 'queued' : 'handoff', response: '', logs: '',
       createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
     };
     const tasks = loadTasks(); tasks.push(task); saveTasks(tasks);
-    if (agent === 'gemini') runGemini(task);
     return json(res, 201, task);
   }
   const dispatchMatch = url.pathname.match(/^\/api\/tasks\/([\w-]+)\/dispatch$/);
   if (req.method === 'POST' && dispatchMatch) {
     const task = loadTasks().find(item => item.id === dispatchMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
-    if (task.status === 'blocked') return json(res, 409, { error: '這個任務要等前一個子任務完成後才會解鎖。' });
-    updateTask(task.id, { status: 'handoff', dispatchedAt: new Date().toISOString() });
+    // Only external planned tasks can be handed off. Never turn a queued/running
+    // Gemini job or a completed/cancelled task into a manual handoff.
+    if (task.agent === 'gemini' || !['planned', 'handoff'].includes(task.status)) {
+      return json(res, 409, { error: '只有等待交辦的外部 AI 任務可以手動交接。' });
+    }
+    if (task.status === 'planned') updateTask(task.id, { status: 'handoff', dispatchedAt: new Date().toISOString() });
     return json(res, 200, { ok: true, task: { ...task, status: 'handoff' } });
   }
   const resultMatch = url.pathname.match(/^\/api\/tasks\/([\w-]+)\/result$/);
@@ -201,6 +355,11 @@ const server = http.createServer(async (req, res) => {
     if (typeof body.response !== 'string' || !body.response.trim()) return json(res, 400, { error: '請貼上 AI 回覆。' });
     const task = loadTasks().find(item => item.id === resultMatch[1]);
     if (!task) return json(res, 404, { error: '找不到任務。' });
+    // A pasted response is evidence of manual handoff only; it must never
+    // overwrite a CLI task or fabricate success for blocked/completed work.
+    if (task.agent === 'gemini' || task.status !== 'handoff') {
+      return json(res, 409, { error: '僅允許已交辦的外部 AI 任務貼回真實回覆。' });
+    }
     updateTask(task.id, { response: body.response.trim(), status: 'done', finishedAt: new Date().toISOString() });
     await advanceTeam(task.id);
     return json(res, 200, { ok: true });
@@ -215,5 +374,13 @@ const server = http.createServer(async (req, res) => {
   if (!file.startsWith(PUBLIC_DIR) || !existsSync(file) || statSync(file).isDirectory()) return json(res, 404, { error: 'Not found' });
   sendFile(res, file);
 });
+
+
+setInterval(() => {
+  const tasks = loadTasks();
+  if (tasks.some(t => t.agent === 'gemini' && t.status === 'running')) return;
+  const queuedTask = tasks.find(t => t.agent === 'gemini' && t.status === 'queued');
+  if (queuedTask) runGemini(queuedTask);
+}, 3000);
 
 server.listen(PORT, HOST, () => console.log(`AI Workbench is running at http://${HOST}:${PORT}`));

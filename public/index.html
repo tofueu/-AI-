@@ -15,6 +15,7 @@
         <div class="nav-label">工作區</div>
         <a class="nav-item active" href="#home"><span class="nav-icon">▦</span>總覽</a>
         <a class="nav-item" href="#agents"><span class="nav-icon">◈</span>AI 助理 <span class="nav-count">3</span></a>
+        <a class="nav-item" href="#accountsView"><span class="nav-icon">⚙</span>帳號設定</a>
         <a class="nav-item" href="#tasks"><span class="nav-icon">◷</span>任務紀錄</a>
         <div class="nav-label space-top">你的專案</div>
         <button class="project-link" data-prompt="整理這個專案目前的狀態、待辦和風險。先檢查檔案，不要修改程式。"><i class="project-dot violet"></i>程式開發</button>
@@ -32,16 +33,20 @@
         <div class="composer-head"><div class="composer-label"><span class="compose-icon">✎</span><strong>建立主任務</strong></div><span class="hint">建立後展開成可追蹤的子任務</span></div>
         <div class="project-fields"><input id="projectName" placeholder="專案名稱（例如：AI 交易面板）"><input id="repoUrl" placeholder="GitHub Repository 網址（選填）"><input id="issueUrl" placeholder="Issue / PR 網址（選填）"></div>
         <textarea id="prompt" placeholder="描述主目標，例如：打造多 AI 工作台，讓 Gemini 負責實作、Perplexity 查證、Grok 審查…"></textarea>
-        <div class="composer-bottom"><div class="composer-options"><label class="select-wrap"><span class="option-label">分工模式</span><select id="mode"><option value="team">套娃分工 · 研究＋實作＋審查</option><option value="single">單一 AI 交辦</option></select></label><label class="workspace-wrap"><span class="option-label">本機專案資料夾</span><input id="workspace" placeholder="完整路徑，例如 C:\\Projects\\my-app" autocomplete="off"></label></div><button class="run-btn" id="runBtn"><span>建立分工</span><b>↗</b></button></div>
+        <div class="composer-bottom"><div class="composer-options"><label class="select-wrap"><span class="option-label">分工模式</span><select id="mode"><option value="team">套娃分工 · 研究＋實作＋審查</option><option value="single">單一 AI 交辦</option></select></label><label class="select-wrap"><span class="option-label">單一任務 AI</span><select id="primaryAgent"><option value="gemini">Gemini CLI</option><option value="codex">Codex（授權後執行）</option><option value="perplexity">Perplexity（手動交接）</option><option value="grok">Grok（手動交接）</option><option value="custom">其他 AI（手動交接）</option></select></label><label class="select-wrap"><span class="option-label">帳號槽位</span><select id="accountSlot"><option value="gemini_a">Gemini A (主帳號)</option><option value="gemini_b">Gemini B (次要帳號 - Handoff)</option><option value="codex">ChatGPT / Codex</option></select></label><label class="workspace-wrap"><span class="option-label">本機專案資料夾</span><input id="workspace" placeholder="完整路徑，例如 C:\\Projects\\my-app" autocomplete="off"></label></div><button class="run-btn" id="runBtn"><span>建立分工</span><b>↗</b></button></div>
         <div class="workspace-help">主任務會展開成任務樹：總控 → 研究、實作、審查。Gemini 在指定資料夾自動改檔；其他 AI 的進度與回覆也記在同一專案。</div>
       </section>
 
       <section class="section" id="agents"><div class="section-head"><div><h2>你的 AI 助理</h2><p>透過官方工具使用現有 Pro 訂閱</p></div><button class="text-btn" id="refreshBtn">更新連線狀態 ↻</button></div>
         <div class="agent-grid">
           <article class="agent-card gemini-card"><div class="agent-top"><div class="agent-symbol gem-symbol">✦</div><span class="agent-status" id="gemStatus"><i class="status-dot checking"></i>檢查中</span></div><h3>Gemini</h3><p class="agent-model">Google Antigravity</p><p class="agent-desc">直接在專案資料夾寫程式、建立檔案並執行任務。</p><div class="agent-foot"><span class="quota-tag">Pro 額度</span><button class="mini-btn" data-agent="gemini">交辦任務 <b>↗</b></button></div></article>
-          <article class="agent-card perplexity-card"><div class="agent-top"><div class="agent-symbol perplexity-symbol">◉</div><span class="agent-status ready"><i class="status-dot"></i>官方介面</span></div><h3>Perplexity</h3><p class="agent-model">Research</p><p class="agent-desc">使用 Pro 搜尋研究；從官方介面把結果帶回工作台。</p><div class="agent-foot"><span class="quota-tag">Pro 搜尋</span><button class="mini-btn" data-agent="perplexity">交辦任務 <b>↗</b></button></div></article>
-          <article class="agent-card grok-card"><div class="agent-top"><div class="agent-symbol grok-symbol">𝕏</div><span class="agent-status ready"><i class="status-dot"></i>官方介面</span></div><h3>Grok</h3><p class="agent-model">SuperGrok · Grok Bot</p><p class="agent-desc">透過 SuperGrok／Grok Bot 使用週額度，審查想法與內容。</p><div class="agent-foot"><span class="quota-tag">週額度</span><button class="mini-btn" data-agent="grok">交辦任務 <b>↗</b></button></div></article>
+          <article class="agent-card perplexity-card"><div class="agent-top"><div class="agent-symbol perplexity-symbol">◉</div><span class="agent-status ready" id="perpStatus"><i class="status-dot checking"></i>檢查中</span></div><h3>Perplexity</h3><p class="agent-model">Research</p><p class="agent-desc">使用 Pro 搜尋研究；從官方介面把結果帶回工作台。</p><div class="agent-foot"><span class="quota-tag">Pro 搜尋</span><button class="mini-btn" data-agent="perplexity">交辦任務 <b>↗</b></button></div></article>
+          <article class="agent-card grok-card"><div class="agent-top"><div class="agent-symbol grok-symbol">𝕏</div><span class="agent-status ready" id="grokStatus"><i class="status-dot checking"></i>檢查中</span></div><h3>Grok</h3><p class="agent-model">SuperGrok · Grok Bot</p><p class="agent-desc">透過 SuperGrok／Grok Bot 使用週額度，審查想法與內容。</p><div class="agent-foot"><span class="quota-tag">週額度</span><button class="mini-btn" data-agent="grok">交辦任務 <b>↗</b></button></div></article>
         </div>
+      </section>
+
+      <section class="section" id="accountsView"><div class="section-head"><div><h2>帳號與 Provider 註冊庫 (Settings > Accounts)</h2><p>新增、命名、停用與管理動態 AI 帳號槽位</p></div><button class="run-btn" id="addAccountBtn"><span>新增帳號槽位</span><b>+</b></button></div>
+        <div class="account-slots-grid" id="accountSlotsList"></div>
       </section>
 
       <section class="section tasks-section" id="tasks"><div class="section-head"><div><h2>任務分工樹</h2><p>展開主任務，追蹤每位 AI 的負責項目與狀態</p></div><button class="text-btn" id="clearView">只看進行中</button></div><div id="taskList" class="task-list"></div></section>
@@ -49,6 +54,32 @@
     </main>
   </div>
   <div class="toast" id="toast"></div>
+  <dialog id="addAccountDialog"><form method="dialog"><div class="dialog-top"><div><span class="eyebrow">ACCOUNT REGISTRY</span><h2>新增 Provider / 帳號槽位</h2></div><button class="icon-btn" value="close">×</button></div>
+    <div class="modal-form"><label>帳號名稱<input id="newAccName" placeholder="例如：Gemini 團隊帳號 B / Claude 工作室"></label>
+    <label>Provider 類型<select id="newAccProvider">
+      <option value="gemini">Gemini / Jules / Antigravity</option>
+      <option value="codex">ChatGPT / Codex</option>
+      <option value="claude">Claude</option>
+      <option value="copilot">Copilot</option>
+      <option value="grok">Grok</option>
+      <option value="perplexity">Perplexity</option>
+      <option value="mistral">Mistral</option>
+      <option value="deepseek">DeepSeek</option>
+      <option value="meta">Meta Llama</option>
+      <option value="qwen">Qwen</option>
+      <option value="kimi">Kimi</option>
+      <option value="poe">Poe</option>
+      <option value="huggingface">Hugging Face</option>
+      <option value="ollama">Ollama / LM Studio (Local)</option>
+      <option value="custom">自訂 Provider</option>
+    </select></label>
+    <label>訂閱 / 扣款模式<select id="newAccMode">
+      <option value="subscription_cli">預設：官方登入/訂閱額度 (免額外 API 費)</option>
+      <option value="paid_api">付費 API 模式 (需手動另選，可能產生費用)</option>
+    </select></label></div>
+    <div class="dialog-actions"><button class="secondary-btn" value="close">取消</button><button class="run-btn" type="button" id="saveAccountBtn">建立槽位 <b>✓</b></button></div>
+  </form></dialog>
+
   <dialog id="resultDialog"><form method="dialog"><div class="dialog-top"><div><span class="eyebrow">TASK RESULT</span><h2 id="dialogTitle">任務結果</h2></div><button class="icon-btn">×</button></div><pre id="resultText"></pre><div id="pasteArea" class="paste-area hidden"><label>貼上 Perplexity / Grok 的回覆<textarea id="manualResult" placeholder="把官方介面的回答貼在這裡，儲存後就會加入任務紀錄。"></textarea></label><button type="button" class="run-btn" id="saveResult">儲存回覆 <b>✓</b></button></div><div class="dialog-actions"><button class="secondary-btn" value="close">關閉</button><button class="run-btn" type="button" id="copyPrompt">複製任務內容 <b>⧉</b></button></div></form></dialog>
   <script src="/app.js" defer></script>
 </body>

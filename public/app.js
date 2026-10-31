@@ -2,6 +2,7 @@ const $ = (s) => document.querySelector(s);
 const promptBox = $('#prompt'), workspaceInput = $('#workspace'), taskList = $('#taskList'), dialog = $('#resultDialog');
 const agentInfo = {
   gemini: { name: 'Gemini · Antigravity', icon: '✦', url: 'https://antigravity.google/' },
+  codex: { name: 'Codex（待授權）', icon: '◇', url: '' },
   perplexity: { name: 'Perplexity Pro', icon: '◉', url: 'https://www.perplexity.ai/' },
   grok: { name: 'SuperGrok · Grok Bot', icon: '𝕏', url: 'https://grok.com/' },
   custom: { name: '其他 AI（手動交辦）', icon: '◇', url: '' }
@@ -14,9 +15,126 @@ function stateText(s) { return ({waiting_research:'等待研究',queued:'排隊�
 function rootProgress(root, children) { const done=children.filter(t=>t.status==='done').length; return {done,total:children.length,percent:children.length?Math.round(done/children.length*100):0}; }
 
 async function checkHealth() {
-  try { const data=await fetch('/api/health').then(r=>r.json());const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace; }
-  catch { $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線'; }
+  try {
+    const data=await fetch('/api/health').then(r=>r.json());
+    const el=$('#gemStatus');el.innerHTML=data.cli.available?`<i class="status-dot"></i>${esc(data.cli.version)}`:'<i class="status-dot offline"></i>尚未連線';el.classList.toggle('offline',!data.cli.available);
+
+    const perpEl = $('#perpStatus');
+    perpEl.innerHTML = data.perplexity ? `<i class="status-dot offline"></i>網站可達・授權未驗證` : `<i class="status-dot offline"></i>網站不可達`;
+    perpEl.classList.add('offline');
+
+    const grokEl = $('#grokStatus');
+    grokEl.innerHTML = data.grok ? `<i class="status-dot offline"></i>網站可達・授權未驗證` : `<i class="status-dot offline"></i>網站不可達`;
+    grokEl.classList.add('offline');
+
+    if(!workspaceInput.value)workspaceInput.placeholder=data.defaultWorkspace;
+  }
+  catch {
+    $('#gemStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#perpStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+    $('#grokStatus').innerHTML='<i class="status-dot offline"></i>工作台離線';
+  }
 }
+
+async function loadAccounts() {
+  const container = $('#accountSlotsList');
+  if(!container) return;
+  try {
+    const res = await fetch('/api/accounts').then(r=>r.json());
+    if(!res.ok || !res.accounts) { container.innerHTML='<div class="empty-state">無法讀取帳號槽位資料。</div>'; return; }
+    container.innerHTML = res.accounts.map(acc => {
+      const stateMap = {
+        unlinked: { text: '未連結', cls: 'unlinked' },
+        login_in_progress: { text: '官方登入進行中', cls: 'progress' },
+        linked: { text: '已連結', cls: 'connected' },
+        prerequisites_needed: { text: '需完成網站前置條件', cls: 'handoff' },
+        failed_retryable: { text: '連結失敗・可重試', cls: 'login' }
+      };
+      const st = !acc.active ? { text: '已停用', cls: 'disabled' } : (stateMap[acc.status] || { text: acc.status, cls: 'handoff' });
+      const modeTag = acc.mode === 'paid_api' ? '<span class="mode-tag warning">付費 API</span>' : '<span class="mode-tag">官方訂閱/CLI</span>';
+      const profRef = acc.profileRef ? `<span class="profile-ref-tag">Profile: ${esc(acc.profileRef)}</span>` : '';
+      return `<article class="account-card ${acc.active ? '' : 'inactive'}">
+        <div class="account-top">
+          <div><strong>${esc(acc.name)}</strong> ${modeTag}</div>
+          <span class="account-badge ${st.cls}">${st.text}</span>
+        </div>
+        <p class="account-note">${esc(acc.note)}</p>
+        <div class="account-meta">Provider: ${esc(acc.provider.toUpperCase())} ${profRef} · 最後驗證：${time(acc.lastVerifiedAt)}</div>
+        <div class="account-foot">
+          <button class="mini-btn run-btn-link" onclick="connectAccount('${esc(acc.id)}', '${esc(acc.oauthUrl)}')">連結 (Connect) ↗</button>
+          <button class="mini-btn text-btn highlight" onclick="recheckAccount('${esc(acc.id)}')">再試一次 (Recheck) ↻</button>
+          <button class="mini-btn text-btn" onclick="toggleAccountActive('${esc(acc.id)}', ${!acc.active})">${acc.active ? '停用' : '啟用'}</button>
+          <button class="mini-btn text-btn danger" onclick="deleteAccount('${esc(acc.id)}')">刪除</button>
+        </div>
+      </article>`;
+    }).join('');
+  } catch {
+    container.innerHTML = '<div class="empty-state">讀取帳號槽位失敗。</div>';
+  }
+}
+
+async function connectAccount(id, url) {
+  try {
+    const res = await fetch(`/api/accounts/${id}/connect`, { method: 'POST' });
+    const data = await res.json();
+    if (url) window.open(url, '_blank', 'noopener');
+    notify(data.message || '已跳轉官方登入頁，完成後按「再試一次」核對。');
+    loadAccounts();
+  } catch(e) { notify('發起連結失敗'); }
+}
+
+async function recheckAccount(id) {
+  try {
+    const res = await fetch(`/api/accounts/${id}/recheck`, { method: 'POST' });
+    const data = await res.json();
+    notify(`帳號狀態已更新：${data.status}`);
+    loadAccounts();
+  } catch(e) { notify('重新核對失敗'); }
+}
+
+async function toggleAccountActive(id, active) {
+  try {
+    const res = await fetch(`/api/accounts/${id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ active })
+    });
+    if(!res.ok) throw new Error('更新失敗');
+    notify(active ? '帳號槽位已啟用' : '帳號槽位已停用');
+    loadAccounts();
+  } catch(e) { notify(e.message); }
+}
+
+async function deleteAccount(id) {
+  if(!confirm('確定要移除此帳號槽位？')) return;
+  try {
+    const res = await fetch(`/api/accounts/${id}`, { method: 'DELETE' });
+    if(!res.ok) throw new Error('刪除失敗');
+    notify('帳號槽位已刪除');
+    loadAccounts();
+  } catch(e) { notify(e.message); }
+}
+
+$('#addAccountBtn')?.addEventListener('click', () => { $('#addAccountDialog').showModal(); });
+$('#saveAccountBtn')?.addEventListener('click', async () => {
+  const name = $('#newAccName').value.trim();
+  const provider = $('#newAccProvider').value;
+  const mode = $('#newAccMode').value;
+  if(!name) return notify('請輸入帳號名稱');
+  try {
+    const res = await fetch('/api/accounts', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name, provider, mode })
+    });
+    const data = await res.json();
+    if(!res.ok) throw new Error(data.error || '新增失敗');
+    $('#newAccName').value = '';
+    $('#addAccountDialog').close();
+    notify('帳號槽位新增成功');
+    loadAccounts();
+  } catch(e) { notify(e.message); }
+});
 function renderTasks() {
   const allRoots=taskCache.filter(t=>t.kind==='parent'||(!t.parentId&&t.kind!=='child'));
   const roots=onlyActive?allRoots.filter(root=>root.status!=='done'):allRoots;
@@ -44,13 +162,15 @@ async function loadTasks(){try{taskCache=await fetch('/api/tasks').then(r=>r.jso
 async function createTask() {
   const prompt=promptBox.value.trim(), workspace=workspaceInput.value.trim();
   if(!prompt)return notify('先輸入主任務內容。');
-  if(!workspace)return notify('請輸入要處理的本機專案資料夾完整路徑。');
+  const mode=$('#mode').value;
+  const agent=mode==='team' ? 'gemini' : $('#primaryAgent').value;
+  if((mode==='team'||agent==='gemini')&&!workspace)return notify('Gemini／團隊任務需要本機專案資料夾完整路徑。');
   const button=$('#runBtn');button.disabled=true;button.querySelector('span').textContent='建立分工中…';
   try{
-    const body={agent:'gemini',mode:$('#mode').value,projectName:$('#projectName').value.trim(),repoUrl:$('#repoUrl').value.trim(),issueUrl:$('#issueUrl').value.trim(),prompt,workspace};
+    const body={agent,mode,projectName:$('#projectName').value.trim(),repoUrl:$('#repoUrl').value.trim(),issueUrl:$('#issueUrl').value.trim(),prompt,workspace};
     const res=await fetch('/api/tasks',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)}),data=await res.json();
     if(!res.ok)throw new Error(data.error||'建立失敗');
-    promptBox.value='';notify('主任務已建立。先交辦研究；貼回結果後才會自動開始程式實作。');await loadTasks();
+    promptBox.value='';notify(mode==='team'?'團隊任務已建立；研究與審查仍需真實授權／交接。':(agent==='gemini'?'Gemini 任務已排入工作台佇列。':'AI 任務已記錄；待授權或手動交接，尚未執行模型。'));await loadTasks();
   }catch(e){notify(e.message);}finally{button.disabled=false;button.querySelector('span').textContent='建立分工';}
 }
 async function dispatchExternal(id){
@@ -75,8 +195,9 @@ $('#saveResult').addEventListener('click',async()=>{if(!activeTask)return;const 
 $('#runBtn').addEventListener('click',createTask);
 document.querySelectorAll('.mini-btn[data-agent]').forEach(btn=>btn.addEventListener('click',()=>{const p=btn.closest('.agent-card');promptBox.value=`請負責${p.querySelector('h3').textContent}的工作，針對目前主專案提供結果。`;promptBox.focus();notify('請補充主目標，再建立套娃分工。');}));
 document.querySelectorAll('.project-link').forEach(btn=>btn.addEventListener('click',()=>{promptBox.value=btn.dataset.prompt;promptBox.focus();}));
-$('#refreshBtn').addEventListener('click',()=>{checkHealth();loadTasks();notify('任務與連線狀態已更新。');});
+$('#refreshBtn').addEventListener('click',()=>{checkHealth();loadTasks();loadAccounts();notify('任務與連線狀態已更新。');});
+$('#refreshAccountsBtn')?.addEventListener('click',()=>{loadAccounts();notify('帳號槽位狀態已更新。');});
 $('#clearView').addEventListener('click',()=>{onlyActive=!onlyActive;$('#clearView').textContent=onlyActive?'顯示全部主任務':'只看進行中';renderTasks();});
 $('#settingsBtn').addEventListener('click',()=>notify('權限設定與啟動方式請看 README。'));
 workspaceInput.value=localStorage.getItem('pro-ai-workbench-workspace')||'';workspaceInput.addEventListener('change',()=>localStorage.setItem('pro-ai-workbench-workspace',workspaceInput.value.trim()));
-checkHealth();loadTasks();setInterval(()=>{loadTasks();checkHealth();},3500);
+checkHealth();loadTasks();loadAccounts();setInterval(()=>{loadTasks();checkHealth();},3500);
