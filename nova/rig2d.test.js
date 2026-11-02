@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {RIG_VARIANTS,validateRig,sampleRig,composeRigWorld,bindModLayers} from './rig2d.js';
+const rig={variant:'chibi',bones:{root:{x:10,y:20},hips:{x:0,y:5},torso:{x:0,y:10},neck:{x:0,y:5},head:{x:0,y:5}}};
+const action={duration:1000,loop:false,keyframes:[{time:0,bones:{head:{rotation:0}}},{time:1000,bones:{head:{rotation:90}}}]};
+test('chibi and adult rigs supported',()=>{assert.equal(validateRig(rig),true);assert.equal(validateRig({...rig,variant:'adult'}),true);assert.ok(RIG_VARIANTS.adult.height>RIG_VARIANTS.chibi.height);});
+test('interpolate animation without modifying source',()=>{const pose=sampleRig(rig,action,500);assert.equal(pose.head.rotation,45);assert.equal(action.keyframes[0].bones.head.rotation,0);});
+test('compose parent positions and bind MOD art',()=>{const world=composeRigWorld(sampleRig(rig,action,500));assert.equal(world.head.x,10);assert.equal(world.head.y,45);assert.equal(bindModLayers([{slot:'hair_front',src:'hair.png'}],world)[0].bone,'hair_front');});
+test('reject unknown bones, malformed data and missing binding',()=>{assert.throws(()=>validateRig({...rig,bones:{oops:{}}}),/Unknown bone/);assert.throws(()=>sampleRig(rig,{keyframes:[]},0),/Missing keyframes/);assert.throws(()=>bindModLayers([{slot:'bad'}],composeRigWorld(sampleRig(rig,action,0))),/Unbound/);});
+test('looped animation repeats',()=>{const looping={...action,loop:true};assert.equal(sampleRig(rig,looping,1250).head.rotation,22.5);});
