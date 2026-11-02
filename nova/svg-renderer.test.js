@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {renderNovaSvg} from './svg-renderer.js';
+const transform={x:12,y:13,rotation:15,scaleX:1,scaleY:1};
+for(const variant of ['chibi','adult'])test(variant+' renders image and transform',()=>{const s=renderNovaSvg({variant,layers:[{src:'assets/body.png',transform}]});assert.match(s,/href="assets\/body.png"/);assert.match(s,/translate\(12 13\)/)});
+test('empty layers supported',()=>assert.match(renderNovaSvg({variant:'chibi',layers:[]}),/<svg/));
+test('unsafe remote source rejected',()=>assert.throws(()=>renderNovaSvg({variant:'adult',layers:[{src:'https://evil.test/a.png',transform}]}),/Unsafe/));
+test('path traversal rejected',()=>assert.throws(()=>renderNovaSvg({variant:'adult',layers:[{src:'../private.png',transform}]}),/Unsafe/));
+test('nonfinite transforms rejected',()=>assert.throws(()=>renderNovaSvg({variant:'adult',layers:[{src:'body.png',transform:{...transform,x:NaN}}]}),/Invalid transform/));
+test('bad canvas size rejected',()=>assert.throws(()=>renderNovaSvg({variant:'chibi',layers:[]},{width:0}),/canvas/));
