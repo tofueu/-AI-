@@ -3,7 +3,6 @@
 // Safe clothing fallback applies when no visible outfit layer remains.
 export const NOVA_VARIANTS=Object.freeze(['chibi','adult']);
 export const LAYER_SLOTS=Object.freeze(['body','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail']);
-const CLOTHES=new Set(['top','bottom','dress']);
 function validPart(part) {
   return part && typeof part==='object' && !Array.isArray(part) &&
     (part.hidden===true || part.transparent===true || (typeof part.src==='string' && part.src.length>0));
@@ -27,8 +26,11 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
     }
   }
   const visible=(slot)=>{const p=resolved.get(slot);return !!(p && !p.hidden && !p.transparent && p.src);};
-  if(![...CLOTHES].some(visible)) {
+  // A visible dress is a complete outfit. Otherwise both top and bottom
+  // must be visible; a partially hidden MOD must not leave either uncovered.
+  if(!visible('dress')) {
     for(const slot of ['top','bottom']) {
+      if(visible(slot)) continue;
       const fallback=safeOutfit[slot];
       if(!validPart(fallback)||fallback.hidden||fallback.transparent||!fallback.src) throw new Error('Missing safe outfit fallback: '+slot);
       resolved.set(slot,fallback);
