@@ -26,7 +26,7 @@ for(const variant of ['chibi','adult']) {
         safeOutfit:{top:{src:'builtin-top'},bottom:{src:'builtin-bottom'}}
       });
       assert.equal(result.variant,variant);
-      assert.ok(result.layers.some(x=>x.slot==='hair_front'&&x.src.startsWith(first)));
+      assert.ok(!result.layers.some(x=>x.slot==='hair_front')); // later pack hides this slot
       assert.ok(result.layers.some(x=>x.slot==='eyes'&&x.src.startsWith(second)));
       assert.ok(result.layers.some(x=>x.slot==='top'&&x.src==='builtin-top'));
       assert.ok(result.layers.some(x=>x.slot==='bottom'&&x.src==='builtin-bottom'));
