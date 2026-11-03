@@ -1,4 +1,6 @@
 // Bridge a validated artist PNG pack into the existing NOVA layer resolver.
+// A hidden template layer means "no artwork supplied": inherit any earlier layer.
+// Deliberate removal remains available to programmatic MODs via {hidden:true}.
 // Never trust manifest paths directly: only consume paths returned by validateNovaPngPack.
 import {validateNovaPngPack} from './mod-pack-validator.js';
 import {resolveNovaLayers} from './mod-layers.js';
@@ -7,10 +9,9 @@ export async function loadNovaPngMod(directory) {
   const pack=await validateNovaPngPack(directory);
   return {
     variant:pack.variant,
-    layers:Object.fromEntries(pack.layers.map(layer=>[
-      layer.slot,
-      layer.hidden ? {hidden:true} : {src:layer.path}
-    ]))
+    layers:Object.fromEntries(pack.layers
+      .filter(layer=>!layer.hidden)
+      .map(layer=>[layer.slot,{src:layer.path}]))
   };
 }
 
