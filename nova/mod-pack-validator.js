@@ -14,7 +14,7 @@ function crc32(data) {
 // Validate the entire PNG stream, not only the IHDR header. Prevent decompression bombs.
 function validateRgbaPng(bytes,width,height) {
   if(bytes.length<57 || bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a') return false;
-  let offset=8,seenIHDR=false,seenIEND=false,seenIDAT=false;
+  let offset=8,seenIHDR=false,seenIEND=false,seenIDAT=false,idatClosed=false,compressedSize=0;
   const compressed=[];
   while(offset+12<=bytes.length){
     const length=bytes.readUInt32BE(offset),end=offset+12+length;
@@ -25,8 +25,15 @@ function validateRgbaPng(bytes,width,height) {
       if(type!=='IHDR'||length!==13||bytes.readUInt32BE(offset+8)!==width||bytes.readUInt32BE(offset+12)!==height||bytes[offset+16]!==8||bytes[offset+17]!==6||bytes[offset+18]!==0||bytes[offset+19]!==0||bytes[offset+20]!==0) return false;
       seenIHDR=true;
     }else if(type==='IHDR') return false;
-    if(type==='IDAT'){if(seenIEND)return false;seenIDAT=true;compressed.push(bytes.subarray(offset+8,offset+8+length));}
+    if(type==='IDAT'){
+      if(seenIEND||idatClosed)return false;
+      compressedSize+=length;
+      // Limit compressed input as well as inflated output before Buffer.concat.
+      if(compressedSize>64*1024*1024)return false;
+      seenIDAT=true;compressed.push(bytes.subarray(offset+8,offset+8+length));
+    }else if(seenIDAT){idatClosed=true;}
     if(type==='IEND'){if(length!==0||!seenIDAT||end!==bytes.length)return false;seenIEND=true;break;}
+    if(type==='PLTE' && seenIDAT)return false;
     if(!['IHDR','IDAT','IEND'].includes(type) && type[0]===type[0].toUpperCase())return false;
     offset=end;
   }
