@@ -15,3 +15,14 @@ for(const variant of ['chibi','adult'])test(`${variant} writes 17 transparent PN
  }finally{await rm(dir,{recursive:true,force:true});}
 });
 test('rejects invalid dimensions',()=>assert.throws(()=>encodeBlankRgbaPng(0,20),/Invalid/));
+
+test('occupied output does not create partial layers',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-png-occupied-'));
+ try{
+  const {writeFile,readdir}=await import('node:fs/promises');
+  await writeFile(join(dir,'08_hair_front.png'),'existing artist work');
+  await assert.rejects(()=>exportNovaBlankPngLayers(dir,'chibi',{width:64,height:64}),/EEXIST/);
+  assert.deepEqual(await readdir(dir),['08_hair_front.png']);
+  assert.equal((await readFile(join(dir,'08_hair_front.png'),'utf8')),'existing artist work');
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
