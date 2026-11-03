@@ -14,7 +14,7 @@ async function setVisible(dir,slot) {
 }
 
 for(const variant of ['chibi','adult']) {
-  test('composes ordered MOD packs with safe clothing fallback: '+variant,async()=>{
+  test('later blank pack preserves earlier artwork and safe clothing: '+variant,async()=>{
     const first=await mkdtemp(join(tmpdir(),'nova-compose-a-'));
     const second=await mkdtemp(join(tmpdir(),'nova-compose-b-'));
     try {
@@ -26,11 +26,17 @@ for(const variant of ['chibi','adult']) {
         safeOutfit:{top:{src:'builtin-top'},bottom:{src:'builtin-bottom'}}
       });
       assert.equal(result.variant,variant);
-      assert.ok(!result.layers.some(x=>x.slot==='hair_front')); // later pack hides this slot
+      assert.ok(result.layers.some(x=>x.slot==='hair_front'&&x.src.startsWith(first)));
       assert.ok(result.layers.some(x=>x.slot==='eyes'&&x.src.startsWith(second)));
       assert.ok(result.layers.some(x=>x.slot==='top'&&x.src==='builtin-top'));
       assert.ok(result.layers.some(x=>x.slot==='bottom'&&x.src==='builtin-bottom'));
       assert.ok(!result.layers.some(x=>x.slot==='body'));
+      // Later visible artwork still overrides an earlier layer.
+      await setVisible(second,'hair_front');
+      const overridden=await composeNovaPngPacks(variant,[first,second],{
+        safeOutfit:{top:{src:'builtin-top'},bottom:{src:'builtin-bottom'}}
+      });
+      assert.ok(overridden.layers.some(x=>x.slot==='hair_front'&&x.src.startsWith(second)));
     } finally {
       await rm(first,{recursive:true,force:true});
       await rm(second,{recursive:true,force:true});
