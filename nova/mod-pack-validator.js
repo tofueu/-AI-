@@ -6,7 +6,12 @@ import {validateNovaModTemplate} from './mod-template.js';
 
 export async function validateNovaPngPack(directory) {
   const root=await realpath(resolve(directory));
-  const manifest=JSON.parse(await readFile(resolve(root,'manifest.json'),'utf8'));
+  const manifestPath=resolve(root,'manifest.json');
+  const manifestInfo=await lstat(manifestPath);
+  if (!manifestInfo.isFile() || manifestInfo.isSymbolicLink() || await realpath(manifestPath)!==manifestPath) {
+    throw new Error('Unsafe MOD manifest file');
+  }
+  const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
   validateNovaModTemplate(manifest);
   const result=[];
   for (const layer of manifest.layers) {
