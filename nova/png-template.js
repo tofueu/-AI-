@@ -22,7 +22,7 @@ export async function exportNovaBlankPngLayers(directory,variant,options={}){
  paths.push(join(root,'manifest.json'));
  // Reject an occupied output directory before creating any new layer.
  for(const destination of paths){
-  try{await access(destination);const error=new Error('Output already exists: '+destination);error.code='EEXIST';throw error;}
+  try{await access(destination);const error=new Error('EEXIST: Output already exists: '+destination);error.code='EEXIST';throw error;}
   catch(error){if(error.code!=='ENOENT')throw error;}
  }
  const png=encodeBlankRgbaPng(manifest.canvas.width,manifest.canvas.height);
