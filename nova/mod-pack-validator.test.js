@@ -73,3 +73,27 @@ test('rejects truncated PNG stream despite valid IHDR',async()=>{
   await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('rejects PNG with noncontiguous IDAT chunks',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-split-idat-'));
+ try{
+  await exportNovaBlankPngLayers(dir,'chibi',{width:64,height:96});
+  const path=join(dir,'01_body.png');
+  const original=await readFile(path);
+  const start=8+25; // PNG signature and IHDR chunk
+  const length=original.readUInt32BE(start);
+  const payload=original.subarray(start+8,start+8+length);
+  const split=Math.floor(payload.length/2);
+  function crc32(data){let crc=0xffffffff;for(const b of data){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return (crc^0xffffffff)>>>0;}
+  function chunk(type,data){const header=Buffer.alloc(8);header.writeUInt32BE(data.length);header.write(type,4,'ascii');const checksum=Buffer.alloc(4);checksum.writeUInt32BE(crc32(Buffer.concat([header.subarray(4),data])));return Buffer.concat([header,data,checksum]);}
+  const malformed=Buffer.concat([
+   original.subarray(0,start),
+   chunk('IDAT',payload.subarray(0,split)),
+   chunk('tEXt',Buffer.from('Comment\\0interrupted')),
+   chunk('IDAT',payload.subarray(split)),
+   original.subarray(start+12+length)
+  ]);
+  await writeFile(path,malformed);
+  await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
