@@ -1,5 +1,5 @@
 import {deflateSync} from 'node:zlib';
-import {mkdir,writeFile} from 'node:fs/promises';
+import {mkdir,writeFile,unlink,access} from 'node:fs/promises';
 import {join,resolve,sep} from 'node:path';
 import {createNovaModTemplate,validateNovaModTemplate} from './mod-template.js';
 
@@ -14,12 +14,28 @@ export function encodeBlankRgbaPng(width,height){
 export async function exportNovaBlankPngLayers(directory,variant,options={}){
  const manifest=createNovaModTemplate(variant,options);validateNovaModTemplate(manifest);
  const root=resolve(directory);await mkdir(root,{recursive:true});
- const png=encodeBlankRgbaPng(manifest.canvas.width,manifest.canvas.height);
- for(const layer of manifest.layers){
+ const paths=manifest.layers.map(layer=>{
   const destination=resolve(root,layer.filename);
   if(!destination.startsWith(root+sep))throw new Error('Unsafe PNG filename');
-  await writeFile(destination,png,{flag:'wx'});
+  return destination;
+ });
+ paths.push(join(root,'manifest.json'));
+ // Reject an occupied output directory before creating any new layer.
+ for(const destination of paths){
+  try{await access(destination);const error=new Error('Output already exists: '+destination);error.code='EEXIST';throw error;}
+  catch(error){if(error.code!=='ENOENT')throw error;}
  }
- await writeFile(join(root,'manifest.json'),JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
+ const png=encodeBlankRgbaPng(manifest.canvas.width,manifest.canvas.height);
+ const created=[];
+ try{
+  for(let i=0;i<manifest.layers.length;i++){
+   await writeFile(paths[i],png,{flag:'wx'});created.push(paths[i]);
+  }
+  await writeFile(paths[paths.length-1],JSON.stringify(manifest,null,2)+'\n',{flag:'wx'});
+  created.push(paths[paths.length-1]);
+ }catch(error){
+  await Promise.allSettled(created.map(path=>unlink(path)));
+  throw error;
+ }
  return manifest;
 }
