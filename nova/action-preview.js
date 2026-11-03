@@ -3,6 +3,7 @@
 import {createNovaAction} from './animation-presets.js';
 import {renderNovaPose} from './mod-runtime.js';
 import {renderNovaSpriteSheet} from './sprite-sheet.js';
+import {renderNovaAnimatedSvg} from './animated-svg.js';
 
 export function sampleNovaActionFrames({variant,base,mods=[],safeOutfit,rig,actionName='idle',frameCount=8}) {
  if(!['chibi','adult'].includes(variant))throw new Error('Invalid NOVA variant');
@@ -15,4 +16,9 @@ export function sampleNovaActionFrames({variant,base,mods=[],safeOutfit,rig,acti
 export function renderNovaActionSheet(options,sheetOptions={}) {
  const result=sampleNovaActionFrames(options);
  return renderNovaSpriteSheet(result.frames,sheetOptions);
+}
+
+export function renderNovaActionAnimation(options,svgOptions={}) {
+ const result=sampleNovaActionFrames(options);
+ return renderNovaAnimatedSvg(result.frames,{...svgOptions,durationMs:result.durationMs});
 }
