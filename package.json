@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js"
+    "check": "node --check server.js",
+    "test:nova": "node nova/run-tests.js"
   }
 }
