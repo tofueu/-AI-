@@ -6,7 +6,7 @@ import {join} from 'node:path';
 import {exportNovaBlankPngLayers} from './png-template.js';
 import {loadNovaPngMod,resolveNovaPngMod} from './mod-pack-import.js';
 
-test('imports visible PNG layers while hiding untouched blank layers',async()=>{
+test('imports visible PNG layers; untouched blank layers inherit rather than erase earlier art',async()=>{
  const dir=await mkdtemp(join(tmpdir(),'nova-import-'));
  try{
   await exportNovaBlankPngLayers(dir,'chibi',{width:64,height:96});
@@ -16,13 +16,15 @@ test('imports visible PNG layers while hiding untouched blank layers',async()=>{
   await writeFile(path,JSON.stringify(manifest));
   const mod=await loadNovaPngMod(dir);
   assert.equal(mod.variant,'chibi');
-  assert.equal(mod.layers.body.hidden,true);
+  assert.equal(Object.hasOwn(mod.layers,'body'),false);
   assert.equal(mod.layers.hair_front.src,join(dir,'08_hair_front.png'));
-  const layers=await resolveNovaPngMod({variant:'chibi',directories:[dir],safeOutfit:{top:{src:'base-top'},bottom:{src:'base-bottom'}}});
+  const layers=await resolveNovaPngMod({variant:'chibi',directories:[dir],
+    base:{body:{src:'original-body'}},
+    safeOutfit:{top:{src:'base-top'},bottom:{src:'base-bottom'}}});
   assert.ok(layers.some(x=>x.slot==='hair_front'));
+  assert.ok(layers.some(x=>x.slot==='body'&&x.src==='original-body'));
   assert.ok(layers.some(x=>x.slot==='top'&&x.src==='base-top'));
   assert.ok(layers.some(x=>x.slot==='bottom'&&x.src==='base-bottom'));
-  assert.ok(!layers.some(x=>x.slot==='body'));
  }finally{await rm(dir,{recursive:true,force:true});}
 });
 
