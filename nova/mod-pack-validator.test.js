@@ -21,3 +21,16 @@ for(const variant of ['chibi','adult']) test(`validates exported ${variant} PNG 
   await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('rejects symlinked PNG layers even when target is a valid PNG',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-pack-link-'));
+ try{
+  await exportNovaBlankPngLayers(dir,'chibi',{width:64,height:96});
+  const target=join(dir,'02_head.png');
+  const layer=join(dir,'01_body.png');
+  await rm(layer);
+  const {symlink}=await import('node:fs/promises');
+  await symlink(target,layer);
+  await assert.rejects(()=>validateNovaPngPack(dir),/Unsafe PNG layer file: body/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
