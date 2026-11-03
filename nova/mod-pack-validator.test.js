@@ -48,3 +48,28 @@ test('rejects symlinked MOD manifests without reading their contents',async()=>{
   await assert.rejects(()=>validateNovaPngPack(dir),/Unsafe MOD manifest file/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('rejects PNG with damaged IDAT checksum',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-corrupt-crc-'));
+ try{
+  await exportNovaBlankPngLayers(dir,'chibi',{width:64,height:96});
+  const path=join(dir,'01_body.png');
+  const bytes=await readFile(path);
+  const idat=bytes.indexOf(Buffer.from('IDAT'));
+  assert.ok(idat>0);
+  bytes[idat+4]^=1;
+  await writeFile(path,bytes);
+  await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
+
+test('rejects truncated PNG stream despite valid IHDR',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-truncated-'));
+ try{
+  await exportNovaBlankPngLayers(dir,'adult',{width:64,height:96});
+  const path=join(dir,'01_body.png');
+  const bytes=await readFile(path);
+  await writeFile(path,bytes.subarray(0,bytes.length-12));
+  await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
