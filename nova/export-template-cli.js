@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import {exportNovaBlankPngLayers} from './png-template.js';
+import {fileURLToPath} from 'node:url';
+import {resolve} from 'node:path';
 
 export function parseNovaTemplateArgs(args) {
   if (!Array.isArray(args) || args.length < 2 || args.length > 4) {
@@ -20,7 +22,7 @@ export function parseNovaTemplateArgs(args) {
   return {variant,directory,options};
 }
 
-if (process.argv[1] && import.meta.url === new URL('file://' + process.argv[1]).href) {
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const {variant,directory,options} = parseNovaTemplateArgs(process.argv.slice(2));
     const manifest = await exportNovaBlankPngLayers(directory,variant,options);
