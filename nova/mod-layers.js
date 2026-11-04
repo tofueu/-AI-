@@ -10,11 +10,15 @@ function validPart(part) {
 export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
   if (!NOVA_VARIANTS.includes(variant)) throw new Error('Unsupported NOVA variant');
   if (!Array.isArray(mods)) throw new Error('MODs must be an array');
+  if (!base || typeof base!=='object' || Array.isArray(base)) throw new Error('Invalid base layer map');
+  if (!safeOutfit || typeof safeOutfit!=='object' || Array.isArray(safeOutfit)) throw new Error('Invalid safe outfit map');
   const resolved=new Map();
   for(const slot of LAYER_SLOTS) {
     const part=base[slot];
     if(part!==undefined) {
-      if(!validPart(part)) throw new Error('Invalid base layer: '+slot);
+      if(!validPart(part) || (part.operation!==undefined && part.operation!=='replace') ||
+        typeof part.src!=='string' || !part.src.trim() || part.hidden===true || part.transparent===true)
+        throw new Error('Invalid base layer: '+slot);
       resolved.set(slot,part);
     }
   }
@@ -38,7 +42,8 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
     for(const slot of ['top','bottom']) {
       if(visible(slot)) continue;
       const fallback=safeOutfit[slot];
-      if(!validPart(fallback)||fallback.hidden||fallback.transparent||!fallback.src) throw new Error('Missing safe outfit fallback: '+slot);
+      if(!validPart(fallback)||fallback.hidden||fallback.transparent||typeof fallback.src!=='string'||!fallback.src.trim()||
+        (fallback.operation!==undefined && fallback.operation!=='replace')) throw new Error('Missing safe outfit fallback: '+slot);
       resolved.set(slot,fallback);
     }
   }
