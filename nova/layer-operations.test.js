@@ -18,3 +18,12 @@ test('replacement takes precedence and rejects invalid operations',()=>{
  assert.throws(()=>normalizeLayerOperation({operation:'erase'}),/Unknown/);
  assert.throws(()=>normalizeLayerOperation({operation:'replace'}),/needs an image/);
 });
+
+test('explicit replacement with hidden flags fails rather than silently inheriting',()=>{
+ for(const flag of ['hidden','transparent']) {
+  assert.throws(()=>normalizeLayerOperation({operation:'replace',src:'new.png',[flag]:true}),/Replacement requires visible image source/);
+  assert.throws(()=>applyLayerOperations({hat:{src:'old.png'}},{hat:{operation:'replace',src:'new.png',[flag]:true}}),/Replacement requires visible image source/);
+ }
+ assert.deepEqual(normalizeLayerOperation({src:'blank.png',hidden:true}),{operation:'inherit'});
+ assert.deepEqual(normalizeLayerOperation({operation:'replace',src:'new.png'}),{operation:'replace',src:'new.png'});
+});
