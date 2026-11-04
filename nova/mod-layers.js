@@ -14,7 +14,8 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
   if (!safeOutfit || typeof safeOutfit!=='object' || Array.isArray(safeOutfit)) throw new Error('Invalid safe outfit map');
   const resolved=new Map();
   for(const slot of LAYER_SLOTS) {
-    const part=base[slot];
+    // Only explicitly declared base slots count; inherited prototype fields are not artwork.
+    const part=Object.hasOwn(base,slot) ? base[slot] : undefined;
     if(part!==undefined) {
       if(!validPart(part) || (part.operation!==undefined && part.operation!=='replace') ||
         typeof part.src!=='string' || !part.src.trim() || part.hidden===true || part.transparent===true)
