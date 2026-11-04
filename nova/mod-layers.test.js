@@ -10,14 +10,14 @@ test('keeps original art when MOD only replaces one slot',()=>{
  assert.equal(find(layers,'hair_front').src,'mods/new-hair.png');
  assert.equal(find(layers,'head').src,'base/head.png');
 });
-test('explicit hidden/transparent layers are absent, missing layers inherit base',()=>{
+test('blank hidden/transparent template layers inherit base',()=>{
  const layers=resolve({mods:[{variant:'universal',layers:{hair_front:{hidden:true},head:{transparent:true}}}]});
- assert.equal(find(layers,'hair_front'),undefined);
- assert.equal(find(layers,'head'),undefined);
+ assert.equal(find(layers,'hair_front').src,'base/hair.png');
+ assert.equal(find(layers,'head').src,'base/head.png');
  assert.equal(find(layers,'body').src,'base/body.png');
 });
-test('empty clothing MOD restores safe outfit',()=>{
- const layers=resolve({mods:[{variant:'chibi',layers:{top:{hidden:true},bottom:{transparent:true}}}]});
+test('explicitly hidden clothing MOD restores safe outfit',()=>{
+ const layers=resolve({mods:[{variant:'chibi',layers:{top:{operation:'hide'},bottom:{operation:'hide'}}}]});
  assert.equal(find(layers,'top').src,'safe/top.png');
  assert.equal(find(layers,'bottom').src,'safe/bottom.png');
 });
@@ -33,4 +33,16 @@ test('adult and chibi MODs cannot be accidentally mixed',()=>{
 test('rejects malformed slots and missing clothing fallback',()=>{
  assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{unknown:{src:'bad.png'}}}]}),/Invalid MOD layer/);
  assert.throws(()=>resolve({base:{},safeOutfit:{}}),/Missing safe outfit fallback/);
+});
+
+test('explicit hide removes accessories, while blank templates inherit across packs',()=>{
+ const layers=resolve({mods:[
+  {variant:'chibi',layers:{hat:{src:'first/hat.png'},hair_front:{src:'first/hair.png'}}},
+  {variant:'chibi',layers:{hat:{operation:'hide'},hair_front:{hidden:true}}}
+ ]});
+ assert.equal(find(layers,'hat'),undefined);
+ assert.equal(find(layers,'hair_front').src,'first/hair.png');
+});
+test('rejects unknown MOD operations',()=>{
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'erase',src:'x.png'}}}]}),/Invalid MOD operation/);
 });
