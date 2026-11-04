@@ -19,9 +19,10 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
     }
   }
   for(const mod of mods) {
-    if(!mod || (mod.variant!==variant && mod.variant!=='universal') || !mod.layers || typeof mod.layers!=='object') throw new Error('Incompatible MOD');
+    if(!mod || (mod.variant!==variant && mod.variant!=='universal') || !mod.layers || typeof mod.layers!=='object' || Array.isArray(mod.layers)) throw new Error('Incompatible MOD');
     for(const [slot,part] of Object.entries(mod.layers)) {
       if(!LAYER_SLOTS.includes(slot)||!validPart(part)) throw new Error('Invalid MOD layer: '+slot);
+      if(part.operation==='replace' && (typeof part.src!=='string' || !part.src.trim())) throw new Error('Replacement requires image source: '+slot);
       // A blank PNG template is not a destructive erase. Only an explicit
       // hide operation removes an inherited slot. Legacy hidden flags inherit.
       if(part.operation!==undefined && !['inherit','hide','replace'].includes(part.operation)) throw new Error('Invalid MOD operation: '+slot);
