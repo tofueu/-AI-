@@ -49,5 +49,5 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
       resolved.set(slot,fallback);
     }
   }
-  return LAYER_SLOTS.filter(visible).map(slot=>({slot,...resolved.get(slot)}));
+  return LAYER_SLOTS.filter(visible).map(slot=>({...resolved.get(slot),slot}));
 }
