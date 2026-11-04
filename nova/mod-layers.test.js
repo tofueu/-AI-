@@ -90,3 +90,11 @@ test('explicit replacement cannot silently inherit when hidden or transparent',(
  const layers=resolve({mods:[{variant:'chibi',layers:{hat:{operation:'replace',src:'mod/hat.png'}}}]});
  assert.equal(find(layers,'hat').src,'mod/hat.png');
 });
+
+test('MOD metadata cannot override the canonical output slot identity',()=>{
+ const layers=resolve({mods:[{variant:'chibi',layers:{hat:{src:'mod/hat.png',slot:'body'}}}]});
+ assert.equal(find(layers,'hat').slot,'hat');
+ assert.equal(find(layers,'hat').src,'mod/hat.png');
+ assert.equal(find(layers,'body').src,'base/body.png');
+ assert.equal(layers.filter(layer=>layer.slot==='body').length,1);
+});
