@@ -98,3 +98,12 @@ test('MOD metadata cannot override the canonical output slot identity',()=>{
  assert.equal(find(layers,'body').src,'base/body.png');
  assert.equal(layers.filter(layer=>layer.slot==='body').length,1);
 });
+
+test('inherited base slots do not inject artwork',()=>{
+ const inherited=Object.create({head:{src:'untrusted/head.png'}});
+ inherited.body={src:'base/body.png'};
+ const layers=resolve({base:inherited});
+ assert.equal(find(layers,'head'),undefined);
+ assert.equal(find(layers,'body').src,'base/body.png');
+ assert.equal(find(layers,'top').src,'safe/top.png');
+});
