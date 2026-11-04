@@ -75,3 +75,10 @@ test('rejects malformed or blank safe outfit artwork',()=>{
  assert.throws(()=>resolve({base:{},safeOutfit:{top:{src:'  '},bottom:{src:'safe/bottom.png'}}}),/Missing safe outfit fallback/);
  assert.throws(()=>resolve({base:{},safeOutfit:{top:{src:'safe/top.png',operation:'hide'},bottom:{src:'safe/bottom.png'}}}),/Missing safe outfit fallback/);
 });
+
+test('implicit MOD replacements reject blank or missing artwork',()=>{
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{src:'   '}}}]}),/Invalid MOD layer|Invalid MOD artwork/);
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{src:null}}}]}),/Invalid MOD layer|Invalid MOD artwork/);
+ const layers=resolve({mods:[{variant:'chibi',layers:{hat:{src:'new/hat.png'}}}]});
+ assert.equal(find(layers,'hat').src,'new/hat.png');
+});
