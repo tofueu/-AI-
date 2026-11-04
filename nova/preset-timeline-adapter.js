@@ -8,7 +8,7 @@ const LEGACY_BONES = Object.freeze({
   upper_arm_l:'arm_l', upper_arm_r:'arm_r',
   lower_arm_l:'forearm_l', lower_arm_r:'forearm_r',
 });
-const ACTION_NAMES = Object.freeze({typing:'type',run:'walk',sleep:'idle'});
+const ACTION_NAMES = Object.freeze({typing:'type'});
 export function convertNovaActionToClip(action) {
   if (!action || !Array.isArray(action.keyframes)) throw new Error('Invalid NOVA action');
   const name = ACTION_NAMES[action.name] ?? action.name;
