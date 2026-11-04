@@ -29,7 +29,7 @@ export function bindRigLayers(sample, layers, { joints = DEFAULT_LAYER_JOINTS } 
     if (typeof src !== 'string' || !src.trim()) throw new Error('Missing image source: ' + slot);
     const offset = layer.offset ?? {x:0,y:0,rotation:0};
     if (!offset || typeof offset !== 'object' || Array.isArray(offset) || !['x','y','rotation'].every(k=>finite(offset[k]))) throw new Error('Invalid layer offset: ' + slot);
-    output.push({slot,src, joint, x:transform.x+offset.x, y:transform.y+offset.y, rotation:transform.rotation+offset.rotation});
+    // Root translation is inherited by all attached parts. Without this, idle/walk\n    // bobbing moves only root-bound layers and the character appears disjointed.\n    const root = sample.pose.root;\n    if (!root || !['x','y','rotation'].every(k=>finite(root[k]))) throw new Error('Missing root transform');\n    const inherited = joint === 'root' ? {x:0,y:0} : root;\n    output.push({slot,src, joint, x:inherited.x+transform.x+offset.x, y:inherited.y+transform.y+offset.y, rotation:transform.rotation+offset.rotation});
   }
   return output;
 }
