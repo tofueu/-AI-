@@ -24,9 +24,9 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
       if(!LAYER_SLOTS.includes(slot)||!validPart(part)) throw new Error('Invalid MOD layer: '+slot);
       // A blank PNG template is not a destructive erase. Only an explicit
       // hide operation removes an inherited slot. Legacy hidden flags inherit.
-      if(part.operation==='inherit'||part.hidden===true||part.transparent===true) continue;
+      if(part.operation!==undefined && !['inherit','hide','replace'].includes(part.operation)) throw new Error('Invalid MOD operation: '+slot);
       if(part.operation==='hide') { resolved.delete(slot); continue; }
-      if(part.operation!==undefined && part.operation!=='replace') throw new Error('Invalid MOD operation: '+slot);
+      if(part.operation==='inherit'||part.hidden===true||part.transparent===true) continue;
       resolved.set(slot,part);
     }
   }
