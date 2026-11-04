@@ -5,7 +5,7 @@ export const NOVA_VARIANTS=Object.freeze(['chibi','adult']);
 export const LAYER_SLOTS=Object.freeze(['body','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail']);
 function validPart(part) {
   return part && typeof part==='object' && !Array.isArray(part) &&
-    (part.operation==='inherit' || part.operation==='hide' || part.hidden===true || part.transparent===true || (typeof part.src==='string' && part.src.length>0));
+    (part.operation==='inherit' || part.operation==='hide' || part.hidden===true || part.transparent===true || (typeof part.src==='string' && !!part.src.trim()));
 }
 export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
   if (!NOVA_VARIANTS.includes(variant)) throw new Error('Unsupported NOVA variant');
@@ -32,6 +32,8 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
       if(part.operation!==undefined && !['inherit','hide','replace'].includes(part.operation)) throw new Error('Invalid MOD operation: '+slot);
       if(part.operation==='hide') { resolved.delete(slot); continue; }
       if(part.operation==='inherit'||part.hidden===true||part.transparent===true) continue;
+      // A whitespace-only image source is never valid artwork.
+      if(typeof part.src!=='string'||!part.src.trim()) throw new Error('Invalid MOD artwork: '+slot);
       resolved.set(slot,part);
     }
   }
