@@ -82,3 +82,11 @@ test('implicit MOD replacements reject blank or missing artwork',()=>{
  const layers=resolve({mods:[{variant:'chibi',layers:{hat:{src:'new/hat.png'}}}]});
  assert.equal(find(layers,'hat').src,'new/hat.png');
 });
+
+test('explicit replacement cannot silently inherit when hidden or transparent',()=>{
+ for (const flag of ['hidden','transparent']) {
+  assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'replace',src:'mod/hat.png',[flag]:true}}}]}),/Replacement requires visible image source/);
+ }
+ const layers=resolve({mods:[{variant:'chibi',layers:{hat:{operation:'replace',src:'mod/hat.png'}}}]});
+ assert.equal(find(layers,'hat').src,'mod/hat.png');
+});
