@@ -55,3 +55,11 @@ test('unknown operation cannot be disguised by hidden or transparent flags',()=>
  assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'erase',hidden:true}}}]}),/Invalid MOD operation/);
  assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'erase',transparent:true}}}]}),/Invalid MOD operation/);
 });
+
+test('rejects array layer maps and explicit replacement without artwork',()=>{
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:[]}]}),/Incompatible MOD/);
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'replace',hidden:true}}}]}),/Replacement requires image source/);
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'replace',src:'   '}}}]}),/Replacement requires image source/);
+ const layers=resolve({mods:[{variant:'chibi',layers:{hat:{operation:'replace',src:'new/hat.png'}}}]});
+ assert.equal(find(layers,'hat').src,'new/hat.png');
+});
