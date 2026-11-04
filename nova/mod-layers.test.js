@@ -46,3 +46,12 @@ test('explicit hide removes accessories, while blank templates inherit across pa
 test('rejects unknown MOD operations',()=>{
  assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'erase',src:'x.png'}}}]}),/Invalid MOD operation/);
 });
+
+test('explicit hide wins over legacy blank template flags',()=>{
+ const layers=resolve({mods:[{variant:'chibi',layers:{hat:{src:'first/hat.png'}}},{variant:'chibi',layers:{hat:{operation:'hide',hidden:true}}}]});
+ assert.equal(find(layers,'hat'),undefined);
+});
+test('unknown operation cannot be disguised by hidden or transparent flags',()=>{
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'erase',hidden:true}}}]}),/Invalid MOD operation/);
+ assert.throws(()=>resolve({mods:[{variant:'chibi',layers:{hat:{operation:'erase',transparent:true}}}]}),/Invalid MOD operation/);
+});
