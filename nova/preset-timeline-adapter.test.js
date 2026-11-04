@@ -18,3 +18,18 @@ test('unknown and conflicting bones fail closed',()=>{
  assert.throws(()=>convertNovaActionToClip({variant:'chibi',name:'idle',duration:10,loop:true,keyframes:[{time:0,bones:{nonsense:{x:1}}},{time:10,bones:{}}]}),/bone/);
  assert.throws(()=>convertNovaActionToClip({variant:'chibi',name:'idle',duration:10,loop:true,keyframes:[{time:0,bones:{upper_arm_l:{x:1},arm_l:{x:2}}},{time:10,bones:{}}]}),/duplicate/);
 });
+
+for (const variant of ['chibi','adult']) {
+  test(`${variant} run and sleep retain distinct identities and motion`,()=>{
+    const walk=createNovaPresetClip(variant,'walk');
+    const run=createNovaPresetClip(variant,'run');
+    const idle=createNovaPresetClip(variant,'idle');
+    const sleep=createNovaPresetClip(variant,'sleep');
+    assert.equal(run.name,'run');
+    assert.equal(sleep.name,'sleep');
+    assert.notEqual(run.durationMs,walk.durationMs);
+    assert.notEqual(sleep.durationMs,idle.durationMs);
+    assert.notDeepEqual(sampleNovaClip(run,run.durationMs/4).pose,sampleNovaClip(walk,walk.durationMs/4).pose);
+    assert.notDeepEqual(sampleNovaClip(sleep,sleep.durationMs/2).pose,sampleNovaClip(idle,idle.durationMs/2).pose);
+  });
+}
