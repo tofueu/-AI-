@@ -2,9 +2,9 @@
 import { RIG_JOINTS, RIG_VARIANTS } from './rig-animation.js';
 
 export const DEFAULT_LAYER_JOINTS = Object.freeze({
-  body:'torso', torso:'torso', head:'head', face:'head', eyes:'head', mouth:'head',
-  hair:'head', hair_front:'head', hair_back:'head', hat:'head', accessory:'head',
-  top:'torso', bottom:'hip_l', dress:'torso', shoes_l:'ankle_l', shoes_r:'ankle_r',
+  body:'torso', torso:'torso', head:'head', face:'head', eyes:'head', brows:'head', nose:'head', mouth:'head',
+  hair:'head', hair_front:'head', hair_back:'head', hair_side:'head', hat:'head', accessory:'torso', wings:'torso', tail:'hip_l',
+  top:'torso', bottom:'hip_l', dress:'torso', shoes:'ankle_l', shoes_l:'ankle_l', shoes_r:'ankle_r',
   arm_l:'shoulder_l', arm_r:'shoulder_r', hand_l:'wrist_l', hand_r:'wrist_r',
   leg_l:'hip_l', leg_r:'hip_r'
 });
