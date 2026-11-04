@@ -1,11 +1,11 @@
 // Pure layer resolver for Q and adult NOVA character MODs.
-// Missing: inherit base. Hidden or transparent: do not render.
+// Missing, blank or hidden template: inherit prior art. Explicit {operation:'hide'} removes it.
 // Safe clothing fallback applies when no visible outfit layer remains.
 export const NOVA_VARIANTS=Object.freeze(['chibi','adult']);
 export const LAYER_SLOTS=Object.freeze(['body','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail']);
 function validPart(part) {
   return part && typeof part==='object' && !Array.isArray(part) &&
-    (part.hidden===true || part.transparent===true || (typeof part.src==='string' && part.src.length>0));
+    (part.operation==='inherit' || part.operation==='hide' || part.hidden===true || part.transparent===true || (typeof part.src==='string' && part.src.length>0));
 }
 export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
   if (!NOVA_VARIANTS.includes(variant)) throw new Error('Unsupported NOVA variant');
@@ -22,6 +22,11 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
     if(!mod || (mod.variant!==variant && mod.variant!=='universal') || !mod.layers || typeof mod.layers!=='object') throw new Error('Incompatible MOD');
     for(const [slot,part] of Object.entries(mod.layers)) {
       if(!LAYER_SLOTS.includes(slot)||!validPart(part)) throw new Error('Invalid MOD layer: '+slot);
+      // A blank PNG template is not a destructive erase. Only an explicit
+      // hide operation removes an inherited slot. Legacy hidden flags inherit.
+      if(part.operation==='inherit'||part.hidden===true||part.transparent===true) continue;
+      if(part.operation==='hide') { resolved.delete(slot); continue; }
+      if(part.operation!==undefined && part.operation!=='replace') throw new Error('Invalid MOD operation: '+slot);
       resolved.set(slot,part);
     }
   }
