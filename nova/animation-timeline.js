@@ -1,7 +1,7 @@
 // Deterministic, renderer-independent NOVA skeletal animation timeline.
 // Coordinates are in template pixels; angles in degrees. No source art is modified.
 export const NOVA_BONES=Object.freeze(['root','torso','neck','head','arm_l','forearm_l','hand_l','arm_r','forearm_r','hand_r','thigh_l','shin_l','foot_l','thigh_r','shin_r','foot_r']);
-export const NOVA_ANIMATIONS=Object.freeze(['idle','walk','type','cry']);
+export const NOVA_ANIMATIONS=Object.freeze(['idle','walk','run','type','cry','sleep']);
 const finite=n=>typeof n==='number'&&Number.isFinite(n);
 const lerp=(a,b,t)=>a+(b-a)*t;
 function validatePose(pose){
