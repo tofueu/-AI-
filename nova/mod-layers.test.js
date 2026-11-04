@@ -63,3 +63,15 @@ test('rejects array layer maps and explicit replacement without artwork',()=>{
  const layers=resolve({mods:[{variant:'chibi',layers:{hat:{operation:'replace',src:'new/hat.png'}}}]});
  assert.equal(find(layers,'hat').src,'new/hat.png');
 });
+
+test('rejects malformed base maps and blank base artwork',()=>{
+ assert.throws(()=>resolve({base:[]}),/Invalid base layer map/);
+ assert.throws(()=>resolve({base:{head:{src:'   '}}}),/Invalid base layer/);
+ assert.throws(()=>resolve({base:{head:{operation:'hide',src:'head.png'}}}),/Invalid base layer/);
+ assert.throws(()=>resolve({base:{head:{src:'head.png',hidden:true}}}),/Invalid base layer/);
+});
+test('rejects malformed or blank safe outfit artwork',()=>{
+ assert.throws(()=>resolve({base:{},safeOutfit:[]}),/Invalid safe outfit map/);
+ assert.throws(()=>resolve({base:{},safeOutfit:{top:{src:'  '},bottom:{src:'safe/bottom.png'}}}),/Missing safe outfit fallback/);
+ assert.throws(()=>resolve({base:{},safeOutfit:{top:{src:'safe/top.png',operation:'hide'},bottom:{src:'safe/bottom.png'}}}),/Missing safe outfit fallback/);
+});
