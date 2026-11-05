@@ -1,6 +1,7 @@
 // Renderer-independent draw commands for NOVA layered PNG characters.
 // Draw order is supplied by the resolved MOD layer order; never mutate source layers.
 import {sampleNovaWorldPose} from './pose-composer.js';
+import {LAYER_SLOTS} from './mod-layers.js';
 const DEFAULT_BONES=Object.freeze({
  body:'body',head:'head',face:'head',eyes:'head',brows:'head',nose:'head',mouth:'head',
  hair_back:'head',hair_front:'head',hair_side:'head',hat:'head',
@@ -14,7 +15,7 @@ export function createNovaDrawCommands(rig,visibleLayers,motionName,timeMs,{slot
  const pose=sampleNovaWorldPose(rig,motionName,timeMs);
  const commands=[],seen=new Set();
  for(const layer of visibleLayers) {
-  if(!layer||typeof layer.slot!=='string'||seen.has(layer.slot)) throw new Error('Duplicate or invalid draw slot');
+  if(!layer||!LAYER_SLOTS.includes(layer.slot)||seen.has(layer.slot)) throw new Error('Duplicate or invalid draw slot');
   seen.add(layer.slot);
   if(layer.hidden===true||layer.transparent===true) continue;
   if(typeof layer.src!=='string'||!layer.src.trim()) throw new Error('Missing PNG source');
@@ -26,10 +27,14 @@ export function createNovaDrawCommands(rig,visibleLayers,motionName,timeMs,{slot
 }
 export function drawNovaCommands(ctx,frame,images) {
  if(!ctx||typeof ctx.save!=='function'||typeof ctx.setTransform!=='function'||typeof ctx.drawImage!=='function'||typeof ctx.restore!=='function') throw new Error('Invalid 2D canvas context');
- if(!frame||!Array.isArray(frame.commands)||!images) throw new Error('Invalid draw frame');
+ if(!frame||!Array.isArray(frame.commands)||!images||typeof images!=='object') throw new Error('Invalid draw frame');
+ // Preflight every command so missing assets cannot leave a partially painted frame.
+ for(const command of frame.commands) {
+  if(!command||typeof command.src!=='string'||!Array.isArray(command.matrix)||command.matrix.length!==6||command.matrix.some(v=>!Number.isFinite(v))) throw new Error('Invalid draw command');
+  if(!Object.hasOwn(images,command.src)||!images[command.src]) throw new Error('Missing decoded image: '+command.src);
+ }
  for(const command of frame.commands) {
   const img=images[command.src];
-  if(!img) throw new Error('Missing decoded image: '+command.src);
   ctx.save();
   try {ctx.setTransform(...command.matrix);ctx.drawImage(img,0,0);}
   finally {ctx.restore();}
