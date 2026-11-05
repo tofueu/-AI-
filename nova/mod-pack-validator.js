@@ -67,7 +67,21 @@ export async function validateNovaPngPack(directory) {
     if (!validateRgbaPng(bytes,manifest.canvas.width,manifest.canvas.height)) {
       throw new Error('Invalid RGBA PNG layer: '+layer.slot);
     }
-    result.push({slot:layer.slot,path,hidden:layer.hidden});
+    // Generated blank templates contain zeroed, unfiltered RGBA scanlines.
+    // Treat these as absent artwork even if an artist toggles hidden=false.
+    // Non-template PNGs are left untouched; this is not a general alpha decoder.
+    let blankTemplate=false;
+    if(!layer.hidden) {
+      let offset=8, chunks=[];
+      while(offset+12<=bytes.length) {
+        const size=bytes.readUInt32BE(offset);
+        if(bytes.toString('ascii',offset+4,offset+8)==='IDAT') chunks.push(bytes.subarray(offset+8,offset+8+size));
+        offset+=12+size;
+      }
+      const raw=inflateSync(Buffer.concat(chunks));
+      blankTemplate=raw.every(byte=>byte===0);
+    }
+    result.push({slot:layer.slot,path,hidden:layer.hidden||blankTemplate});
   }
   return {variant:manifest.variant,canvas:manifest.canvas,layers:result};
 }
