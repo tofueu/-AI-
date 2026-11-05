@@ -24,3 +24,13 @@ test('rejects invalid transforms and points',()=>{
  assert.throws(()=>composeNovaPose({bones:['a']},{transforms:{a:{x:NaN}}}),/Invalid bone transform/);
  assert.throws(()=>transformNovaPoint([1,0,0,1,0,0],Infinity,0),/Invalid point transform/);
 });
+
+test('special bone names remain independent matrix entries',()=>{
+ const neutral={x:0,y:0,rotation:0,scaleX:1,scaleY:1};
+ const transforms=Object.fromEntries([['__proto__',{...neutral,x:7}],['constructor',{...neutral,x:3}],['toString',{...neutral,x:2}]]);
+ const pose=composeNovaPose({bones:['__proto__','constructor','toString'],parents:{}},{name:'idle',timeMs:0,transforms});
+ assert.equal(Object.getPrototypeOf(pose.matrices),null);
+ assert.equal(pose.matrices['__proto__'][4],7);
+ assert.equal(pose.matrices.constructor[4],3);
+ assert.equal(pose.matrices.toString[4],2);
+});
