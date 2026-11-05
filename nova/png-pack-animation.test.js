@@ -19,8 +19,8 @@ test('artist hair MOD inherits base body and plays existing Q rig animation',asy
    base:{body:{src:'original-body.png'}},
    safeOutfit:{top:{src:'safe-top.png'},bottom:{src:'safe-bottom.png'}}
   });
-  assert.ok(frames.length>1);
-  const svg=typeof frames[0]==='string'?frames[0]:frames[0].svg;
+  assert.ok(frames.frames.length>1);
+  const svg=frames.frames[0].svg;
   assert.match(svg,/original-body\.png/);
   assert.match(svg,/08_hair_front\.png/);
   assert.match(svg,/safe-top\.png/);
