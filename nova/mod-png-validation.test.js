@@ -49,3 +49,14 @@ test('rejects path traversal and duplicate filenames',async()=>{
   await assert.rejects(()=>validateNovaModAssets({slots:[{filename:'../x.png'}]},async()=>png()),/path/);
   await assert.rejects(()=>validateNovaModAssets({slots:[{filename:'hat.png'},{filename:'hat.png'}]},async()=>png()),/Duplicate/);
 });
+
+test('rejects split IDAT runs and empty IDAT chunks',()=>{
+  const ihdr=Buffer.alloc(13);
+  ihdr.writeUInt32BE(2,0);ihdr.writeUInt32BE(2,4);ihdr[8]=8;ihdr[9]=6;
+  const raw=Buffer.alloc(2*(1+2*4)),compressed=deflateSync(raw);
+  const split=Buffer.concat([sig,chunk('IHDR',ihdr),chunk('IDAT',compressed.subarray(0,2)),
+    chunk('tEXt',Buffer.from('note\\0hi')),chunk('IDAT',compressed.subarray(2)),chunk('IEND')]);
+  assert.throws(()=>validateNovaPng(split),/IDAT order/);
+  const empty=Buffer.concat([sig,chunk('IHDR',ihdr),chunk('IDAT'),chunk('IDAT',compressed),chunk('IEND')]);
+  assert.throws(()=>validateNovaPng(empty),/IDAT order/);
+});
