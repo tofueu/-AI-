@@ -2,6 +2,7 @@
 // Does not pretend a PNG is a Live2D .moc3 model.
 import {NOVA_MOD_SLOTS} from './first-sheet-whiteboard.js';
 import {NOVA_VARIANTS,resolveNovaLayers} from './mod-layers.js';
+import {validateNovaModAssets} from './mod-png-validation.js';
 
 const MAP=Object.freeze({
   hair_back:'hair_back',body:'body',bottom:'bottom',top:'top',
@@ -34,4 +35,12 @@ export function importNovaWhiteboardMod(manifest,{base={},safeOutfit={}}={}) {
   // verify PNG presence, transparency and image dimensions before rendering.
   const visibleLayers=resolveNovaLayers({variant:manifest.variant,base,mods:[{variant:manifest.variant,layers}],safeOutfit});
   return {variant:manifest.variant,visibleLayers,unsupportedSlots:UNSUPPORTED};
+}
+
+// The strict import path verifies visible PNG headers and file presence first.
+// Keep the synchronous importer for pure manifest previews and existing callers.
+export async function importVerifiedNovaWhiteboardMod(manifest,readAsset,options={}) {
+  const resolved=importNovaWhiteboardMod(manifest,options);
+  const assets=await validateNovaModAssets(manifest,readAsset);
+  return {...resolved,assets};
 }
