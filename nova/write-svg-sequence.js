@@ -1,5 +1,5 @@
 // Persist NOVA SVG animation frames atomically without touching artist PNGs.
-import {mkdir, writeFile, rm} from 'node:fs/promises';
+import {mkdir, writeFile, rm, lstat} from 'node:fs/promises';
 import {join, resolve} from 'node:path';
 import {randomUUID} from 'node:crypto';
 
@@ -14,6 +14,7 @@ export async function writeNovaSvgSequence(sequence, outputDirectory) {
   if (typeof outputDirectory!=='string' || !outputDirectory.trim())
     throw new Error('Output directory required');
   const target=resolve(outputDirectory);
+  try { await lstat(target); throw new Error('Output directory already exists'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
   const staging=target+'.nova-tmp-'+randomUUID();
   await mkdir(staging,{recursive:false});
   try {
