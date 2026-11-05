@@ -2,7 +2,7 @@
 // Missing, blank or hidden template: inherit prior art. Explicit {operation:'hide'} removes it.
 // Safe clothing fallback applies when no visible outfit layer remains.
 export const NOVA_VARIANTS=Object.freeze(['chibi','adult']);
-export const LAYER_SLOTS=Object.freeze(['body','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail']);
+export const LAYER_SLOTS=Object.freeze(['body','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail','leg_l','leg_r','shoes_l','shoes_r','arm_l','arm_r','hand_l','hand_r','outer','face']);
 function validPart(part) {
   return part && typeof part==='object' && !Array.isArray(part) &&
     (part.operation==='inherit' || part.operation==='hide' || part.hidden===true || part.transparent===true || (typeof part.src==='string' && !!part.src.trim()));
