@@ -14,7 +14,7 @@ export function validateNovaPng(bytes,{maxBytes=8*1024*1024,maxDimension=4096}={
   if(!(bytes instanceof Uint8Array)||bytes.length<57||bytes.length>maxBytes)
     throw new Error('Invalid PNG size');
   if(!SIGNATURE.every((b,i)=>bytes[i]===b)) throw new Error('Invalid PNG signature');
-  let offset=8,ihdr=null,idat=false,ended=false,chunkCount=0;
+  let offset=8,ihdr=null,idat=false,idatClosed=false,ended=false,chunkCount=0;
   while(offset<bytes.length){
     if(bytes.length-offset<12) throw new Error('Truncated PNG chunk');
     const len=u32(bytes,offset),typeStart=offset+4,dataStart=offset+8;
@@ -24,6 +24,7 @@ export function validateNovaPng(bytes,{maxBytes=8*1024*1024,maxDimension=4096}={
     if(!/^[A-Za-z]{4}$/.test(type)) throw new Error('Invalid PNG chunk type');
     if(crc32(bytes,typeStart,end)!==u32(bytes,end)) throw new Error('Invalid PNG CRC');
     if(chunkCount===0 && (type!=='IHDR'||len!==13)) throw new Error('Missing PNG IHDR');
+    if(idat && type!=='IDAT') idatClosed=true;
     if(type==='IHDR'){
       if(ihdr||chunkCount!==0||len!==13) throw new Error('Invalid PNG IHDR');
       const width=u32(bytes,dataStart),height=u32(bytes,dataStart+4);
@@ -34,12 +35,12 @@ export function validateNovaPng(bytes,{maxBytes=8*1024*1024,maxDimension=4096}={
         throw new Error('Unsupported PNG compression, filter or interlace');
       ihdr={width,height,bitDepth:depth,colorType:color,bytes:bytes.length};
     }else if(type==='IDAT'){
-      if(!ihdr||ended) throw new Error('Invalid PNG IDAT order');
+      if(!ihdr||ended||idatClosed||len===0) throw new Error('Invalid PNG IDAT order');
       idat=true;
     }else if(type==='IEND'){
       if(len!==0||!idat||end+4!==bytes.length) throw new Error('Invalid PNG IEND');
       ended=true;
-    }else if((bytes[typeStart]&32)===0){
+    }else if(!ihdr || (bytes[typeStart]&32)===0){
       throw new Error('Unsupported critical PNG chunk: '+type);
     }
     offset=end+4;chunkCount++;
