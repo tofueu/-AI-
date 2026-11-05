@@ -11,7 +11,7 @@ export async function writeNovaSvgSequence(sequence, outputDirectory) {
       !Array.isArray(sequence.frames) || sequence.frames.length < 2 ||
       !sequence.frames.every((frame,i) => frame && frame.index===i &&
         frame.filename===`frame-${String(i).padStart(4,'0')}.svg` &&
-        typeof frame.svg==='string' && frame.svg.startsWith('<svg ') &&
+        typeof frame.svg==='string' && /^\s*<svg(?:\s|>)/.test(frame.svg) &&
         Number.isFinite(frame.time) && frame.time>=0 && frame.time<=sequence.duration &&
         (i===0 ? frame.time===0 : frame.time>sequence.frames[i-1].time)))
     throw new Error('Invalid NOVA SVG sequence');
