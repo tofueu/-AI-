@@ -19,3 +19,15 @@ test('nonlooping motion holds last pose',()=>{
   const rig={bones:['head'],animations:[{name:'blink',durationMs:100,loop:false,tracks:[{bone:'head',keyframes:[{timeMs:0,scaleY:1},{timeMs:100,scaleY:0.2}]}]}]};
   assert.equal(sampleNovaMotion(rig,'blink',500).transforms.head.scaleY,0.2);
 });
+
+
+test('malformed null motion entries fail with a controlled error',()=>{
+ const rig={bones:['body'],animations:[null]};
+ assert.throws(()=>sampleNovaMotion(rig,'idle',0),/Invalid motion/);
+});
+test('malformed null track and keyframe fail with a controlled error',()=>{
+ const rig={bones:['body'],animations:[{name:'idle',durationMs:100,tracks:[null]}]};
+ assert.throws(()=>sampleNovaMotion(rig,'idle',0),/Invalid track/);
+ rig.animations[0].tracks=[{bone:'body',keyframes:[null]}];
+ assert.throws(()=>sampleNovaMotion(rig,'idle',0),/Invalid keyframe time/);
+});
