@@ -28,3 +28,24 @@ test('rejects unsafe filenames and malformed frames',async()=>{
   ]},join(root,'export')),/Invalid NOVA SVG sequence/);
  } finally {await rm(root,{recursive:true,force:true});}
 });
+
+test('rejects malformed timing and metadata before creating any output',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'nova-sequence-'));
+ try {
+  const base={variant:'adult',action:'walk',fps:12,duration:1,frames:[
+   {index:0,time:0,filename:'frame-0000.svg',svg:'<svg />'},
+   {index:1,time:.5,filename:'frame-0001.svg',svg:'<svg />'}
+  ]};
+  const cases=[
+   {fps:Infinity},{fps:0},{duration:NaN},{duration:0},
+   {action:'../escape'},
+   {frames:[base.frames[0],{...base.frames[1],time:0}]},
+   {frames:[base.frames[0],{...base.frames[1],time:2}]}
+  ];
+  for(const [i,change] of cases.entries()){
+   const target=join(root,'invalid-'+i);
+   await assert.rejects(writeNovaSvgSequence({...base,...change},target),/Invalid NOVA SVG sequence/);
+   await assert.rejects(readFile(join(target,'manifest.json'),'utf8'));
+  }
+ } finally {await rm(root,{recursive:true,force:true});}
+});
