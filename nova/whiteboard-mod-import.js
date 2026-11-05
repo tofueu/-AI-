@@ -1,7 +1,7 @@
 // Bridge the 20-slot artist whiteboard to the current NOVA MOD runtime.
 // Does not pretend a PNG is a Live2D .moc3 model.
 import {NOVA_MOD_SLOTS} from './first-sheet-whiteboard.js';
-import {LAYER_SLOTS,NOVA_VARIANTS,resolveNovaLayers} from './mod-layers.js';
+import {NOVA_VARIANTS,resolveNovaLayers} from './mod-layers.js';
 
 const MAP=Object.freeze({
   hair_back:'hair_back',body:'body',bottom:'bottom',top:'top',
@@ -30,6 +30,8 @@ export function importNovaWhiteboardMod(manifest,{base={},safeOutfit={}}={}) {
     layers[MAP[entry.slot]]={operation:'replace',src:entry.filename};
   }
   if(unsupported.length) throw new Error('Unsupported visible whiteboard slots: '+unsupported.join(', '));
+  // A whiteboard manifest describes names, not file contents. The caller must
+  // verify PNG presence, transparency and image dimensions before rendering.
   const visibleLayers=resolveNovaLayers({variant:manifest.variant,base,mods:[{variant:manifest.variant,layers}],safeOutfit});
   return {variant:manifest.variant,visibleLayers,unsupportedSlots:UNSUPPORTED};
 }
