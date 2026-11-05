@@ -13,10 +13,12 @@ test('artist hair MOD inherits base body and plays existing Q rig animation',asy
   const file=join(dir,'manifest.json');
   const manifest=JSON.parse(await readFile(file,'utf8'));
   manifest.layers.find(layer=>layer.slot==='hair_front').hidden=false;
+  // Template art must be replaced with real painted pixels before it is visible.
+  // The untouched blank hair PNG must not override an inherited hair image.
   await writeFile(file,JSON.stringify(manifest));
   const frames=await buildNovaPngPackAnimation({
    variant:'chibi',action:'idle',directories:[dir],fps:2,
-   base:{body:{src:'original-body.png'}},
+   base:{body:{src:'original-body.png'},hair_front:{src:'original-hair.png'}},
    safeOutfit:{top:{src:'safe-top.png'},bottom:{src:'safe-bottom.png'}}
   });
   assert.ok(frames.frames.length>1);
