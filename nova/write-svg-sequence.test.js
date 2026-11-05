@@ -49,3 +49,16 @@ test('rejects malformed timing and metadata before creating any output',async()=
   }
  } finally {await rm(root,{recursive:true,force:true});}
 });
+
+test('accepts valid SVG opening tags without attributes and with leading whitespace',async()=>{
+ const root=await mkdtemp(join(tmpdir(),'nova-sequence-'));
+ try {
+  const sequence={variant:'adult',action:'idle',fps:2,duration:1,frames:[
+   {index:0,time:0,filename:'frame-0000.svg',svg:'<svg><path/></svg>'},
+   {index:1,time:.5,filename:'frame-0001.svg',svg:'\n  <svg xmlns="http://www.w3.org/2000/svg"></svg>'}
+  ]};
+  await writeNovaSvgSequence(sequence,join(root,'export'));
+  assert.match(await readFile(join(root,'export','frame-0000.svg'),'utf8'),/^<svg>/);
+  assert.match(await readFile(join(root,'export','frame-0001.svg'),'utf8'),/<svg xmlns=/);
+ } finally {await rm(root,{recursive:true,force:true});}
+});
