@@ -20,10 +20,14 @@ for(const variant of ['chibi','adult']) {
     assert.equal(result.visibleLayers.find(p=>p.slot==='hair_front').src,'hair_front.png');
   });
 }
-test('rejects visible unsupported limb slots instead of silently losing artwork',()=>{
-  const manifest=createNovaBlankManifest('chibi');
-  manifest.slots.find(p=>p.slot==='arm_l').hidden=false;
-  assert.throws(()=>importNovaWhiteboardMod(manifest,{safeOutfit}),/Unsupported visible whiteboard slots/);
+test('imports visible limb and outerwear layers for both rigs',()=>{
+  for(const variant of ['chibi','adult']) {
+    const manifest=createNovaBlankManifest(variant);
+    for(const slot of ['arm_l','leg_r','outer','face','shoes_l']) manifest.slots.find(p=>p.slot===slot).hidden=false;
+    const result=importNovaWhiteboardMod(manifest,{safeOutfit});
+    for(const slot of ['arm_l','leg_r','outer','face','shoes_l']) assert.equal(result.visibleLayers.find(p=>p.slot===slot).src,slot+'.png');
+    assert.deepEqual(result.unsupportedSlots,[]);
+  }
 });
 test('rejects traversal filenames and duplicate slots',()=>{
   const manifest=createNovaBlankManifest('adult');
