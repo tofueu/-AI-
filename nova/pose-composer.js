@@ -15,9 +15,10 @@ export function composeNovaPose(rig,sample) {
  const parents=rig.parents??{};
  if(!parents || typeof parents!=='object' || Array.isArray(parents)) throw new Error('Invalid parents');
  for(const [bone,parent] of Object.entries(parents)) if(!known.has(bone)||!known.has(parent)||bone===parent) throw new Error('Invalid bone parent');
- const matrices={},visiting=new Set();
+ // Null-prototype map prevents special bone names from shadowing Object internals.
+ const matrices=Object.create(null),visiting=new Set();
  function resolve(bone) {
-  if(matrices[bone]) return matrices[bone];
+  if(Object.hasOwn(matrices,bone)) return matrices[bone];
   if(visiting.has(bone)) throw new Error('Cyclic bone hierarchy');
   visiting.add(bone);
   const t=sample.transforms[bone];
