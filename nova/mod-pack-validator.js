@@ -4,6 +4,7 @@ import {readFile,lstat,realpath} from 'node:fs/promises';
 import {resolve,sep} from 'node:path';
 import {inflateSync} from 'node:zlib';
 import {validateNovaModTemplate} from './mod-template.js';
+import {isFullyTransparentRgba} from './png-alpha.js';
 
 function crc32(data) {
   let crc=0xffffffff;
@@ -67,9 +68,8 @@ export async function validateNovaPngPack(directory) {
     if (!validateRgbaPng(bytes,manifest.canvas.width,manifest.canvas.height)) {
       throw new Error('Invalid RGBA PNG layer: '+layer.slot);
     }
-    // Generated blank templates contain zeroed, unfiltered RGBA scanlines.
-    // Treat these as absent artwork even if an artist toggles hidden=false.
-    // Non-template PNGs are left untouched; this is not a general alpha decoder.
+    // Any fully transparent RGBA PNG is absent artwork, regardless of RGB
+    // values or row filters. Preserve prior layers instead of erasing them.
     let blankTemplate=false;
     if(!layer.hidden) {
       let offset=8, chunks=[];
@@ -79,7 +79,7 @@ export async function validateNovaPngPack(directory) {
         offset+=12+size;
       }
       const raw=inflateSync(Buffer.concat(chunks));
-      blankTemplate=raw.every(byte=>byte===0);
+      blankTemplate=isFullyTransparentRgba(raw,manifest.canvas.width,manifest.canvas.height);
     }
     result.push({slot:layer.slot,path,hidden:layer.hidden||blankTemplate});
   }
