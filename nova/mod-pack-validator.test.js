@@ -97,3 +97,37 @@ test('rejects PNG with noncontiguous IDAT chunks',async()=>{
   await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+
+test('keeps painted RGBA layers visible and blank layers hidden for both variants',async()=>{
+ const {deflateSync}=await import('node:zlib');
+ function crc32(data){let crc=0xffffffff;for(const b of data){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return (crc^0xffffffff)>>>0;}
+ function chunk(type,data){
+  const name=Buffer.from(type),size=Buffer.alloc(4),checksum=Buffer.alloc(4);
+  size.writeUInt32BE(data.length);checksum.writeUInt32BE(crc32(Buffer.concat([name,data])));
+  return Buffer.concat([size,name,data,checksum]);
+ }
+ for(const variant of ['chibi','adult']){
+  const dir=await mkdtemp(join(tmpdir(),'nova-painted-'));
+  try{
+   await exportNovaBlankPngLayers(dir,variant,{width:64,height:96});
+   const filename=join(dir,'01_body.png');
+   const original=await readFile(filename);
+   const stride=1+64*4,raw=Buffer.alloc(stride*96);
+   // Pixel alpha is nonzero; every other pixel stays transparent.
+   raw[1+3]=255;
+   const idat=chunk('IDAT',deflateSync(raw));
+   const png=Buffer.concat([original.subarray(0,33),idat,original.subarray(original.length-12)]);
+   await writeFile(filename,png);
+   const manifestPath=join(dir,'manifest.json');
+   const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
+   manifest.layers[0].hidden=false;
+   manifest.layers[1].hidden=false; // blank art must still be suppressed
+   await writeFile(manifestPath,JSON.stringify(manifest));
+   const pack=await validateNovaPngPack(dir);
+   assert.equal(pack.layers[0].hidden,false,variant+' painted body should display');
+   assert.equal(pack.layers[1].hidden,true,variant+' empty head should hide');
+   assert.ok(pack.layers.slice(2).every(layer=>layer.hidden));
+  }finally{await rm(dir,{recursive:true,force:true});}
+ }
+});
