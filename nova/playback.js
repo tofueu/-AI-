@@ -12,6 +12,16 @@ export function createNovaPlayback({ctx,images,rig,base,mods=[],safeOutfit={},mo
     drawNovaCommands(ctx,frame,images);
     return frame;
   }
+  function fail(error) {
+    stop();
+    if(typeof onError==='function') onError(error);
+    else throw error;
+  }
+  function schedule(token) {
+    const next=requestFrame(t=>tick(t,token));
+    if(next===null||next===undefined) throw new Error('Animation scheduler returned no handle');
+    handle=next;
+  }
   function tick(timestamp,token) {
     if(!running||token!==generation) return;
     handle=null;
@@ -20,19 +30,21 @@ export function createNovaPlayback({ctx,images,rig,base,mods=[],safeOutfit={},mo
       if(started===null) started=timestamp;
       render(Math.max(0,timestamp-started));
     } catch(error) {
-      stop();
-      if(typeof onError==='function') onError(error);
-      else throw error;
+      fail(error);
       return;
     }
-    if(running&&token===generation) handle=requestFrame(t=>tick(t,token));
+    if(running&&token===generation) {
+      try {schedule(token);}
+      catch(error) {fail(error);}
+    }
   }
   function start() {
     if(running) return;
     running=true;
     started=null;
     const token=++generation;
-    handle=requestFrame(t=>tick(t,token));
+    try {schedule(token);}
+    catch(error) {fail(error);}
   }
   function stop() {
     running=false;
