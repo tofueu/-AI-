@@ -73,3 +73,22 @@ test('scheduler returning no handle is rejected and reported',()=>{
   assert.equal(playback.running,false);
   assert.match(error.message,/no handle/);
 });
+
+for(const variant of ['chibi','adult']) {
+  test(variant+' clears state when cancellation throws and permits restart',()=>{
+    let requests=0,reported;
+    const playback=createNovaPlayback({
+      rig:{variant},motionName:'idle',
+      requestFrame(){return ++requests;},
+      cancelFrame(){throw new Error('cancel failed');},
+      onError:error=>reported=error
+    });
+    playback.start();
+    playback.stop();
+    assert.equal(playback.running,false);
+    assert.match(reported.message,/cancel failed/);
+    playback.start();
+    assert.equal(playback.running,true);
+    assert.equal(requests,2);
+  });
+}
