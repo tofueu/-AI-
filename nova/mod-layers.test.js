@@ -107,3 +107,27 @@ test('inherited base slots do not inject artwork',()=>{
  assert.equal(find(layers,'body').src,'base/body.png');
  assert.equal(find(layers,'top').src,'safe/top.png');
 });
+
+test('dress MOD is a complete outfit for Q and adult without requiring separate top and bottom',()=>{
+ for(const variant of ['chibi','adult']){
+  const layers=resolveNovaLayers({variant,base:{body:{src:'base/body.png'}},mods:[{variant,layers:{dress:{src:'mod/dress.png'}}}],safeOutfit:{}});
+  assert.equal(find(layers,'dress').src,'mod/dress.png');
+  assert.equal(find(layers,'top'),undefined);
+  assert.equal(find(layers,'bottom'),undefined);
+ }
+});
+test('hiding a dress restores safe two-piece clothing for both variants',()=>{
+ for(const variant of ['chibi','adult']){
+  const layers=resolveNovaLayers({variant,base:{body:{src:'base/body.png'},dress:{src:'base/dress.png'}},mods:[{variant,layers:{dress:{operation:'hide'}}}],safeOutfit});
+  assert.equal(find(layers,'dress'),undefined);
+  assert.equal(find(layers,'top').src,'safe/top.png');
+  assert.equal(find(layers,'bottom').src,'safe/bottom.png');
+ }
+});
+test('partial clothing replacement preserves the other original garment',()=>{
+ for(const variant of ['chibi','adult']){
+  const layers=resolveNovaLayers({variant,base,mods:[{variant,layers:{top:{src:'mod/top.png'}}}],safeOutfit});
+  assert.equal(find(layers,'top').src,'mod/top.png');
+  assert.equal(find(layers,'bottom').src,'base/bottom.png');
+ }
+});
