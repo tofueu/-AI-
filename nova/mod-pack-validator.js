@@ -78,7 +78,9 @@ export async function validateNovaPngPack(directory) {
         if(bytes.toString('ascii',offset+4,offset+8)==='IDAT') chunks.push(bytes.subarray(offset+8,offset+8+size));
         offset+=12+size;
       }
-      const raw=inflateSync(Buffer.concat(chunks));
+      const expected=manifest.canvas.height*(1+manifest.canvas.width*4);
+      // Keep the alpha scan bounded too; never inflate an untrusted PNG without a cap.
+      const raw=inflateSync(Buffer.concat(chunks),{maxOutputLength:expected+1});
       blankTemplate=isFullyTransparentRgba(raw,manifest.canvas.width,manifest.canvas.height);
     }
     result.push({slot:layer.slot,path,hidden:layer.hidden||blankTemplate});
