@@ -132,3 +132,16 @@ test('keeps painted RGBA layers visible and blank layers hidden for both variant
   }finally{await rm(dir,{recursive:true,force:true});}
  }
 });
+
+// Sparse oversized files must be rejected before readFile allocates their contents.
+test('rejects oversized MOD PNG without loading it into memory',async()=>{
+ const {open}=await import('node:fs/promises');
+ const dir=await mkdtemp(join(tmpdir(),'nova-oversized-'));
+ try{
+  await exportNovaBlankPngLayers(dir,'chibi',{width:64,height:96});
+  const path=join(dir,'01_body.png');
+  const handle=await open(path,'r+');
+  try{await handle.truncate(80*1024*1024+1);}finally{await handle.close();}
+  await assert.rejects(()=>validateNovaPngPack(dir),/PNG layer exceeds size limit: body/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
