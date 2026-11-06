@@ -49,9 +49,13 @@ export function createNovaPlayback({ctx,images,rig,base,mods=[],safeOutfit={},mo
   function stop() {
     running=false;
     ++generation;
-    if(handle!==null) cancelFrame(handle);
+    const pending=handle;
     handle=null;
     started=null;
+    if(pending!==null) {
+      try {cancelFrame(pending);}
+      catch(error) {if(typeof onError==='function') onError(error); else throw error;}
+    }
   }
   return Object.freeze({start,stop,render,get running(){return running;}});
 }
