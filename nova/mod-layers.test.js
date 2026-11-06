@@ -131,3 +131,16 @@ test('partial clothing replacement preserves the other original garment',()=>{
   assert.equal(find(layers,'bottom').src,'base/bottom.png');
  }
 });
+
+test('complete dress suppresses base two-piece without destroying base artwork',()=>{
+ for(const variant of ['chibi','adult']){
+  const dressed=resolveNovaLayers({variant,base,mods:[{variant,layers:{dress:{src:'mod/dress.png'}}}],safeOutfit});
+  assert.equal(find(dressed,'dress').src,'mod/dress.png');
+  assert.equal(find(dressed,'top'),undefined);
+  assert.equal(find(dressed,'bottom'),undefined);
+  const restored=resolveNovaLayers({variant,base,mods:[{variant,layers:{dress:{src:'mod/dress.png'}}},{variant,layers:{dress:{operation:'hide'}}}],safeOutfit});
+  assert.equal(find(restored,'dress'),undefined);
+  assert.equal(find(restored,'top').src,'base/top.png');
+  assert.equal(find(restored,'bottom').src,'base/bottom.png');
+ }
+});
