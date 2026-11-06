@@ -23,7 +23,10 @@ test('explicitly hidden clothing MOD restores safe outfit',()=>{
 });
 test('full character replacement keeps slot order',()=>{
  const layers=resolve({mods:[{variant:'chibi',layers:Object.fromEntries(LAYER_SLOTS.map(slot=>[slot,{src:'full/'+slot+'.png'}]))}]});
- assert.deepEqual(layers.map(layer=>layer.slot),LAYER_SLOTS);
+ assert.deepEqual(layers.map(layer=>layer.slot),LAYER_SLOTS.filter(slot=>slot!=='top'&&slot!=='bottom'));
+ assert.equal(find(layers,'dress').src,'full/dress.png');
+ assert.equal(find(layers,'top'),undefined);
+ assert.equal(find(layers,'bottom'),undefined);
  assert.equal(find(layers,'body').src,'full/body.png');
 });
 test('adult and chibi MODs cannot be accidentally mixed',()=>{
