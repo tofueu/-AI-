@@ -55,7 +55,9 @@ export async function validateNovaPngPack(directory) {
   if (!manifestInfo.isFile() || manifestInfo.isSymbolicLink() || await realpath(manifestPath)!==manifestPath) {
     throw new Error('Unsafe MOD manifest file');
   }
-  // The manifest is metadata, not artwork. Reject oversized JSON before allocating it.\n  if(manifestInfo.size>1024*1024) throw new Error('MOD manifest exceeds size limit');\n  const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
+  // The manifest is metadata, not artwork. Reject oversized JSON before allocating it.
+  if(manifestInfo.size>1024*1024) throw new Error('MOD manifest exceeds size limit');
+  const manifest=JSON.parse(await readFile(manifestPath,'utf8'));
   validateNovaModTemplate(manifest);
   const result=[];
   for (const layer of manifest.layers) {
