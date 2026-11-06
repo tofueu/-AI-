@@ -50,5 +50,9 @@ export function resolveNovaLayers({variant,base={},mods=[],safeOutfit={}}) {
       resolved.set(slot,fallback);
     }
   }
-  return LAYER_SLOTS.filter(visible).map(slot=>({...resolved.get(slot),slot}));
+  // A dress replaces the two-piece outfit visually, even when the base
+  // character has a top and bottom. Keep them in the map so removing the
+  // dress on a later resolution restores the original clothing.
+  const covered=visible('dress') ? new Set(['top','bottom']) : new Set();
+  return LAYER_SLOTS.filter(slot=>visible(slot)&&!covered.has(slot)).map(slot=>({...resolved.get(slot),slot}));
 }
