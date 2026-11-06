@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {exportNovaBlankPngLayers} from './png-template.js';
 import {validateNovaPngPack} from './mod-pack-validator.js';
+import {LAYER_SLOTS} from './mod-layers.js';
 
 for(const variant of ['chibi','adult']) test(`validates exported ${variant} PNG MOD pack`,async()=>{
  const dir=await mkdtemp(join(tmpdir(),'nova-pack-'));
@@ -12,7 +13,7 @@ for(const variant of ['chibi','adult']) test(`validates exported ${variant} PNG 
   await exportNovaBlankPngLayers(dir,variant,{width:64,height:96});
   const pack=await validateNovaPngPack(dir);
   assert.equal(pack.variant,variant);
-  assert.equal(pack.layers.length,17);
+  assert.equal(pack.layers.length,LAYER_SLOTS.length);
   assert.ok(pack.layers.every(layer=>layer.hidden));
   const path=join(dir,'01_body.png');
   const bytes=await readFile(path);
