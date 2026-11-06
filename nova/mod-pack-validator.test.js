@@ -145,3 +145,15 @@ test('rejects oversized MOD PNG without loading it into memory',async()=>{
   await assert.rejects(()=>validateNovaPngPack(dir),/PNG layer exceeds size limit: body/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('rejects oversized MOD manifest before parsing JSON',async()=>{
+ const {open}=await import('node:fs/promises');
+ const dir=await mkdtemp(join(tmpdir(),'nova-manifest-oversized-'));
+ try{
+  await exportNovaBlankPngLayers(dir,'adult',{width:64,height:96});
+  const path=join(dir,'manifest.json');
+  const handle=await open(path,'r+');
+  try{await handle.truncate(1024*1024+1);}finally{await handle.close();}
+  await assert.rejects(()=>validateNovaPngPack(dir),/MOD manifest exceeds size limit/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
