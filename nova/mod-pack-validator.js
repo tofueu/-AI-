@@ -64,6 +64,9 @@ export async function validateNovaPngPack(directory) {
     // Reject symlinks, including links that point outside the pack root.
     const info=await lstat(path);
     if (!info.isFile() || info.isSymbolicLink() || await realpath(path)!==path) throw new Error('Unsafe PNG layer file: '+layer.slot);
+    // Bound the on-disk input before reading; ancillary chunks can otherwise
+    // make a tiny valid IDAT stream consume unbounded process memory.
+    if(info.size>80*1024*1024) throw new Error('PNG layer exceeds size limit: '+layer.slot);
     const bytes=await readFile(path);
     if (!validateRgbaPng(bytes,manifest.canvas.width,manifest.canvas.height)) {
       throw new Error('Invalid RGBA PNG layer: '+layer.slot);
