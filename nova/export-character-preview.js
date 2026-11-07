@@ -31,7 +31,17 @@ export function exportNovaCharacterPreview(config,assetDirectory,{frames=12,dura
     const full=resolve(root,src);
     const rel=relative(root,full);
     if(rel.startsWith('..'+sep)||rel==='..'||isAbsolute(rel)) throw new Error('Artwork escapes character directory');
-    // Resolve symlinks as well as lexical paths: a link inside the art folder\n    // must not be able to expose files outside the selected character pack.\n    let real;\n    try { real=realpathSync(full); } catch(error) {\n      if(error.code==='ENOENT') throw new Error('Missing character PNG: '+src);\n      throw error;\n    }\n    const realRel=relative(root,real);\n    if(realRel==='..'||realRel.startsWith('..'+sep)||isAbsolute(realRel))\n      throw new Error('Artwork symlink escapes character directory: '+src);\n    if(!statSync(real).isFile()) throw new Error('Missing character PNG: '+src);
+    // Resolve symlinks as well as lexical paths: a link inside the art folder
+    // must not be able to expose files outside the selected character pack.
+    let real;
+    try { real=realpathSync(full); } catch(error) {
+      if(error.code==='ENOENT') throw new Error('Missing character PNG: '+src);
+      throw error;
+    }
+    const realRel=relative(root,real);
+    if(realRel==='..'||realRel.startsWith('..'+sep)||isAbsolute(realRel))
+      throw new Error('Artwork symlink escapes character directory: '+src);
+    if(!statSync(real).isFile()) throw new Error('Missing character PNG: '+src);
   }
   const snapshots=Array.from({length:frames},(_,i)=>composeNovaManifestFrame({
     variant:config.variant,base:config.base??{},safeOutfit:config.safeOutfit??{},
