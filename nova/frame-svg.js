@@ -1,12 +1,18 @@
 // Render a composed NOVA frame as SVG without altering or embedding source artwork.
 const escapeXml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&apos;'}[c]));
 const finite = value => typeof value === 'number' && Number.isFinite(value);
+// Reject external URLs, Windows paths, traversal and encoded URL escapes at render time.
+const safeArtworkPath = value => typeof value === 'string' && value.length > 0 &&
+  value.trim() === value && value.length <= 512 && !/[\\\\%?#\\x00-\\x1f\\x7f]/.test(value) &&
+  !/^(?:[a-z][a-z0-9+.-]*:|\\/)/i.test(value) &&
+  !value.split('/').some(part => part === '..' || part === '.' || part === '') &&
+  /\\.png$/i.test(value);
 
 export function renderNovaFrameSvg(frame, {width=512,height=512,artWidth=256,artHeight=256}={}) {
   if (!frame || !['chibi','adult'].includes(frame.variant) || !Array.isArray(frame.layers)) throw new Error('Invalid NOVA frame');
   if (![width,height,artWidth,artHeight].every(v=>finite(v)&&v>0&&v<=8192)) throw new Error('Invalid NOVA canvas size');
   const images = frame.layers.map(layer => {
-    if (!layer || typeof layer.src!=='string' || !layer.src.trim() || /^(?:[a-z][a-z0-9+.-]*:|\/\/|\/)/i.test(layer.src.trim()) || layer.src.split(/[\\/]/).includes('..') || !layer.transform ||
+    if (!layer || !safeArtworkPath(layer.src) || !layer.transform ||
         !['x','y','rotation'].every(k=>finite(layer.transform[k]))) throw new Error('Invalid NOVA draw layer');
     const {x,y,rotation}=layer.transform;
     // MOD creators may size and pivot individual parts without changing the source PNG.
