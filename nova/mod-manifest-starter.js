@@ -5,8 +5,9 @@ import {importNovaModManifest} from './mod-manifest.js';
 export function createNovaModStarter(id,variant) {
   if (!NOVA_VARIANTS.includes(variant)) throw new Error('Unsupported NOVA variant');
   const layers = Object.fromEntries(LAYER_SLOTS.map(slot => [slot,{operation:'inherit'}]));
-  return importNovaModManifest({schemaVersion:1,id,variant,layers})
-    && {schemaVersion:1,id,variant,layers};
+  const starter = {schemaVersion:1,id,variant,layers};
+  importNovaModManifest(starter);
+  return starter;
 }
 
 export function setNovaModStarterPart(starter,slot,part) {
