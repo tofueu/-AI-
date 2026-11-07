@@ -8,15 +8,20 @@ export function pngHasVisiblePixels(buffer) {
   if(buffer.length>16*1024*1024)throw new Error('PNG file exceeds 16 MiB art limit');
   const width=buffer.readUInt32BE(16),height=buffer.readUInt32BE(20);
   if (!width || !height || width*height>1048576 || buffer[24]!==8 || buffer[25]!==6 || buffer[26]!==0) throw new Error('Expected 8-bit RGBA PNG');
-  let offset=8, chunks=[];
+  let offset=8, chunks=[], ended=false;
   while(offset+12<=buffer.length){
     const len=buffer.readUInt32BE(offset),type=buffer.toString('ascii',offset+4,offset+8);
     if(len>8*1024*1024)throw new Error('PNG chunk exceeds 8 MiB limit');
     if(offset+12+len>buffer.length)throw new Error('Truncated PNG');
     if(type==='IDAT')chunks.push(buffer.subarray(offset+8,offset+8+len));
     offset+=12+len;
-    if(type==='IEND')break;
+    if(type==='IEND'){
+      if(len!==0)throw new Error('Invalid PNG end chunk');
+      ended=true;break;
+    }
   }
+  if(!ended)throw new Error('Missing PNG end chunk');
+  if(offset!==buffer.length)throw new Error('Trailing PNG data');
   if(!chunks.length)throw new Error('Missing PNG image data');
   const raw=inflateSync(Buffer.concat(chunks),{maxOutputLength:height*(1+width*4)});
   if(raw.length!==height*(1+width*4))throw new Error('Invalid PNG row length');
