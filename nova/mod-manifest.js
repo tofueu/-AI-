@@ -2,9 +2,10 @@
 import {LAYER_SLOTS, NOVA_VARIANTS} from './mod-layers.js';
 const isObject = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const safePath = value => typeof value === 'string' && value.trim() === value &&
-  value.length > 0 && value.length <= 512 && !/[\x00-\x1f\x7f?#]/.test(value) &&
-  !/^(?:[a-z][a-z0-9+.-]*:|\/|\\)/i.test(value) &&
-  !value.split(/[\\/]/).includes('..') && /\.png$/i.test(value);
+  value.length > 0 && value.length <= 512 && !/[\\\\%?#\\x00-\\x1f\\x7f]/.test(value) &&
+  !/^(?:[a-z][a-z0-9+.-]*:|\\/)/i.test(value) &&
+  !value.split('/').some(part => part === '..' || part === '.' || part === '') &&
+  /\\.png$/i.test(value);
 export function importNovaModManifest(manifest) {
   if (!isObject(manifest) || manifest.schemaVersion !== 1 ||
       typeof manifest.id !== 'string' || !/^[a-z0-9][a-z0-9_-]{0,63}$/i.test(manifest.id) ||
