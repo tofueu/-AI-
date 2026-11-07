@@ -1,7 +1,7 @@
 // Generate transparent, correctly sized NOVA MOD drawing canvases without external dependencies.
 // These are BLANK templates, not finished character artwork.
 // Usage: node nova/generate-mod-blank-templates.js [output-directory]
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,existsSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {deflateSync} from 'node:zlib';
 import {pathToFileURL} from 'node:url';
@@ -19,11 +19,18 @@ export function transparentPng(width,height){
 }
 export function generateNovaBlankTemplates(directory){
   const root=resolve(directory);
+  // Preflight every output before writing: never replace an artist's completed MOD.
+  const destinations=Object.keys(DIMENSIONS).flatMap(variant=>[
+    ...NOVA_PARTS.map(part=>join(root,variant,'art',part+'.png')),
+    join(root,variant,'character.json')
+  ]).concat(join(root,'README.txt'));
+  const existing=destinations.find(path=>existsSync(path));
+  if(existing)throw new Error('Refusing to overwrite existing MOD artwork: '+existing);
   const results=[];
   for(const [variant,[width,height]] of Object.entries(DIMENSIONS)){
     const folder=join(root,variant,'art');mkdirSync(folder,{recursive:true});
     for(const part of NOVA_PARTS){
-      const path=join(folder,part+'.png');writeFileSync(path,transparentPng(width,height));results.push(path);
+      const path=join(folder,part+'.png');writeFileSync(path,transparentPng(width,height),{flag:'wx'});results.push(path);
     }
     const base=Object.fromEntries(NOVA_PARTS.filter(p=>!['top','bottom','hat','accessory'].includes(p)).map(p=>[p,{src:'art/'+p+'.png'}]));
     const safeOutfit={top:{src:'art/top.png'},bottom:{src:'art/bottom.png'}};
