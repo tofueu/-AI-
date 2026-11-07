@@ -71,3 +71,13 @@ test('outfit symlink cannot escape character root',()=>withCharacter(({root,json
     assert.match(result.issues.join(' '),/symlink path escapes/);
   } finally {rmSync(outside,{recursive:true,force:true});}
 }));
+
+test('oversized artwork and oversized PNG chunks are rejected',()=>{
+  const huge=Buffer.alloc(16*1024*1024+1);
+  Buffer.from([137,80,78,71,13,10,26,10]).copy(huge);
+  assert.throws(()=>pngHasVisiblePixels(huge),/exceeds 16 MiB/);
+  const oversizedChunk=Buffer.from(transparentPng(1,1));
+  // First chunk length is IHDR; reject before reading any chunk payload.
+  oversizedChunk.writeUInt32BE(8*1024*1024+1,8);
+  assert.throws(()=>pngHasVisiblePixels(oversizedChunk),/chunk exceeds 8 MiB/);
+});
