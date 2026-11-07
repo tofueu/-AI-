@@ -23,6 +23,16 @@ export function bindNovaLayersToPose({variant,layers,pose}) {
   if(!RIG_JOINTS.includes(joint)) throw new Error('Unbound NOVA joint');
   const transform=pose[joint];
   if(!transform||!['x','y','rotation'].every(axis=>typeof transform[axis]==='number'&&Number.isFinite(transform[axis]))) throw new Error('Missing NOVA joint pose: '+joint);
-  return {slot:layer.slot,src:layer.src,joint,transform:{x:transform.x,y:transform.y,rotation:transform.rotation}};
+  // Preserve validated per-part dimensions/pivots all the way to the SVG renderer.
+  const sizing={};
+  for(const key of ['width','height','anchorX','anchorY']) {
+   if(layer[key]!==undefined) {
+    const value=layer[key];
+    if(typeof value!=='number'||!Number.isFinite(value)||
+       (key==='width'||key==='height' ? value<=0||value>8192 : value<0||value>1)) throw new Error('Invalid NOVA layer '+key);
+    sizing[key]=value;
+   }
+  }
+  return {slot:layer.slot,src:layer.src,joint,...sizing,transform:{x:transform.x,y:transform.y,rotation:transform.rotation}};
  });
 }
