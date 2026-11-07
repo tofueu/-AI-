@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {exportNovaCharacterPreview,exportNovaCharacterPreviewFile} from './export-character-preview.js';
@@ -40,4 +40,17 @@ test('missing source image must fail instead of producing broken preview',()=>{
 });
 test('traversal paths must be rejected',()=>{
   assert.throws(()=>exportNovaCharacterPreview({variant:'adult',base:{body:{src:'../outside.png'}}},tmpdir()),/Unsafe character artwork path/);
+});
+
+// A PNG-looking symlink must not bypass the character pack boundary.
+test('reject PNG symlinks that escape the character directory',()=>{
+  const parent=mkdtempSync(join(tmpdir(),'nova-link-'));
+  try {
+    const dir=join(parent,'character');
+    mkdirSync(join(dir,'art'),{recursive:true});
+    writeFileSync(join(parent,'outside.png'),png);
+    symlinkSync(join(parent,'outside.png'),join(dir,'art','body.png'));
+    const config={variant:'chibi',base:{body:{src:'art/body.png'}},safeOutfit:{}};
+    assert.throws(()=>exportNovaCharacterPreview(config,dir),/symlink escapes character directory/);
+  } finally {rmSync(parent,{recursive:true,force:true});}
 });
