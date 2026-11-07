@@ -2,7 +2,7 @@
 // Usage: node nova/export-character-preview.js character.json preview.svg
 // JSON: { "variant":"chibi", "base":{}, "safeOutfit":{"top":{"src":"art/top.png"},"bottom":{"src":"art/bottom.png"}}, "manifests":[], "state":"running" }
 // PNG references are resolved relative to the JSON file; source files are never modified.
-import {readFileSync,writeFileSync,statSync,mkdirSync,realpathSync} from 'node:fs';
+import {readFileSync,writeFileSync,statSync,mkdirSync,realpathSync,openSync,readSync,closeSync} from 'node:fs';
 import {resolve,dirname,isAbsolute,relative,sep} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {composeNovaManifestFrame} from './manifest-frame.js';
@@ -42,6 +42,13 @@ export function exportNovaCharacterPreview(config,assetDirectory,{frames=12,dura
     if(realRel==='..'||realRel.startsWith('..'+sep)||isAbsolute(realRel))
       throw new Error('Artwork symlink escapes character directory: '+src);
     if(!statSync(real).isFile()) throw new Error('Missing character PNG: '+src);
+    // A renamed text file is not usable character art. Verify the PNG signature.
+    const fd=openSync(real,'r');
+    try {
+      const signature=Buffer.alloc(8);
+      if(readSync(fd,signature,0,8,0)!==8 || !signature.equals(Buffer.from([137,80,78,71,13,10,26,10])))
+        throw new Error('Invalid character PNG signature: '+src);
+    } finally {closeSync(fd);}
   }
   const snapshots=Array.from({length:frames},(_,i)=>composeNovaManifestFrame({
     variant:config.variant,base:config.base??{},safeOutfit:config.safeOutfit??{},
