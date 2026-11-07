@@ -14,7 +14,7 @@ export function renderNovaFrameSvg(frame, {width=512,height=512,artWidth=256,art
     const anchorX=layer.anchorX ?? 0.5, anchorY=layer.anchorY ?? 0.5;
     if (![w,h,anchorX,anchorY].every(finite) || w<=0 || h<=0 || w>8192 || h>8192 || anchorX<0 || anchorX>1 || anchorY<0 || anchorY>1) throw new Error('Invalid NOVA layer dimensions or anchor');
     const cx=width/2+x, cy=height/2+y;
-    return `<image href="${escapeXml(layer.src)}" x="${-artWidth/2}" y="${-artHeight/2}" width="${artWidth}" height="${artHeight}" transform="translate(${cx} ${cy}) rotate(${rotation})" />`;
+    return `<image href="${escapeXml(layer.src)}" x="${-w*anchorX}" y="${-h*anchorY}" width="${w}" height="${h}" transform="translate(${cx} ${cy}) rotate(${rotation})" />`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="NOVA ${frame.variant} frame">${images.join('')}</svg>`;
 }
