@@ -20,6 +20,7 @@ function artworkSources(config) {
 export function exportNovaCharacterPreview(config,assetDirectory,{frames=12,durationMs=1200}={}) {
   if(!config || !['chibi','adult'].includes(config.variant)) throw new Error('Choose a Q or adult NOVA variant');
   if(!Number.isInteger(frames)||frames<2||frames>60) throw new Error('Invalid preview frame count');
+  if(typeof durationMs!=='number'||!Number.isFinite(durationMs)||durationMs<20||durationMs>600000) throw new Error('Invalid preview duration');
   const root=realpathSync(resolve(assetDirectory));
   // Do not emit a misleading blank preview or SVG with broken image links.
   const sources=artworkSources(config);
