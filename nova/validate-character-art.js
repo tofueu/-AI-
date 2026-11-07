@@ -5,11 +5,13 @@ import {inflateSync} from 'node:zlib';
 
 export function pngHasVisiblePixels(buffer) {
   if (!Buffer.isBuffer(buffer) || buffer.length < 57 || !buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) throw new Error('Invalid PNG signature');
+  if(buffer.length>16*1024*1024)throw new Error('PNG file exceeds 16 MiB art limit');
   const width=buffer.readUInt32BE(16),height=buffer.readUInt32BE(20);
   if (!width || !height || width*height>1048576 || buffer[24]!==8 || buffer[25]!==6 || buffer[26]!==0) throw new Error('Expected 8-bit RGBA PNG');
   let offset=8, chunks=[];
   while(offset+12<=buffer.length){
     const len=buffer.readUInt32BE(offset),type=buffer.toString('ascii',offset+4,offset+8);
+    if(len>8*1024*1024)throw new Error('PNG chunk exceeds 8 MiB limit');
     if(offset+12+len>buffer.length)throw new Error('Truncated PNG');
     if(type==='IDAT')chunks.push(buffer.subarray(offset+8,offset+8+len));
     offset+=12+len;
