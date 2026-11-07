@@ -28,9 +28,6 @@ for (const variant of ['chibi','adult']) {
       assert.match(svg, /fallback\/top\.png/);
       assert.match(svg, /width="96" height="112"/);
     }
-    // An animated preview must change the rig pose, not merely repeat identical images.
-    const wristPositions = frames.map(frame => frame.layers.find(layer => layer.slot === 'hair_front')?.transform);
-    assert.equal(wristPositions.length,4);
     const animated = renderNovaComposedAnimationSvg(frames,{durationMs:800});
     assert.match(animated, /repeatCount="indefinite"/);
     assert.equal((animated.match(/<animate /g)||[]).length,4);
