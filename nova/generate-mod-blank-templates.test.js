@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,readFileSync,rmSync,existsSync} from 'node:fs';
+import {mkdtempSync,readFileSync,writeFileSync,rmSync,existsSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {inflateSync} from 'node:zlib';
@@ -33,4 +33,19 @@ test('both variants have all blank part layers and fallback outfit slots',()=>{
 });
 test('reject unreasonable template dimensions',()=>{
  for(const [w,h] of [[0,1],[1,-1],[2048,2048],[2.5,10]])assert.throws(()=>transparentPng(w,h),/Invalid template dimensions/);
+});
+
+test('regeneration never overwrites artist artwork or character manifest',()=>{
+ const dir=mkdtempSync(join(tmpdir(),'nova-art-preserve-'));
+ try{
+  generateNovaBlankTemplates(dir);
+  const artwork=join(dir,'chibi','art','top.png');
+  const manifest=join(dir,'chibi','character.json');
+  const painted=Buffer.from('artist-owned-custom-content');
+  writeFileSync(artwork,painted);
+  const originalManifest=readFileSync(manifest);
+  assert.throws(()=>generateNovaBlankTemplates(dir),/Refusing to overwrite existing MOD artwork/);
+  assert.deepEqual(readFileSync(artwork),painted);
+  assert.deepEqual(readFileSync(manifest),originalManifest);
+ }finally{rmSync(dir,{recursive:true,force:true});}
 });
