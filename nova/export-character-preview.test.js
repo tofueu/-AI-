@@ -63,3 +63,13 @@ test('reject a non-PNG file with a .png extension',()=>{
     assert.throws(()=>exportNovaCharacterPreview({variant:'chibi',base:{body:{src:'art/body.png'}}},dir),/Invalid character PNG signature/);
   } finally {rmSync(dir,{recursive:true,force:true});}
 });
+
+test('invalid preview timing is rejected before composing frames',()=>{
+  const config={variant:'chibi',base:{body:{src:'art/body.png'}}};
+  for(const durationMs of [0,-1,NaN,Infinity,600001,'1200']) {
+    assert.throws(()=>exportNovaCharacterPreview(config,tmpdir(),{durationMs}),/Invalid preview duration/);
+  }
+  for(const frames of [0,1,61,2.5,NaN]) {
+    assert.throws(()=>exportNovaCharacterPreview(config,tmpdir(),{frames}),/Invalid preview frame count/);
+  }
+});
