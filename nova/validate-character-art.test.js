@@ -81,3 +81,14 @@ test('oversized artwork and oversized PNG chunks are rejected',()=>{
   oversizedChunk.writeUInt32BE(8*1024*1024+1,8);
   assert.throws(()=>pngHasVisiblePixels(oversizedChunk),/chunk exceeds 8 MiB/);
 });
+
+test('truncated PNG and trailing bytes are rejected',()=>{
+  const valid=rgbaPng(255);
+  const withoutEnd=valid.subarray(0,valid.length-12);
+  assert.throws(()=>pngHasVisiblePixels(withoutEnd),/Missing PNG end chunk/);
+  const trailing=Buffer.concat([valid,Buffer.from([1,2,3])]);
+  assert.throws(()=>pngHasVisiblePixels(trailing),/Trailing PNG data/);
+  const invalidEnd=Buffer.from(valid);
+  invalidEnd.writeUInt32BE(1,invalidEnd.length-12);
+  assert.throws(()=>pngHasVisiblePixels(invalidEnd),/Invalid PNG end chunk|Truncated PNG/);
+});
