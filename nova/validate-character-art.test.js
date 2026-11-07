@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,symlinkSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {deflateSync} from 'node:zlib';
@@ -57,4 +57,17 @@ test('invalid PNG is rejected rather than counted as clothing',()=>withCharacter
   const result=validateNovaOutfit(json);
   assert.equal(result.ok,false);
   assert.match(result.issues[0],/Invalid PNG signature/);
+}));
+
+test('outfit symlink cannot escape character root',()=>withCharacter(({root,json,save})=>{
+  const outside=mkdtempSync(join(tmpdir(),'nova-outside-'));
+  try {
+    writeFileSync(join(outside,'top.png'),rgbaPng(255));
+    symlinkSync(join(outside,'top.png'),join(root,'art/top.png'));
+    writeFileSync(join(root,'art/bottom.png'),rgbaPng(255));
+    save();
+    const result=validateNovaOutfit(json);
+    assert.equal(result.ok,false);
+    assert.match(result.issues.join(' '),/symlink path escapes/);
+  } finally {rmSync(outside,{recursive:true,force:true});}
 }));
