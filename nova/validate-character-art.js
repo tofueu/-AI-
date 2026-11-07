@@ -1,5 +1,5 @@
 // Standalone art gate: a transparent template is not an acceptable finished outfit.
-import {readFileSync} from 'node:fs';
+import {readFileSync,realpathSync} from 'node:fs';
 import {resolve,dirname,relative,isAbsolute,sep} from 'node:path';
 import {inflateSync} from 'node:zlib';
 
@@ -38,14 +38,20 @@ export function pngHasVisiblePixels(buffer) {
 }
 
 export function validateNovaOutfit(characterJsonPath){
-  const file=resolve(characterJsonPath),root=dirname(file),character=JSON.parse(readFileSync(file,'utf8'));
+  const file=realpathSync(resolve(characterJsonPath)),root=dirname(file),character=JSON.parse(readFileSync(file,'utf8'));
   const issues=[];
   for(const slot of ['top','bottom']){
     const src=character.safeOutfit?.[slot]?.src;
     if(typeof src!=='string'||!src) {issues.push(`${slot}: missing fallback`);continue;}
     const target=resolve(root,src),rel=relative(root,target);
     if(isAbsolute(rel)||rel==='..'||rel.startsWith('..'+sep)){issues.push(`${slot}: path escapes character directory`);continue;}
-    try{if(!pngHasVisiblePixels(readFileSync(target)))issues.push(`${slot}: fully transparent fallback`);}
+    try{
+      const canonical=realpathSync(target),canonicalRel=relative(root,canonical);
+      if(isAbsolute(canonicalRel)||canonicalRel==='..'||canonicalRel.startsWith('..'+sep)){
+        issues.push(`${slot}: symlink path escapes character directory`);continue;
+      }
+      if(!pngHasVisiblePixels(readFileSync(canonical)))issues.push(`${slot}: fully transparent fallback`);
+    }
     catch(e){issues.push(`${slot}: ${e.message}`);}
   }
   return {ok:issues.length===0,issues};
