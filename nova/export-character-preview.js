@@ -25,7 +25,7 @@ export function exportNovaCharacterPreview(config,assetDirectory,{frames=12,dura
   const sources=artworkSources(config);
   if(!sources.length) throw new Error('No character artwork was supplied');
   for(const src of sources) {
-    if(typeof src!=='string' || !/^[^\\\\%?#:\\x00-\\x1f]+\\.png$/i.test(src) ||
+    if(typeof src!=='string' || !src.endsWith('.png') || /[\\\\%?#:\\x00-\\x1f]/.test(src) ||
        isAbsolute(src) || src.split('/').some(s=>!s||s==='.'||s==='..'))
       throw new Error('Unsafe character artwork path: '+src);
     const full=resolve(root,src);
