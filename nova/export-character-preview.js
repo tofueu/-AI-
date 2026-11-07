@@ -2,7 +2,7 @@
 // Usage: node nova/export-character-preview.js character.json preview.svg
 // JSON: { "variant":"chibi", "base":{}, "safeOutfit":{"top":{"src":"art/top.png"},"bottom":{"src":"art/bottom.png"}}, "manifests":[], "state":"running" }
 // PNG references are resolved relative to the JSON file; source files are never modified.
-import {readFileSync,writeFileSync,statSync,mkdirSync} from 'node:fs';
+import {readFileSync,writeFileSync,statSync,mkdirSync,realpathSync} from 'node:fs';
 import {resolve,dirname,isAbsolute,relative,sep} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {composeNovaManifestFrame} from './manifest-frame.js';
@@ -20,7 +20,7 @@ function artworkSources(config) {
 export function exportNovaCharacterPreview(config,assetDirectory,{frames=12,durationMs=1200}={}) {
   if(!config || !['chibi','adult'].includes(config.variant)) throw new Error('Choose a Q or adult NOVA variant');
   if(!Number.isInteger(frames)||frames<2||frames>60) throw new Error('Invalid preview frame count');
-  const root=resolve(assetDirectory);
+  const root=realpathSync(resolve(assetDirectory));
   // Do not emit a misleading blank preview or SVG with broken image links.
   const sources=artworkSources(config);
   if(!sources.length) throw new Error('No character artwork was supplied');
@@ -31,7 +31,7 @@ export function exportNovaCharacterPreview(config,assetDirectory,{frames=12,dura
     const full=resolve(root,src);
     const rel=relative(root,full);
     if(rel.startsWith('..'+sep)||rel==='..'||isAbsolute(rel)) throw new Error('Artwork escapes character directory');
-    if(!statSync(full).isFile()) throw new Error('Missing character PNG: '+src);
+    // Resolve symlinks as well as lexical paths: a link inside the art folder\n    // must not be able to expose files outside the selected character pack.\n    let real;\n    try { real=realpathSync(full); } catch(error) {\n      if(error.code==='ENOENT') throw new Error('Missing character PNG: '+src);\n      throw error;\n    }\n    const realRel=relative(root,real);\n    if(realRel==='..'||realRel.startsWith('..'+sep)||isAbsolute(realRel))\n      throw new Error('Artwork symlink escapes character directory: '+src);\n    if(!statSync(real).isFile()) throw new Error('Missing character PNG: '+src);
   }
   const snapshots=Array.from({length:frames},(_,i)=>composeNovaManifestFrame({
     variant:config.variant,base:config.base??{},safeOutfit:config.safeOutfit??{},
