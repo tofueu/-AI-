@@ -3,10 +3,10 @@ const escapeXml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;',
 const finite = value => typeof value === 'number' && Number.isFinite(value);
 // Reject external URLs, Windows paths, traversal and encoded URL escapes at render time.
 const safeArtworkPath = value => typeof value === 'string' && value.length > 0 &&
-  value.trim() === value && value.length <= 512 && !/[\\\\%?#\\x00-\\x1f\\x7f]/.test(value) &&
-  !/^(?:[a-z][a-z0-9+.-]*:|\\/)/i.test(value) &&
+  value.trim() === value && value.length <= 512 && !/[\\%?#\x00-\x1f\x7f]/.test(value) &&
+  !/^(?:[a-z][a-z0-9+.-]*:|\/)/i.test(value) &&
   !value.split('/').some(part => part === '..' || part === '.' || part === '') &&
-  /\\.png$/i.test(value);
+  /\.png$/i.test(value);
 
 export function renderNovaFrameSvg(frame, {width=512,height=512,artWidth=256,artHeight=256}={}) {
   if (!frame || !['chibi','adult'].includes(frame.variant) || !Array.isArray(frame.layers)) throw new Error('Invalid NOVA frame');
