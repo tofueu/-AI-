@@ -54,3 +54,12 @@ test('reject PNG symlinks that escape the character directory',()=>{
     assert.throws(()=>exportNovaCharacterPreview(config,dir),/symlink escapes character directory/);
   } finally {rmSync(parent,{recursive:true,force:true});}
 });
+
+test('reject a non-PNG file with a .png extension',()=>{
+  const dir=mkdtempSync(join(tmpdir(),'nova-invalid-png-'));
+  try {
+    mkdirSync(join(dir,'art'));
+    writeFileSync(join(dir,'art','body.png'),'not a PNG');
+    assert.throws(()=>exportNovaCharacterPreview({variant:'chibi',base:{body:{src:'art/body.png'}}},dir),/Invalid character PNG signature/);
+  } finally {rmSync(dir,{recursive:true,force:true});}
+});
