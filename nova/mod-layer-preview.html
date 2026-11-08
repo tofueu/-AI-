@@ -9,10 +9,11 @@
 <label><input id="visible" type="checkbox" checked> 顯示此圖層</label>
 <button id="clear">移除此圖層</button> <button id="export">匯出合成 PNG</button>
 <p id="status" role="status"></p></section>
-<section><canvas id="stage" width="512" height="512" aria-label="角色圖層預覽"></canvas><p><small>圖層以 512×512 相同畫布座標疊合；請使用對齊的透明 PNG。空圖層會自動隱藏；若衣服圖層空白，保留 base_clothes 基本服裝圖層。</small></p></section>
+<section><canvas id="stage" width="512" height="512" aria-label="角色圖層預覽"></canvas><p><small>圖層以 512×512 相同畫布座標疊合；請使用對齊的透明 PNG。空圖層會自動隱藏；頭型、眼睛、嘴巴、帽子可獨立替換。若上衣與下裝未同時提供，保留 base_clothes 基本服裝圖層。</small></p></section>
 <script>
 'use strict';
-const slots=['body','base_clothes','head','face','hair_back','hair_front','top','bottom','outer','shoes','accessory','full_character'];
+/* Back-to-front paint order; preserve legacy 'head'/'face' MOD slots. */
+const slots=['hair_back','body','base_clothes','bottom','top','outer','shoes','head','head_shape','face','eyes','mouth','hair_front','hat','accessory','full_character'];
 const state={chibi:{},adult:{}};
 const $=id=>document.getElementById(id),slot=$('slot'),variant=$('variant'),stage=$('stage'),ctx=stage.getContext('2d');
 for(const s of slots){const o=document.createElement('option');o.value=s;o.textContent=s;slot.append(o)}
