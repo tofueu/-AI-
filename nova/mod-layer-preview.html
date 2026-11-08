@@ -42,6 +42,7 @@ const targetVariant=variant.value,targetSlot=slot.value,sequence=(pendingImports
 pendingImports[targetVariant][targetSlot]=sequence;
 if(file.type!=='image/png'){$('status').textContent='僅接受 PNG';return}
 try{const url=URL.createObjectURL(file);const img=new Image();try{await new Promise((ok,fail)=>{img.onload=ok;img.onerror=fail;img.src=url})}finally{URL.revokeObjectURL(url)}
+if(sequence!==pendingImports[targetVariant][targetSlot])return;
 if(!img.width||!img.height)throw Error('空白尺寸');
 if(img.width>4096||img.height>4096||img.width*img.height>16777216)throw Error('PNG 尺寸超過 4096×4096 限制');
 const probe=document.createElement('canvas');probe.width=img.width;probe.height=img.height;
