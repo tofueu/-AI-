@@ -21,8 +21,10 @@ function update(){const x=current();$('visible').checked=x?x.visible:false;draw(
 function visibleLayers(character){
   const full=character.full_character;
   if(full&&full.visible&&full.image)return [full];
-  const hasOutfit=['top','bottom','outer'].some(s=>character[s]?.visible&&character[s]?.image);
-  return slots.filter(s=>s!=='full_character'&&(s!=='base_clothes'||!hasOutfit))
+  /* A coat or a single garment is not a complete outfit. Keep the safe base
+     underneath until both upper and lower clothing are supplied and visible. */
+  const hasCompleteOutfit=['top','bottom'].every(s=>character[s]?.visible&&character[s]?.image);
+  return slots.filter(s=>s!=='full_character'&&(s!=='base_clothes'||!hasCompleteOutfit))
     .map(s=>character[s]).filter(x=>x?.visible&&x.image);
 }
 function draw(){ctx.clearRect(0,0,512,512);const layers=visibleLayers(state[variant.value]);
