@@ -1,6 +1,6 @@
 // Generate inspectable NOVA chibi/adult motion contact sheets without touching original art.
 // Usage: node nova/export-motion-previews.js <output-directory>
-import {mkdir, writeFile, readdir} from 'node:fs/promises';
+import {mkdir, writeFile, readdir, unlink} from 'node:fs/promises';
 import {resolve, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {buildNovaPresetFrames} from './preset-frame-sequence.js';
@@ -16,6 +16,7 @@ export async function exportNovaMotionPreviews(directory, {fps=8}={}) {
   const existing=new Set(await readdir(target));
   if(names.some(name=>existing.has(name))) { const error=new Error('EEXIST: preview already exists'); error.code='EEXIST'; throw error; }
   const outputs=[];
+  try {
   for (const variant of ['chibi','adult']) {
     for (const action of ['idle','walk','typing','cry']) {
       const sampled=buildNovaPresetFrames({variant,action,fps});
@@ -25,6 +26,11 @@ export async function exportNovaMotionPreviews(directory, {fps=8}={}) {
       await writeFile(join(target,filename),svg,{flag:'wx'});
       outputs.push(join(target,filename));
     }
+  }
+  } catch (error) {
+    // Only remove files created by this invocation; never touch pre-existing art.
+    await Promise.allSettled(outputs.map(path=>unlink(path)));
+    throw error;
   }
   return outputs;
 }
