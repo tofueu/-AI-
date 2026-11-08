@@ -46,6 +46,6 @@ test('preserves unrelated files while exporting previews at a supported FPS',asy
   assert.equal(paths.length,8);
   assert.equal((await readdir(dir)).length,9);
   assert.deepEqual(await readFile(unrelated),original);
-  for(const path of paths) assert.match(await readFile(path,'utf8'),/<\\/svg>$/);
+  for(const path of paths) assert.match(await readFile(path,'utf8'),/<\/svg>$/);
  } finally {await rm(dir,{recursive:true,force:true});}
 });
