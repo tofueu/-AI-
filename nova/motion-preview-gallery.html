@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NOVA 骨架動作檢視｜診斷預覽</title>
+<style>
+:root{font-family:system-ui,sans-serif;color-scheme:light;background:#f7f3fc;color:#392c4d}
+body{max-width:1100px;margin:auto;padding:24px}h1{margin-bottom:4px}p{line-height:1.6}
+fieldset{border:1px solid #d5c6e8;border-radius:12px;margin:18px 0;padding:12px}
+label{margin-right:16px}select{font:inherit;padding:7px;border-radius:8px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+figure{margin:0;background:white;border:1px solid #d5c6e8;border-radius:12px;padding:12px;min-width:0}
+img{display:block;width:100%;height:400px;object-fit:contain;object-position:top;border-radius:6px}
+figcaption{font-weight:600;margin-bottom:10px}.notice{color:#704d87}
+</style>
+</head>
+<body>
+<h1>NOVA 骨架動作檢視</h1>
+<p class="notice">這是關節動作診斷圖，不是正式角色、連續動畫或 MOD 換裝驗收。圖片需先由 export-motion-previews.js 匯出。</p>
+<fieldset><legend>動作</legend><label for="action">選擇動作</label><select id="action"><option value="idle">待機</option><option value="walk">行走</option><option value="typing">打字</option><option value="cry">哭泣</option></select></fieldset>
+<div class="grid">
+<figure><figcaption>Q 版骨架</figcaption><img id="chibi" alt="Q 版動作影格診斷圖" src="chibi-idle-rig-preview.svg"></figure>
+<figure><figcaption>成人版骨架</figcaption><img id="adult" alt="成人版動作影格診斷圖" src="adult-idle-rig-preview.svg"></figure>
+</div>
+<p id="status" role="status"></p>
+<script>
+const action=document.getElementById('action');
+const status=document.getElementById('status');
+function refresh(){
+  for(const variant of ['chibi','adult']){
+    const img=document.getElementById(variant);
+    img.src=variant+'-'+action.value+'-rig-preview.svg';
+  }
+  status.textContent='目前顯示：'+action.options[action.selectedIndex].text+'（靜態影格表）';
+}
+for(const variant of ['chibi','adult']){
+  const img=document.getElementById(variant);
+  img.addEventListener('error',()=>{status.textContent='找不到預覽 SVG。請先匯出八份骨架圖，並將本 HTML 放在同一資料夾。';});
+}
+action.addEventListener('change',refresh);
+refresh();
+</script>
+</body>
+</html>
