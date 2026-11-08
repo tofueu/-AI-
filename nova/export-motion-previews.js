@@ -1,6 +1,6 @@
 // Generate inspectable NOVA chibi/adult motion contact sheets without touching original art.
 // Usage: node nova/export-motion-previews.js <output-directory>
-import {mkdir, writeFile, readdir, unlink} from 'node:fs/promises';
+import {mkdir, open, readdir, unlink} from 'node:fs/promises';
 import {resolve, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {buildNovaPresetFrames} from './preset-frame-sequence.js';
@@ -23,8 +23,16 @@ export async function exportNovaMotionPreviews(directory, {fps=8}={}) {
       // Diagnostic renderer limits each contact sheet to 120 frames.
       const svg=renderNovaRigPreviewSvg({variant,action,frames:sampled.frames.slice(0,120)});
       const filename=variant+'-'+action+'-rig-preview.svg';
-      await writeFile(join(target,filename),svg,{flag:'wx'});
-      outputs.push(join(target,filename));
+      const outputPath=join(target,filename);
+      // Acquire exclusive ownership before writing. A failed write can leave a
+      // truncated file, so record ownership immediately after successful open.
+      const handle=await open(outputPath,'wx');
+      outputs.push(outputPath);
+      try {
+        await handle.writeFile(svg);
+      } finally {
+        await handle.close();
+      }
     }
   }
   } catch (error) {
