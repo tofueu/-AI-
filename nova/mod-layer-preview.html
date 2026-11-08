@@ -18,13 +18,28 @@ const $=id=>document.getElementById(id),slot=$('slot'),variant=$('variant'),stag
 for(const s of slots){const o=document.createElement('option');o.value=s;o.textContent=s;slot.append(o)}
 function current(){return state[variant.value][slot.value]}
 function update(){const x=current();$('visible').checked=x?x.visible:false;draw()}
-function draw(){ctx.clearRect(0,0,512,512);for(const s of slots){const x=state[variant.value][s];if(x&&x.visible&&x.image)ctx.drawImage(x.image,0,0,512,512)}$('status').textContent=variant.value+'：'+Object.values(state[variant.value]).filter(x=>x.visible).length+' 個可見圖層'}
+function visibleLayers(character){
+  const full=character.full_character;
+  if(full&&full.visible&&full.image)return [full];
+  const hasOutfit=['top','bottom','outer'].some(s=>character[s]?.visible&&character[s]?.image);
+  return slots.filter(s=>s!=='full_character'&&(s!=='base_clothes'||!hasOutfit))
+    .map(s=>character[s]).filter(x=>x?.visible&&x.image);
+}
+function draw(){ctx.clearRect(0,0,512,512);const layers=visibleLayers(state[variant.value]);
+for(const x of layers)ctx.drawImage(x.image,0,0,512,512);
+$('status').textContent=variant.value+'：'+layers.length+' 個實際顯示圖層';}
 slot.onchange=variant.onchange=update;
 $('visible').onchange=()=>{const x=current();if(x)x.visible=$('visible').checked;draw()};
 $('clear').onclick=()=>{delete state[variant.value][slot.value];$('file').value='';update()};
 $('file').onchange=async()=>{const file=$('file').files[0];if(!file)return;if(file.type!=='image/png'){$('status').textContent='僅接受 PNG';return}
 try{const url=URL.createObjectURL(file);const img=new Image();try{await new Promise((ok,fail)=>{img.onload=ok;img.onerror=fail;img.src=url})}finally{URL.revokeObjectURL(url)}
-if(!img.width||!img.height)throw Error('空白尺寸');state[variant.value][slot.value]={image:img,visible:true};update()}catch(e){$('status').textContent='圖片載入失敗：'+e.message}};
+if(!img.width||!img.height)throw Error('空白尺寸');
+const probe=document.createElement('canvas');probe.width=img.width;probe.height=img.height;
+const pctx=probe.getContext('2d',{willReadFrequently:true});pctx.drawImage(img,0,0);
+const pixels=pctx.getImageData(0,0,img.width,img.height).data;
+let nonempty=false;for(let i=3;i<pixels.length;i+=4){if(pixels[i]>0){nonempty=true;break}}
+if(!nonempty){delete state[variant.value][slot.value];$('file').value='';update();$('status').textContent='透明空圖層已自動隱藏';return}
+state[variant.value][slot.value]={image:img,visible:true};update()}catch(e){$('status').textContent='圖片載入失敗：'+e.message}};
 $('export').onclick=()=>{draw();const a=document.createElement('a');a.download='nova-'+variant.value+'-composite.png';a.href=stage.toDataURL('image/png');a.click()};
 update();
 </script>
