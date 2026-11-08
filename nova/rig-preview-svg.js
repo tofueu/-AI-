@@ -5,7 +5,10 @@ export function renderNovaRigPreviewSvg({variant,action,frames,columns=6}={}) {
  const chibi=variant==='chibi', w=160,h=210,rows=Math.ceil(frames.length/columns),out=[`<svg xmlns="http://www.w3.org/2000/svg" width="${columns*w}" height="${rows*h}" viewBox="0 0 ${columns*w} ${rows*h}"><rect width="100%" height="100%" fill="#f4f0fa"/>`];
  for(const [i,frame] of frames.entries()){
   if(!frame||!Number.isFinite(frame.timeMs)||!frame.pose||typeof frame.pose!=='object')throw new Error('Invalid frame');
-  for(const transform of Object.values(frame.pose))for(const n of Object.values(transform))if(typeof n!=='number'||!Number.isFinite(n))throw new Error('Invalid transform');
+  for(const transform of Object.values(frame.pose)) {
+   if(!transform||typeof transform!=='object'||Array.isArray(transform))throw new Error('Invalid transform');
+   for(const n of Object.values(transform))if(typeof n!=='number'||!Number.isFinite(n))throw new Error('Invalid transform');
+  }
   const val=(j,k)=>frame.pose[j]?.[k]??0,bodyY=chibi?105:91,headY=chibi?61:48,torsoH=chibi?46:66;
   out.push(`<g transform="translate(${(i%columns)*w} ${Math.floor(i/columns)*h})"><rect x="3" y="3" width="154" height="204" rx="9" fill="white" stroke="#d5c6e8"/><text x="10" y="19" font-size="10" fill="#59496d">${xml(action??'motion')} · ${i+1}</text><g transform="translate(80 ${val('root','y')})">`);
   for(const [x,r] of [[-19,val('leg_l','rotation')],[19,val('leg_r','rotation')]])out.push(`<g transform="translate(${x} ${bodyY+torsoH-3}) rotate(${r})"><path d="M0 0 V${chibi?33:39}" stroke="#6b528e" stroke-width="13" stroke-linecap="round"/></g>`);
