@@ -1,6 +1,6 @@
 // Generate inspectable NOVA chibi/adult motion contact sheets without touching original art.
 // Usage: node nova/export-motion-previews.js <output-directory>
-import {mkdir, writeFile} from 'node:fs/promises';
+import {mkdir, writeFile, readdir} from 'node:fs/promises';
 import {resolve, join} from 'node:path';
 import {pathToFileURL} from 'node:url';
 import {buildNovaPresetFrames} from './preset-frame-sequence.js';
@@ -11,6 +11,10 @@ export async function exportNovaMotionPreviews(directory, {fps=8}={}) {
   if (!Number.isInteger(fps) || fps<1 || fps>30) throw new Error('Invalid preview FPS');
   const target=resolve(directory);
   await mkdir(target,{recursive:true});
+  // Refuse any collision before writing the first sheet, preventing partial exports.
+  const names=['chibi','adult'].flatMap(variant=>['idle','walk','typing','cry'].map(action=>variant+'-'+action+'-rig-preview.svg'));
+  const existing=new Set(await readdir(target));
+  if(names.some(name=>existing.has(name))) { const error=new Error('EEXIST: preview already exists'); error.code='EEXIST'; throw error; }
   const outputs=[];
   for (const variant of ['chibi','adult']) {
     for (const action of ['idle','walk','typing','cry']) {
