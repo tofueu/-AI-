@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA MOD 圖層實際預覽（Q版／成人版）</title>
+<style>body{font:16px system-ui;background:#f6f1fc;color:#30243b;max-width:980px;margin:auto;padding:20px}section{background:white;border-radius:12px;padding:16px;margin:12px 0}canvas{width:min(100%,420px);aspect-ratio:1;background:repeating-conic-gradient(#eee 0 25%,#fff 0 50%) 0/24px 24px}label{display:block;margin:8px 0}button,select,input{font:inherit}small{color:#694e83}</style>
+<h1>NOVA 角色 MOD 分層驗收台</h1><p>本工具不包含官方角色圖；請匯入原始透明 PNG。只在瀏覽器記憶體中預覽，不上傳圖片。Q 版與成人版分開保存圖層狀態。</p>
+<section><label>角色版本 <select id="variant"><option value="chibi">Q 版</option><option value="adult">成人版</option></select></label>
+<label>圖層類型 <select id="slot"></select></label>
+<label>匯入透明 PNG <input id="file" type="file" accept="image/png"></label>
+<label><input id="visible" type="checkbox" checked> 顯示此圖層</label>
+<button id="clear">移除此圖層</button> <button id="export">匯出合成 PNG</button>
+<p id="status" role="status"></p></section>
+<section><canvas id="stage" width="512" height="512" aria-label="角色圖層預覽"></canvas><p><small>圖層以 512×512 相同畫布座標疊合；請使用對齊的透明 PNG。空圖層會自動隱藏；若衣服圖層空白，保留 base_clothes 基本服裝圖層。</small></p></section>
+<script>
+'use strict';
+const slots=['body','base_clothes','head','face','hair_back','hair_front','top','bottom','outer','shoes','accessory','full_character'];
+const state={chibi:{},adult:{}};
+const $=id=>document.getElementById(id),slot=$('slot'),variant=$('variant'),stage=$('stage'),ctx=stage.getContext('2d');
+for(const s of slots){const o=document.createElement('option');o.value=s;o.textContent=s;slot.append(o)}
+function current(){return state[variant.value][slot.value]}
+function update(){const x=current();$('visible').checked=x?x.visible:false;draw()}
+function draw(){ctx.clearRect(0,0,512,512);for(const s of slots){const x=state[variant.value][s];if(x&&x.visible&&x.image)ctx.drawImage(x.image,0,0,512,512)}$('status').textContent=variant.value+'：'+Object.values(state[variant.value]).filter(x=>x.visible).length+' 個可見圖層'}
+slot.onchange=variant.onchange=update;
+$('visible').onchange=()=>{const x=current();if(x)x.visible=$('visible').checked;draw()};
+$('clear').onclick=()=>{delete state[variant.value][slot.value];$('file').value='';update()};
+$('file').onchange=async()=>{const file=$('file').files[0];if(!file)return;if(file.type!=='image/png'){$('status').textContent='僅接受 PNG';return}
+try{const url=URL.createObjectURL(file);const img=new Image();try{await new Promise((ok,fail)=>{img.onload=ok;img.onerror=fail;img.src=url})}finally{URL.revokeObjectURL(url)}
+if(!img.width||!img.height)throw Error('空白尺寸');state[variant.value][slot.value]={image:img,visible:true};update()}catch(e){$('status').textContent='圖片載入失敗：'+e.message}};
+$('export').onclick=()=>{draw();const a=document.createElement('a');a.download='nova-'+variant.value+'-composite.png';a.href=stage.toDataURL('image/png');a.click()};
+update();
+</script>
