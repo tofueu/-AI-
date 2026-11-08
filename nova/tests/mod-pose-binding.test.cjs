@@ -25,6 +25,15 @@ for(const variant of ['chibi','adult']){
   const b=composeLayers(variant,'walk',400,{accessory:'item.png'})[0];
   assert.notEqual(a.dx,b.dx);
  });
+ test(variant+' ignores blank assets and retains clothing fallback',()=>{
+  const layers=composeLayers(variant,'idle',0,{top:' \t ',full_character:'\n',hat:'hat.png'});
+  assert.deepEqual(layers.map(x=>x.slot),['base_clothes','hat']);
+  assert.equal(layers[0].src,'builtin://base-clothes/'+variant);
+ });
+ test(variant+' does not add fallback under full character',()=>{
+  const layers=composeLayers(variant,'idle',0,{full_character:'complete.png'});
+  assert.deepEqual(layers.map(x=>x.slot),['full_character']);
+ });
 }
 test('rejects invalid variant, clip, time or asset structure',()=>{
  assert.throws(()=>composeLayers('invalid','idle',0),TypeError);
