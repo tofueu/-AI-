@@ -35,3 +35,17 @@ test('collision on a later sheet does not leave partial previews',async()=>{
   assert.equal(await readFile(existing,'utf8'),'original artwork');
  } finally {await rm(dir,{recursive:true,force:true});}
 });
+
+test('preserves unrelated files while exporting previews at a supported FPS',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-unrelated-'));
+ try {
+  const unrelated=join(dir,'original-character-mod.png');
+  const original=Buffer.from([137,80,78,71,13,10,26,10]);
+  await writeFile(unrelated,original);
+  const paths=await exportNovaMotionPreviews(dir,{fps:12});
+  assert.equal(paths.length,8);
+  assert.equal((await readdir(dir)).length,9);
+  assert.deepEqual(await readFile(unrelated),original);
+  for(const path of paths) assert.match(await readFile(path,'utf8'),/<\\/svg>$/);
+ } finally {await rm(dir,{recursive:true,force:true});}
+});
