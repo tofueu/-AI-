@@ -49,6 +49,18 @@ class TestBackground(unittest.TestCase):
         self.assertEqual(mask.getpixel((3, 3)), 255)
         self.assertEqual(out.getpixel((0, 0))[3], 0)
 
+    def test_mixed_transparent_corners_ignore_hidden_rgb(self):
+        im = Image.new('RGBA', (7, 7), (255, 255, 255, 255))
+        im.putpixel((0, 0), (255, 0, 0, 0))
+        im.putpixel((6, 0), (0, 255, 0, 0))
+        for y in range(2, 5):
+            for x in range(2, 5):
+                im.putpixel((x, y), (90, 20, 140, 255))
+        out, mask = remove_border_background(im)
+        self.assertEqual(out.getpixel((6, 6))[3], 0)
+        self.assertEqual(out.getpixel((3, 3))[3], 255)
+        self.assertEqual(mask.getpixel((3, 3)), 255)
+
     def test_tolerance(self):
         with self.assertRaises(ValueError):
             remove_border_background(Image.new('RGB', (2, 2)), 256)
