@@ -74,6 +74,20 @@ class TestBackground(unittest.TestCase):
         self.assertEqual(out.getpixel((2, 4))[3], 255)
         self.assertEqual(mask.getpixel((4, 4)), 0)
 
+    def test_semtransparent_border_pixels_are_preserved(self):
+        im = Image.new('RGBA', (9, 9), (255, 255, 255, 255))
+        im.putpixel((4, 0), (255, 255, 255, 128))
+        im.putpixel((4, 1), (255, 255, 255, 128))
+        im.putpixel((4, 2), (255, 255, 255, 128))
+        im.putpixel((4, 3), (90, 20, 140, 255))
+        out, mask = remove_border_background(im)
+        self.assertEqual(out.getpixel((4, 0))[3], 128)
+        self.assertEqual(out.getpixel((4, 1))[3], 128)
+        self.assertEqual(out.getpixel((4, 2))[3], 128)
+        self.assertEqual(out.getpixel((4, 3))[3], 255)
+        self.assertEqual(out.getpixel((0, 0))[3], 0)
+        self.assertEqual(mask.getpixel((4, 1)), 128)
+
     def test_tolerance(self):
         with self.assertRaises(ValueError):
             remove_border_background(Image.new('RGB', (2, 2)), 256)
