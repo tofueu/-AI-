@@ -23,7 +23,7 @@ def remove_border_background(image, tolerance=24):
     groups = [sum(max(abs(a-b) for a,b in zip(c, d)) <= tolerance for d in corners) for c in corners]
     if max(groups) < 3:
         raise ValueError('Background is not uniform at three corners; use manual masking')
-    bg = corners[groups.index(max(groups))]
+    # Transparent corner RGB is undefined and must not become the background key.\n    # An already-transparent image should be returned unchanged.\n    if all(px[x, y][3] == 0 for x, y in ((0, 0), (width-1, 0), (0, height-1), (width-1, height-1))):\n        return rgba.copy(), rgba.getchannel('A')\n    opaque_corners = [px[x, y][:3] for x, y in ((0, 0), (width-1, 0), (0, height-1), (width-1, height-1)) if px[x, y][3] > 0]\n    if not opaque_corners:\n        return rgba.copy(), rgba.getchannel('A')\n    bg = corners[groups.index(max(groups))]
     mask = bytearray(width*height)
     q = deque()
     def enqueue(x,y):
