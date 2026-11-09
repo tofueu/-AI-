@@ -33,5 +33,15 @@ class TestModCompositor(unittest.TestCase):
                 render(manifest, root / 'out.png')
 
 
+    def test_rejects_fully_transparent_base_body(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            Image.new('RGBA', (8, 8), (0, 0, 0, 0)).save(root / 'body.png')
+            manifest = root / 'mod.json'
+            manifest.write_text(json.dumps({'canvas': [8, 8], 'layers': {'body': 'body.png'}}))
+            with self.assertRaisesRegex(ValueError, 'fully transparent'):
+                render(manifest, root / 'out.png')
+            self.assertFalse((root / 'out.png').exists())
+
 if __name__ == '__main__':
     unittest.main()
