@@ -50,8 +50,9 @@ def remove_border_background(image, tolerance=24):
             x=i%width;y=i//width
             r,g,b,_=op[x,y]
             op[x,y]=(r,g,b,0)
-    matte=Image.new('L',(width,height),255)
-    matte.putdata([0 if m else 255 for m in mask])
+    # Keep pre-existing transparency and semi-transparent edges in the editable mask.
+    # The mask must match the actual alpha channel of the exported PNG.
+    matte=out.getchannel('A')
     return out,matte
 
 
@@ -61,6 +62,8 @@ def main():
     p.add_argument('output',type=Path)
     p.add_argument('--tolerance',type=int,default=24)
     args=p.parse_args()
+    if args.output.suffix.lower() != '.png':
+        p.error('output must be PNG to preserve transparency and the editable mask')
     if args.input.resolve()==args.output.resolve():
         p.error('output must differ from input; original is preserved')
     with Image.open(args.input) as im:
