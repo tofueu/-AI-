@@ -88,6 +88,20 @@ class TestBackground(unittest.TestCase):
         self.assertEqual(out.getpixel((0, 0))[3], 0)
         self.assertEqual(mask.getpixel((4, 1)), 128)
 
+    def test_one_visible_corner_refuses_unsafe_background_guess(self):
+        im = Image.new('RGBA', (5, 5), (255, 255, 255, 0))
+        im.putpixel((0, 0), (255, 255, 255, 255))
+        im.putpixel((2, 2), (255, 255, 255, 255))
+        with self.assertRaisesRegex(ValueError, 'at least two visible'):
+            remove_border_background(im)
+
+    def test_two_conflicting_visible_corners_refuses_guess(self):
+        im = Image.new('RGBA', (5, 5), (255, 255, 255, 0))
+        im.putpixel((0, 0), (255, 255, 255, 255))
+        im.putpixel((4, 4), (0, 0, 0, 255))
+        with self.assertRaisesRegex(ValueError, 'three corners'):
+            remove_border_background(im)
+
     def test_tolerance(self):
         with self.assertRaises(ValueError):
             remove_border_background(Image.new('RGB', (2, 2)), 256)
