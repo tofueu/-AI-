@@ -43,5 +43,37 @@ class TestModCompositor(unittest.TestCase):
                 render(manifest, root / 'out.png')
             self.assertFalse((root / 'out.png').exists())
 
+
+    def test_fallback_clothes_for_missing_and_empty_mod_clothes(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            Image.new('RGBA', (8, 8), (100, 30, 40, 255)).save(root / 'body.png')
+            Image.new('RGBA', (8, 8), (0, 0, 0, 0)).save(root / 'clothes.png')
+            Image.new('RGBA', (8, 8), (10, 180, 30, 255)).save(root / 'fallback.png')
+            manifest = root / 'mod.json'
+            for index, clothes in enumerate((None, 'clothes.png')):
+                layers = {'body': 'body.png'}
+                if clothes:
+                    layers['clothes'] = clothes
+                manifest.write_text(json.dumps({
+                    'canvas': [8, 8], 'layers': layers, 'fallback_clothes': 'fallback.png'
+                }))
+                out = root / f'out{index}.png'
+                render(manifest, out)
+                with Image.open(out) as result:
+                    self.assertEqual(result.getpixel((4, 4)), (10, 180, 30, 255))
+
+    def test_rejects_fallback_path_escape(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            Image.new('RGBA', (8, 8), (100, 30, 40, 255)).save(root / 'body.png')
+            manifest = root / 'mod.json'
+            manifest.write_text(json.dumps({
+                'canvas': [8, 8], 'layers': {'body': 'body.png'},
+                'fallback_clothes': '../outside.png'
+            }))
+            with self.assertRaisesRegex(ValueError, 'inside the MOD folder'):
+                render(manifest, root / 'out.png')
+
 if __name__ == '__main__':
     unittest.main()
