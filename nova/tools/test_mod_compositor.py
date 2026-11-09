@@ -75,5 +75,35 @@ class TestModCompositor(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'inside the MOD folder'):
                 render(manifest, root / 'out.png')
 
+
+    def test_transparent_layers_with_hidden_rgb_are_ignored(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            Image.new('RGBA', (8, 8), (100, 30, 40, 255)).save(root / 'body.png')
+            # RGB may be nonzero under zero alpha after editing or export.
+            Image.new('RGBA', (8, 8), (255, 0, 0, 0)).save(root / 'clothes.png')
+            Image.new('RGBA', (8, 8), (255, 0, 0, 0)).save(root / 'eyes.png')
+            Image.new('RGBA', (8, 8), (10, 180, 30, 255)).save(root / 'fallback.png')
+            manifest = root / 'mod.json'
+            manifest.write_text(json.dumps({
+                'canvas': [8, 8],
+                'layers': {'body': 'body.png', 'clothes': 'clothes.png', 'eyes': 'eyes.png'},
+                'fallback_clothes': 'fallback.png'
+            }))
+            out = root / 'out.png'
+            render(manifest, out)
+            with Image.open(out) as result:
+                self.assertEqual(result.getpixel((4, 4)), (10, 180, 30, 255))
+
+    def test_rejects_invisible_body_with_hidden_rgb(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            Image.new('RGBA', (8, 8), (255, 0, 0, 0)).save(root / 'body.png')
+            manifest = root / 'mod.json'
+            manifest.write_text(json.dumps({'canvas': [8, 8], 'layers': {'body': 'body.png'}}))
+            with self.assertRaisesRegex(ValueError, 'fully transparent'):
+                render(manifest, root / 'out.png')
+            self.assertFalse((root / 'out.png').exists())
+
 if __name__ == '__main__':
     unittest.main()
