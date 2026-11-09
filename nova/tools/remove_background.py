@@ -25,6 +25,10 @@ def remove_border_background(image, tolerance=24):
     opaque_corners = [px[x, y][:3] for x, y in corner_xy if px[x, y][3] > 0]
     if not opaque_corners:
         return rgba.copy(), rgba.getchannel('A')
+    # A single visible corner cannot establish a safe background color.
+    # Reject rather than accidentally erase same-colored parts of the character.
+    if len(opaque_corners) < 2:
+        raise ValueError('Need at least two visible matching corners; use manual masking')
     corners = opaque_corners
     groups = [sum(max(abs(a-b) for a,b in zip(c, d)) <= tolerance for d in corners) for c in corners]
     if max(groups) < min(3, len(corners)):
