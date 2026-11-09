@@ -41,3 +41,13 @@ test('rejects invalid variant, clip, time or asset structure',()=>{
  assert.throws(()=>composeLayers('chibi','idle',NaN),TypeError);
  assert.throws(()=>composeLayers('chibi','idle',0,[]),TypeError);
 });
+
+test('inherited MOD properties cannot override clothing or character',()=>{
+ const inherited=Object.create({full_character:'hidden.png',top:'ghost.png',hat:'ghost-hat.png'});
+ inherited.eyes='eyes.png';
+ for(const variant of ['chibi','adult']){
+  const layers=composeLayers(variant,'idle',0,inherited);
+  assert.deepEqual(layers.map(x=>x.slot),['base_clothes','eyes']);
+  assert.equal(layers[0].src,'builtin://base-clothes/'+variant);
+ }
+});
