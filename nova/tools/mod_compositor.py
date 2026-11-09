@@ -23,10 +23,23 @@ def render(manifest_path, output_path):
         raise ValueError('Unknown layer slot')
     if not layers.get('body'):
         raise ValueError('A base body/clothing layer is required')
+    fallback = data.get('fallback_clothes')
+    if fallback is not None and (not isinstance(fallback, str) or not fallback):
+        raise ValueError('fallback_clothes must be a nonempty PNG path')
     root = manifest_path.parent
     result = Image.new('RGBA', tuple(canvas), (0, 0, 0, 0))
+    clothes_name = layers.get('clothes')
+    if clothes_name:
+        # An entirely transparent clothing layer counts as absent.
+        candidate = (root / clothes_name).resolve() if isinstance(clothes_name, str) else None
+        if candidate is not None and candidate.is_relative_to(root) and candidate.suffix.lower() == '.png':
+            with Image.open(candidate) as check:
+                if check.convert('RGBA').getbbox() is None:
+                    clothes_name = None
+    if not clothes_name and fallback:
+        clothes_name = fallback
     for slot in SLOTS:
-        name = layers.get(slot)
+        name = clothes_name if slot == 'clothes' else layers.get(slot)
         if not name:
             continue
         if not isinstance(name, str):
