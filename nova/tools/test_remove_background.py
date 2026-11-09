@@ -61,6 +61,19 @@ class TestBackground(unittest.TestCase):
         self.assertEqual(out.getpixel((3, 3))[3], 255)
         self.assertEqual(mask.getpixel((3, 3)), 255)
 
+    def test_transparent_gap_does_not_block_background_flood_fill(self):
+        im = Image.new('RGBA', (9, 9), (255, 255, 255, 255))
+        # A transparent vertical stripe separates white background regions.
+        for y in range(9):
+            im.putpixel((4, y), (17, 90, 210, 0))
+        im.putpixel((2, 4), (90, 20, 140, 255))
+        out, mask = remove_border_background(im)
+        self.assertEqual(out.getpixel((3, 4))[3], 0)
+        self.assertEqual(out.getpixel((5, 4))[3], 0)
+        self.assertEqual(out.getpixel((4, 4)), (17, 90, 210, 0))
+        self.assertEqual(out.getpixel((2, 4))[3], 255)
+        self.assertEqual(mask.getpixel((4, 4)), 0)
+
     def test_tolerance(self):
         with self.assertRaises(ValueError):
             remove_border_background(Image.new('RGB', (2, 2)), 256)
