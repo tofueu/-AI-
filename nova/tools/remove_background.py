@@ -83,8 +83,13 @@ def main():
     args=p.parse_args()
     if args.output.suffix.lower() != '.png':
         p.error('output must be PNG to preserve transparency and the editable mask')
-    if args.input.resolve()==args.output.resolve():
-        p.error('output must differ from input; original is preserved')
+    mask_path = args.output.with_name(args.output.stem + '_mask.png')
+    # Both generated files must be distinct from the original source. In particular,
+    # source=character_mask.png and output=character.png would overwrite source.
+    if args.input.resolve() in (args.output.resolve(), mask_path.resolve()):
+        p.error('output or mask would overwrite the original input')
+    if args.output.exists() or mask_path.exists():
+        p.error('output or mask already exists; choose a new output name')
     with Image.open(args.input) as im:
         result,mask=remove_border_background(im,args.tolerance)
     args.output.parent.mkdir(parents=True,exist_ok=True)
