@@ -9,18 +9,21 @@ for(const variant of ['chibi','adult']){
  test(variant+' preview writes playable sequence and MOD override',()=>{
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'nova-preview-'));
   try{
-   const result=exportCharacterPreview({variant,clip:'typing',frames:6,outDir:root,assets:{full_character:'character.png',hat:'hat.png'}});
+   fs.writeFileSync(path.join(root,'character.png'),'test-image');
+   fs.writeFileSync(path.join(root,'hat.png'),'test-hat');
+   const result=exportCharacterPreview({variant,clip:'typing',frames:6,outDir:path.join(root,'preview'),baseDir:root,assets:{full_character:'character.png',hat:'hat.png'}});
    assert.equal(result.frameCount,6);
-   const manifest=JSON.parse(fs.readFileSync(path.join(root,'manifest.json'),'utf8'));
+   const manifest=JSON.parse(fs.readFileSync(path.join(root,'preview','manifest.json'),'utf8'));
    assert.equal(manifest.frames.length,6);
    for(const file of manifest.frames){
-    const svg=fs.readFileSync(path.join(root,file),'utf8');
-    assert.match(svg,/character.png/);
+    const svg=fs.readFileSync(path.join(root,'preview',file),'utf8');
+    assert.match(svg,/assets\\/[a-f0-9]{16}\\.png/);
     assert.doesNotMatch(svg,/hat.png|base_clothes/);
    }
-   const html=fs.readFileSync(path.join(root,'index.html'),'utf8');
+   const html=fs.readFileSync(path.join(root,'preview','index.html'),'utf8');
    assert.match(html,/setInterval/);
    assert.match(html,/frame-000.svg/);
+   assert.equal(fs.readdirSync(path.join(root,'preview','assets')).length,2);
   }finally{fs.rmSync(root,{recursive:true,force:true})}
  });
 }
