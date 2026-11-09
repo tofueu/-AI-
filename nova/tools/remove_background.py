@@ -39,8 +39,11 @@ def remove_border_background(image, tolerance=24):
             return
         # Transparent pixels may split an otherwise connected background.
         # Traverse them without changing their alpha or hidden RGB values.
-        transparent = px[x,y][3] == 0
-        if transparent or max(abs(px[x,y][c]-bg[c]) for c in range(3)) <= tolerance:
+        alpha = px[x,y][3]
+        transparent = alpha == 0
+        # Semi-transparent pixels may be antialiased hair, clothing or edges.
+        # Never erase or traverse through them automatically.
+        if transparent or (alpha == 255 and max(abs(px[x,y][c]-bg[c]) for c in range(3)) <= tolerance):
             visited[i]=1
             if not transparent:
                 mask[i]=1
