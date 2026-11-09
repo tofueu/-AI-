@@ -11,11 +11,12 @@ function composeLayers(variant,clip,time,assets={}){
  if(!variants[variant])throw new TypeError('Unknown character variant');
  if(!assets||typeof assets!=='object'||Array.isArray(assets))throw new TypeError('Invalid assets');
  const current=pose(variant,clip,time),base=variants[variant];
- const full=validSource(assets.full_character);
- const clothing=['top','outer','base_clothes'].some(s=>validSource(assets[s]));
+ const source=slot=>Object.hasOwn(assets,slot)?assets[slot]:undefined;
+ const full=validSource(source('full_character'));
+ const clothing=['top','outer','base_clothes'].some(s=>validSource(source(s)));
  return slots.flatMap(slot=>{
   if(full&&slot!=='full_character')return [];
-  let src=assets[slot];
+  let src=source(slot);
   if(slot===FALLBACK&&!clothing&&!full)src='builtin://base-clothes/'+variant;
   if(!validSource(src))return [];
   const joint=slotJoint[slot];
