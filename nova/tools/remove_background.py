@@ -31,13 +31,19 @@ def remove_border_background(image, tolerance=24):
         raise ValueError('Background is not uniform at three corners; use manual masking')
     bg = corners[groups.index(max(groups))]
     mask = bytearray(width*height)
+    visited = bytearray(width*height)
     q = deque()
     def enqueue(x,y):
         i=y*width+x
-        if mask[i] or px[x,y][3] == 0:
+        if visited[i]:
             return
-        if max(abs(px[x,y][c]-bg[c]) for c in range(3)) <= tolerance:
-            mask[i]=1
+        # Transparent pixels may split an otherwise connected background.
+        # Traverse them without changing their alpha or hidden RGB values.
+        transparent = px[x,y][3] == 0
+        if transparent or max(abs(px[x,y][c]-bg[c]) for c in range(3)) <= tolerance:
+            visited[i]=1
+            if not transparent:
+                mask[i]=1
             q.append((x,y))
     for x in range(width):
         enqueue(x,0);enqueue(x,height-1)
