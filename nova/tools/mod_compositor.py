@@ -38,6 +38,16 @@ def render(manifest_path, output_path):
                     clothes_name = None
     if not clothes_name and fallback:
         clothes_name = fallback
+    if fallback and clothes_name == fallback:
+        fallback_path = (root / fallback).resolve()
+        if not fallback_path.is_relative_to(root) or fallback_path.suffix.lower() != '.png':
+            raise ValueError('Fallback must be a PNG inside the MOD folder')
+        with Image.open(fallback_path) as fallback_image:
+            fallback_layer = fallback_image.convert('RGBA')
+            if fallback_layer.size != tuple(canvas):
+                raise ValueError('Wrong size for fallback clothes')
+            if fallback_layer.getchannel('A').getbbox() is None:
+                raise ValueError('Fallback clothes cannot be fully transparent')
     for slot in SLOTS:
         name = clothes_name if slot == 'clothes' else layers.get(slot)
         if not name:
