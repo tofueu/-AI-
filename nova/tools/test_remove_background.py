@@ -37,6 +37,18 @@ class TestBackground(unittest.TestCase):
         self.assertEqual(mask.getpixel((2, 2)), 0)
         self.assertEqual(list(mask.getdata()), list(out.getchannel('A').getdata()))
 
+    def test_already_transparent_corners_preserve_artwork(self):
+        im = Image.new('RGBA', (7, 7), (255, 255, 255, 0))
+        # Transparent pixels can carry unrelated RGB values from an editor.
+        for x, y, rgb in [(0, 0, (255, 0, 0)), (6, 0, (0, 255, 0)),
+                          (0, 6, (0, 0, 255)), (6, 6, (255, 255, 0))]:
+            im.putpixel((x, y), (*rgb, 0))
+        im.putpixel((3, 3), (255, 255, 255, 255))
+        out, mask = remove_border_background(im)
+        self.assertEqual(out.getpixel((3, 3)), (255, 255, 255, 255))
+        self.assertEqual(mask.getpixel((3, 3)), 255)
+        self.assertEqual(out.getpixel((0, 0))[3], 0)
+
     def test_tolerance(self):
         with self.assertRaises(ValueError):
             remove_border_background(Image.new('RGB', (2, 2)), 256)
