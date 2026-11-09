@@ -2,7 +2,6 @@
 const fs=require('node:fs');
 const path=require('node:path');
 const crypto=require('node:crypto');
-const {fileURLToPath}=require('node:url');
 /**
  * Copy local MOD images into an exported preview so SVG hrefs keep working.
  * Remote URLs, data URIs and builtin identifiers are left to their resolvers.
