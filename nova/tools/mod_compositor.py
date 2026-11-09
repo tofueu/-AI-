@@ -34,7 +34,7 @@ def render(manifest_path, output_path):
         candidate = (root / clothes_name).resolve() if isinstance(clothes_name, str) else None
         if candidate is not None and candidate.is_relative_to(root) and candidate.suffix.lower() == '.png':
             with Image.open(candidate) as check:
-                if check.convert('RGBA').getbbox() is None:
+                if check.convert('RGBA').getchannel('A').getbbox() is None:
                     clothes_name = None
     if not clothes_name and fallback:
         clothes_name = fallback
@@ -51,7 +51,7 @@ def render(manifest_path, output_path):
             layer = source.convert('RGBA')
             if layer.size != tuple(canvas):
                 raise ValueError(f'Wrong size for {slot}: {layer.size}')
-            if layer.getbbox() is None:
+            if layer.getchannel('A').getbbox() is None:
                 if slot == 'body':
                     raise ValueError('Base body layer cannot be fully transparent')
                 continue
