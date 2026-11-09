@@ -39,6 +39,8 @@ def render(manifest_path, output_path):
             if layer.size != tuple(canvas):
                 raise ValueError(f'Wrong size for {slot}: {layer.size}')
             if layer.getbbox() is None:
+                if slot == 'body':
+                    raise ValueError('Base body layer cannot be fully transparent')
                 continue
             result.alpha_composite(layer)
     output_path.parent.mkdir(parents=True, exist_ok=True)
