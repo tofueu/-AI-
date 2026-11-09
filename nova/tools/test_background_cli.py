@@ -42,5 +42,31 @@ class TestBackgroundCli(unittest.TestCase):
                     self.assertFalse(target.exists())
 
 
+    def test_rejects_mask_collision_and_existing_outputs(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / 'character_mask.png'
+            Image.new('RGB', (5, 5), 'white').save(source)
+            original = source.read_bytes()
+            # The derived mask filename would equal the source.
+            target = root / 'character.png'
+            proc = subprocess.run([sys.executable, str(SCRIPT), str(source), str(target)], capture_output=True, text=True)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertEqual(source.read_bytes(), original)
+            self.assertFalse(target.exists())
+            # Existing output must never be silently overwritten.
+            other = root / 'other.png'
+            other.write_bytes(b'keep existing output')
+            proc = subprocess.run([sys.executable, str(SCRIPT), str(source), str(other)], capture_output=True, text=True)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertEqual(other.read_bytes(), b'keep existing output')
+            # Existing derived mask must also be protected.
+            mask = root / 'new_mask.png'
+            mask.write_bytes(b'keep existing mask')
+            proc = subprocess.run([sys.executable, str(SCRIPT), str(source), str(root / 'new.png')], capture_output=True, text=True)
+            self.assertNotEqual(proc.returncode, 0)
+            self.assertEqual(mask.read_bytes(), b'keep existing mask')
+
+
 if __name__ == '__main__':
     unittest.main()
