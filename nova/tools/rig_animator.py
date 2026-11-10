@@ -108,6 +108,22 @@ def export(rig_path, manifest_path, poses_path, output_path):
             raise ValueError(f'Unsafe or missing layer: {slot}')
         with Image.open(path) as src:
             layers[slot] = src.convert('RGBA')
+    # A MOD may hide or omit its clothes layer, but a valid fallback must
+    # restore visible clothing before any frames are rendered.
+    if 'clothes' not in layers or layers['clothes'].getchannel('A').getbbox() is None:
+        fallback = manifest.get('fallback_clothes')
+        if not isinstance(fallback, str) or not fallback:
+            raise ValueError('Visible clothes or fallback_clothes is required')
+        fallback_path = (root / fallback).resolve()
+        if not fallback_path.is_relative_to(root) or not fallback_path.is_file():
+            raise ValueError('Unsafe or missing fallback clothes')
+        with Image.open(fallback_path) as src:
+            fallback_image = src.convert('RGBA')
+        if fallback_image.size != tuple(rig['canvas']):
+            raise ValueError('Fallback clothes size mismatch')
+        if fallback_image.getchannel('A').getbbox() is None:
+            raise ValueError('Fallback clothes must be visible')
+        layers['clothes'] = fallback_image
     if 'body' not in layers or layers['body'].getchannel('A').getbbox() is None:
         raise ValueError('Visible base body is required')
     durations = []
