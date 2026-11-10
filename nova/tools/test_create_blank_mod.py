@@ -27,6 +27,26 @@ class TemplateTests(unittest.TestCase):
                         self.assertEqual(img.mode, 'RGBA')
                         self.assertIsNone(img.getchannel('A').getbbox())
 
+    def test_articulated_hierarchy_and_bindings(self):
+        expected = {'root', 'torso', 'neck', 'head', 'left_arm',
+                    'right_arm', 'left_leg', 'right_leg'}
+        for variant in SIZES:
+            with self.subTest(variant=variant), tempfile.TemporaryDirectory() as tmp:
+                dest = create_template(Path(tmp) / variant, variant)
+                rig = json.loads((dest / 'rig.json').read_text())
+                joints = rig['joints']
+                self.assertEqual(set(joints), expected)
+                self.assertIsNone(joints['root']['parent'])
+                for name, joint in joints.items():
+                    self.assertEqual(len(joint['pivot']), 2)
+                    self.assertTrue(all(0 <= p <= 1 for p in joint['pivot']))
+                    if name != 'root':
+                        self.assertIn(joint['parent'], joints)
+                self.assertEqual(set(rig['slot_joints']), set(SLOTS))
+                self.assertTrue(set(rig['slot_joints'].values()) <= expected)
+                self.assertEqual(rig['slot_joints']['clothes'], 'torso')
+                self.assertEqual(rig['slot_joints']['eyes'], 'head')
+
     def test_no_overwrite(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp) / 'mod'
