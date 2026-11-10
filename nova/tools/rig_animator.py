@@ -10,7 +10,7 @@ import math
 from pathlib import Path
 from PIL import Image
 
-LAYER_ORDER = ('hair_back', 'body', 'head', 'eyes', 'mouth', 'clothes', 'hair_front', 'accessory')
+LAYER_ORDER = ('hair_back', 'left_leg', 'right_leg', 'body', 'left_arm', 'right_arm', 'head', 'eyes', 'mouth', 'clothes', 'hair_front', 'accessory')
 
 
 def render_frame(rig, layers, angles):
