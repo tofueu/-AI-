@@ -47,6 +47,11 @@ def render_frame(rig, layers, angles):
         transforms[name] = result
         return result
 
+    # Validate the complete rig even when a joint has no visible MOD layer.
+    # Otherwise a cyclic or missing-parent joint can silently pass rendering.
+    for joint_name in joints:
+        resolve(joint_name)
+
     output = Image.new('RGBA', (width, height))
     for slot, image in layers.items():
         if slot not in slot_joints:
