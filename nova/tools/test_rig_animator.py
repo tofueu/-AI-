@@ -86,4 +86,14 @@ class TestRigAnimator(unittest.TestCase):
                 export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', target)
             self.assertFalse(target.parent.exists())
 
+    def test_unbound_joint_is_still_validated(self):
+        im = Image.new('RGBA', (64, 64), (255, 0, 0, 255))
+        bad = json.loads(json.dumps(RIG))
+        bad['joints']['orphan'] = {'parent': 'missing', 'pivot': [.5, .5]}
+        with self.assertRaises(KeyError):
+            render_frame(bad, {'body': im}, {})
+        bad['joints']['orphan']['parent'] = 'orphan'
+        with self.assertRaisesRegex(ValueError, 'Cyclic'):
+            render_frame(bad, {'body': im}, {})
+
 if __name__ == '__main__': unittest.main()
