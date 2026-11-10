@@ -49,6 +49,12 @@ class TemplateTests(unittest.TestCase):
                 self.assertTrue(set(rig['slot_joints'].values()) <= expected)
                 self.assertEqual(rig['slot_joints']['clothes'], 'torso')
                 self.assertEqual(rig['slot_joints']['eyes'], 'head')
+                for limb in ('left_arm', 'right_arm', 'left_leg', 'right_leg'):
+                    self.assertIn(limb, SLOTS)
+                    self.assertEqual(rig['slot_joints'][limb], limb)
+                    with Image.open(dest / f'{limb}.png') as image:
+                        self.assertEqual(image.size, SIZES[variant])
+                        self.assertIsNone(image.getchannel('A').getbbox())
 
     def test_no_overwrite(self):
         with tempfile.TemporaryDirectory() as tmp:
