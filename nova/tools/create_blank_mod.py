@@ -23,7 +23,8 @@ def create_template(destination, variant):
         Image.new('RGBA', (width, height), (0, 0, 0, 0)).save(destination / f'{slot}.png')
     # A visible, neutral base garment is required when a MOD hides its clothes.
     fallback = Image.new('RGBA', (width, height), (0, 0, 0, 0))
-    draw = ImageDraw.Draw(fallback)\n    draw.rounded_rectangle((int(width * .31), int(height * .40), int(width * .69), int(height * .73)), radius=max(4, width // 32), fill=(100, 91, 135, 255))
+    draw = ImageDraw.Draw(fallback)
+    draw.rounded_rectangle((int(width * .31), int(height * .40), int(width * .69), int(height * .73)), radius=max(4, width // 32), fill=(100, 91, 135, 255))
     fallback.save(destination / 'fallback_clothes.png')
     rig = {
         'canvas': [width, height],
