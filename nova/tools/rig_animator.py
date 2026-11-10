@@ -10,7 +10,7 @@ import math
 from pathlib import Path
 from PIL import Image
 
-LAYER_ORDER = ('body', 'head', 'eyes', 'mouth', 'hair_back', 'clothes', 'hair_front', 'accessory')
+LAYER_ORDER = ('body', 'hair_back', 'head', 'eyes', 'mouth', 'clothes', 'hair_front', 'accessory')
 
 
 def render_frame(rig, layers, angles):
@@ -64,12 +64,12 @@ def render_frame(rig, layers, angles):
         if slot not in layers:
             continue
         image = layers[slot]
-        if image.getchannel('A').getbbox() is None:
-            continue
-        if slot not in slot_joints:
-            raise ValueError(f'Unknown layer slot: {slot}')
         if image.size != (width, height):
             raise ValueError(f'Layer size mismatch: {slot}')
+        if slot not in slot_joints:
+            raise ValueError(f'Unknown layer slot: {slot}')
+        if image.getchannel('A').getbbox() is None:
+            continue
         joint_name = slot_joints[slot]
         angle, x, y = resolve(joint_name)
         original = joints[joint_name]['pivot']
