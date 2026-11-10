@@ -99,17 +99,18 @@ def export(rig_path, manifest_path, poses_path, output_path):
         if type(duration) is not int or not 20 <= duration <= 10000:
             raise ValueError('Invalid frame duration')
         durations.append(duration)
+    suffix = output_path.suffix.lower()
+    if suffix not in ('.gif', '.png'):
+        raise ValueError('Output must be PNG or GIF')
+    if suffix == '.png' and len(poses) != 1:
+        raise ValueError('PNG requires exactly one pose')
     frames = [render_frame(rig, layers, pose.get('angles', {})) for pose in poses]
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    if output_path.suffix.lower() == '.gif':
+    if suffix == '.gif':
         frames[0].save(output_path, save_all=True, append_images=frames[1:], duration=durations,
                        loop=0, disposal=2, optimize=False)
-    elif output_path.suffix.lower() == '.png':
-        if len(frames) != 1:
-            raise ValueError('PNG requires exactly one pose')
-        frames[0].save(output_path)
     else:
-        raise ValueError('Output must be PNG or GIF')
+        frames[0].save(output_path)
     return output_path
 
 
