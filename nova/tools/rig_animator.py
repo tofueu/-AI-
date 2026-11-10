@@ -10,6 +10,8 @@ import math
 from pathlib import Path
 from PIL import Image
 
+LAYER_ORDER = ('body', 'head', 'eyes', 'mouth', 'hair_back', 'clothes', 'hair_front', 'accessory')
+
 
 def render_frame(rig, layers, angles):
     width, height = rig['canvas']
@@ -55,7 +57,15 @@ def render_frame(rig, layers, angles):
         resolve(joint_name)
 
     output = Image.new('RGBA', (width, height))
-    for slot, image in layers.items():
+    for slot in layers:
+        if slot not in LAYER_ORDER:
+            raise ValueError(f'Unknown layer slot: {slot}')
+    for slot in LAYER_ORDER:
+        if slot not in layers:
+            continue
+        image = layers[slot]
+        if image.getchannel('A').getbbox() is None:
+            continue
         if slot not in slot_joints:
             raise ValueError(f'Unknown layer slot: {slot}')
         if image.size != (width, height):
@@ -98,6 +108,8 @@ def export(rig_path, manifest_path, poses_path, output_path):
             raise ValueError(f'Unsafe or missing layer: {slot}')
         with Image.open(path) as src:
             layers[slot] = src.convert('RGBA')
+    if 'body' not in layers or layers['body'].getchannel('A').getbbox() is None:
+        raise ValueError('Visible base body is required')
     durations = []
     for pose in poses:
         if not isinstance(pose, dict) or not isinstance(pose.get('angles', {}), dict):
