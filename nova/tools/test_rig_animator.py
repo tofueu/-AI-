@@ -96,4 +96,22 @@ class TestRigAnimator(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'Cyclic'):
             render_frame(bad, {'body': im}, {})
 
+
+    def test_layer_order_and_empty_body(self):
+        rig = json.loads(json.dumps(RIG))
+        rig['slot_joints']['clothes'] = 'root'
+        body = Image.new('RGBA', (64, 64), (255, 0, 0, 255))
+        clothes = Image.new('RGBA', (64, 64), (0, 0, 255, 255))
+        result = render_frame(rig, {'clothes': clothes, 'body': body}, {})
+        self.assertEqual(result.getpixel((32, 32)), (0, 0, 255, 255))
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            Image.new('RGBA', (64, 64)).save(d / 'body.png')
+            (d / 'rig.json').write_text(json.dumps(RIG))
+            (d / 'manifest.json').write_text(json.dumps({'layers': {'body': 'body.png'}}))
+            (d / 'poses.json').write_text('[{}]')
+            with self.assertRaisesRegex(ValueError, 'Visible base body'):
+                export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', d / 'out.gif')
+            self.assertFalse((d / 'out.gif').exists())
+
 if __name__ == '__main__': unittest.main()
