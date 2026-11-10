@@ -21,7 +21,11 @@ def create_template(destination, variant):
     destination.mkdir(parents=True)
     for slot in (*SLOTS, 'fallback_clothes'):
         Image.new('RGBA', (width, height), (0, 0, 0, 0)).save(destination / f'{slot}.png')
-    # A visible, neutral base garment is required when a MOD hides its clothes.\n    fallback = Image.new('RGBA', (width, height), (0, 0, 0, 0))\n    draw = ImageDraw.Draw(fallback)\n    draw.rounded_rectangle((int(width * .31), int(height * .40), int(width * .69), int(height * .73)), radius=max(4, width // 32), fill=(100, 91, 135, 255))\n    fallback.save(destination / 'fallback_clothes.png')\n    rig = {
+    # A visible, neutral base garment is required when a MOD hides its clothes.
+    fallback = Image.new('RGBA', (width, height), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(fallback)\n    draw.rounded_rectangle((int(width * .31), int(height * .40), int(width * .69), int(height * .73)), radius=max(4, width // 32), fill=(100, 91, 135, 255))
+    fallback.save(destination / 'fallback_clothes.png')
+    rig = {
         'canvas': [width, height],
         'joints': {
             'root': {'parent': None, 'pivot': [0.5, 0.75]},
@@ -50,9 +54,9 @@ def create_template(destination, variant):
     (destination / 'README.txt').write_text(
         'NOVA blank MOD template: not finished character artwork.\n'
         'Paint body.png and clothes.png, then set their visible flags to true.\n'
-        'Replace fallback_clothes.png with visible safe clothing before rendering.\n'
+        'Visible neutral fallback clothing is included; customize as needed.\n'
         'All PNGs must remain full-canvas RGBA. Empty slots may stay hidden.\n'
-        'Root-only rig is a layout scaffold, not an articulated skeleton.\n',
+        'Eight-joint hierarchy is a scaffold; separate limb artwork is still required.\n',
         encoding='utf-8')
     return destination
 
