@@ -23,8 +23,21 @@ def create_template(destination, variant):
         Image.new('RGBA', (width, height), (0, 0, 0, 0)).save(destination / f'{slot}.png')
     rig = {
         'canvas': [width, height],
-        'joints': {'root': {'parent': None, 'pivot': [0.5, 0.5]}},
-        'slot_joints': {slot: 'root' for slot in SLOTS},
+        'joints': {
+            'root': {'parent': None, 'pivot': [0.5, 0.75]},
+            'torso': {'parent': 'root', 'pivot': [0.5, 0.62]},
+            'neck': {'parent': 'torso', 'pivot': [0.5, 0.39]},
+            'head': {'parent': 'neck', 'pivot': [0.5, 0.29]},
+            'left_arm': {'parent': 'torso', 'pivot': [0.36, 0.51]},
+            'right_arm': {'parent': 'torso', 'pivot': [0.64, 0.51]},
+            'left_leg': {'parent': 'root', 'pivot': [0.44, 0.77]},
+            'right_leg': {'parent': 'root', 'pivot': [0.56, 0.77]},
+        },
+        'slot_joints': {
+            'body': 'root', 'hair_back': 'head', 'head': 'head',
+            'eyes': 'head', 'mouth': 'head', 'clothes': 'torso',
+            'hair_front': 'head', 'accessory': 'head',
+        },
     }
     manifest = {
         'variant': variant,
