@@ -25,7 +25,7 @@ class TemplateTests(unittest.TestCase):
                     with Image.open(dest / f'{slot}.png') as img:
                         self.assertEqual(img.size, size)
                         self.assertEqual(img.mode, 'RGBA')
-                        self.assertIsNone(img.getchannel('A').getbbox())
+                        if slot == 'fallback_clothes':\n                            self.assertIsNotNone(img.getchannel('A').getbbox())\n                        else:\n                            self.assertIsNone(img.getchannel('A').getbbox())
 
     def test_articulated_hierarchy_and_bindings(self):
         expected = {'root', 'torso', 'neck', 'head', 'left_arm',
