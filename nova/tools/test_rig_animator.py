@@ -90,7 +90,7 @@ class TestRigAnimator(unittest.TestCase):
         im = Image.new('RGBA', (64, 64), (255, 0, 0, 255))
         bad = json.loads(json.dumps(RIG))
         bad['joints']['orphan'] = {'parent': 'missing', 'pivot': [.5, .5]}
-        with self.assertRaises(KeyError):
+        with self.assertRaisesRegex(ValueError, 'Unknown parent joint'):
             render_frame(bad, {'body': im}, {})
         bad['joints']['orphan']['parent'] = 'orphan'
         with self.assertRaisesRegex(ValueError, 'Cyclic'):
