@@ -34,4 +34,24 @@ class TestRigAnimator(unittest.TestCase):
             (d/'poses.json').write_text('[{}]')
             with self.assertRaises(ValueError): export(d/'rig.json',d/'manifest.json',d/'poses.json',d/'out.gif')
 
+    def test_invalid_rig_pose_and_duplicate_slots(self):
+        im = Image.new('RGBA', (64, 64), (100, 20, 30, 255))
+        with self.assertRaisesRegex(ValueError, 'Unknown joint'):
+            render_frame(RIG, {'body': im}, {'missing': 15})
+        cyclic = json.loads(json.dumps(RIG))
+        cyclic['joints']['root']['parent'] = 'head'
+        with self.assertRaisesRegex(ValueError, 'Cyclic'):
+            render_frame(cyclic, {'body': im}, {})
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            im.save(d / 'body.png')
+            (d / 'rig.json').write_text(json.dumps(RIG))
+            (d / 'manifest.json').write_text(json.dumps({'layers': [
+                {'slot': 'body', 'file': 'body.png'},
+                {'slot': 'body', 'file': 'body.png'}
+            ]}))
+            (d / 'poses.json').write_text('[{}]')
+            with self.assertRaisesRegex(ValueError, 'Duplicate'):
+                export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', d / 'out.gif')
+
 if __name__ == '__main__': unittest.main()
