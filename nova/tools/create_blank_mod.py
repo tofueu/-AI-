@@ -5,7 +5,7 @@ This creates a scaffold, not finished character artwork or a complete rig.
 import argparse
 import json
 from pathlib import Path
-from PIL import Image
+from PIL import Image, ImageDraw
 
 SLOTS = ('body', 'hair_back', 'head', 'eyes', 'mouth', 'clothes', 'hair_front', 'accessory')
 SIZES = {'chibi': (512, 512), 'adult': (512, 768)}
@@ -21,7 +21,7 @@ def create_template(destination, variant):
     destination.mkdir(parents=True)
     for slot in (*SLOTS, 'fallback_clothes'):
         Image.new('RGBA', (width, height), (0, 0, 0, 0)).save(destination / f'{slot}.png')
-    rig = {
+    # A visible, neutral base garment is required when a MOD hides its clothes.\n    fallback = Image.new('RGBA', (width, height), (0, 0, 0, 0))\n    draw = ImageDraw.Draw(fallback)\n    draw.rounded_rectangle((int(width * .31), int(height * .40), int(width * .69), int(height * .73)), radius=max(4, width // 32), fill=(100, 91, 135, 255))\n    fallback.save(destination / 'fallback_clothes.png')\n    rig = {
         'canvas': [width, height],
         'joints': {
             'root': {'parent': None, 'pivot': [0.5, 0.75]},
