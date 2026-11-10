@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from PIL import Image, ImageDraw
 
-SLOTS = ('body', 'hair_back', 'head', 'eyes', 'mouth', 'clothes', 'hair_front', 'accessory')
+SLOTS = ('body', 'hair_back', 'left_leg', 'right_leg', 'left_arm', 'right_arm', 'head', 'eyes', 'mouth', 'clothes', 'hair_front', 'accessory')
 SIZES = {'chibi': (512, 512), 'adult': (512, 768)}
 
 
@@ -40,6 +40,8 @@ def create_template(destination, variant):
         },
         'slot_joints': {
             'body': 'root', 'hair_back': 'head', 'head': 'head',
+            'left_arm': 'left_arm', 'right_arm': 'right_arm',
+            'left_leg': 'left_leg', 'right_leg': 'right_leg',
             'eyes': 'head', 'mouth': 'head', 'clothes': 'torso',
             'hair_front': 'head', 'accessory': 'head',
         },
@@ -57,7 +59,7 @@ def create_template(destination, variant):
         'Paint body.png and clothes.png, then set their visible flags to true.\n'
         'Visible neutral fallback clothing is included; customize as needed.\n'
         'All PNGs must remain full-canvas RGBA. Empty slots may stay hidden.\n'
-        'Eight-joint hierarchy is a scaffold; separate limb artwork is still required.\n',
+        'Paint each limb PNG independently for articulated motion.\n',
         encoding='utf-8')
     return destination
 
