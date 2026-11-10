@@ -28,6 +28,8 @@ def render_frame(rig, layers, angles):
         if name in visiting:
             raise ValueError('Cyclic joint hierarchy')
         visiting.add(name)
+        if name not in joints:
+            raise ValueError(f'Unknown parent joint: {name}')
         joint = joints[name]
         parent = joint['parent']
         px, py = (joint['pivot'][0] * width, joint['pivot'][1] * height)
