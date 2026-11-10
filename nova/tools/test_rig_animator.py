@@ -69,4 +69,21 @@ class TestRigAnimator(unittest.TestCase):
                     export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', target)
                 self.assertFalse(target.exists())
 
+    def test_invalid_output_does_not_create_directory(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            Image.new('RGBA', (64, 64), (255, 0, 0, 255)).save(d / 'body.png')
+            (d / 'rig.json').write_text(json.dumps(RIG))
+            (d / 'manifest.json').write_text(json.dumps({'layers': {'body': 'body.png'}}))
+            (d / 'poses.json').write_text(json.dumps([{}, {}]))
+            target = d / 'uncreated' / 'preview.png'
+            with self.assertRaisesRegex(ValueError, 'exactly one pose'):
+                export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', target)
+            self.assertFalse(target.parent.exists())
+            (d / 'poses.json').write_text('[{}]')
+            target = d / 'uncreated' / 'preview.txt'
+            with self.assertRaisesRegex(ValueError, 'PNG or GIF'):
+                export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', target)
+            self.assertFalse(target.parent.exists())
+
 if __name__ == '__main__': unittest.main()
