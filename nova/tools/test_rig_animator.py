@@ -54,4 +54,19 @@ class TestRigAnimator(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'Duplicate'):
                 export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', d / 'out.gif')
 
+    def test_reject_malformed_pose_and_duration_without_output(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            Image.new('RGBA', (64, 64), (255, 0, 0, 255)).save(d / 'body.png')
+            (d / 'rig.json').write_text(json.dumps(RIG))
+            (d / 'manifest.json').write_text(json.dumps({'layers': {'body': 'body.png'}}))
+            for bad in ([None], [{'angles': []}], [{'duration_ms': '120'}],
+                        [{'duration_ms': True}], [{'duration_ms': 0}],
+                        [{}, {'duration_ms': 10001}]):
+                (d / 'poses.json').write_text(json.dumps(bad))
+                target = d / 'preview.gif'
+                with self.assertRaises(ValueError):
+                    export(d / 'rig.json', d / 'manifest.json', d / 'poses.json', target)
+                self.assertFalse(target.exists())
+
 if __name__ == '__main__': unittest.main()
