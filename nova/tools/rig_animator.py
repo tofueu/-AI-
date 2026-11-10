@@ -67,11 +67,15 @@ def render_frame(rig, layers, angles):
         if image.size != (width, height):
             raise ValueError(f'Layer size mismatch: {slot}')
         if slot not in slot_joints:
-            raise ValueError(f'Unknown layer slot: {slot}')
+            raise ValueError(f'Missing joint binding for layer: {slot}')
+        joint_name = slot_joints[slot]
+        if joint_name not in joints:
+            raise ValueError(f'Unknown joint binding for layer: {slot}')
+        # Validate bindings even for empty layers: an author should not get a
+        # successful preview that breaks as soon as the layer is painted.
+        angle, x, y = resolve(joint_name)
         if image.getchannel('A').getbbox() is None:
             continue
-        joint_name = slot_joints[slot]
-        angle, x, y = resolve(joint_name)
         original = joints[joint_name]['pivot']
         ox, oy = original[0] * width, original[1] * height
         turned = image.rotate(-angle, resample=Image.Resampling.BICUBIC, center=(ox, oy))
