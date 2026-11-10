@@ -18,10 +18,16 @@ def render_frame(rig, layers, angles):
     joints = rig['joints']
     slot_joints = rig['slot_joints']
     transforms = {}
+    if set(angles) - set(joints):
+        raise ValueError('Unknown joint rotation')
+    visiting = set()
 
     def resolve(name):
         if name in transforms:
             return transforms[name]
+        if name in visiting:
+            raise ValueError('Cyclic joint hierarchy')
+        visiting.add(name)
         joint = joints[name]
         parent = joint['parent']
         px, py = (joint['pivot'][0] * width, joint['pivot'][1] * height)
@@ -37,6 +43,7 @@ def render_frame(rig, layers, angles):
             px = ppx + math.cos(a) * dx - math.sin(a) * dy
             py = ppy + math.sin(a) * dx + math.cos(a) * dy
             result = (ptheta + theta, px, py)
+        visiting.remove(name)
         transforms[name] = result
         return result
 
@@ -77,6 +84,8 @@ def export(rig_path, manifest_path, poses_path, output_path):
         if not entry.get('visible', True):
             continue
         slot = entry['slot']
+        if slot in layers:
+            raise ValueError(f'Duplicate visible layer slot: {slot}')
         path = (root / entry['file']).resolve()
         if not path.is_relative_to(root) or not path.is_file():
             raise ValueError(f'Unsafe or missing layer: {slot}')
