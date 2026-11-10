@@ -91,12 +91,17 @@ def export(rig_path, manifest_path, poses_path, output_path):
             raise ValueError(f'Unsafe or missing layer: {slot}')
         with Image.open(path) as src:
             layers[slot] = src.convert('RGBA')
+    durations = []
+    for pose in poses:
+        if not isinstance(pose, dict) or not isinstance(pose.get('angles', {}), dict):
+            raise ValueError('Invalid pose or angles')
+        duration = pose.get('duration_ms', 120)
+        if type(duration) is not int or not 20 <= duration <= 10000:
+            raise ValueError('Invalid frame duration')
+        durations.append(duration)
     frames = [render_frame(rig, layers, pose.get('angles', {})) for pose in poses]
     output_path.parent.mkdir(parents=True, exist_ok=True)
     if output_path.suffix.lower() == '.gif':
-        durations = [int(p.get('duration_ms', 120)) for p in poses]
-        if any(d < 20 or d > 10000 for d in durations):
-            raise ValueError('Invalid frame duration')
         frames[0].save(output_path, save_all=True, append_images=frames[1:], duration=durations,
                        loop=0, disposal=2, optimize=False)
     elif output_path.suffix.lower() == '.png':
