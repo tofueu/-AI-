@@ -35,6 +35,8 @@ def load_mod(directory, fallback_directory=None):
             filename = slot_name + ".png"
             source_root = fallback_root
         if filename is None:
+            if slot_name in ("top", "bottom"):
+                raise ValueError("Missing clothing layer and fallback: " + slot_name)
             if slot["required"]:
                 raise ValueError("Missing required layer: " + slot_name)
             continue
@@ -58,6 +60,8 @@ def load_mod(directory, fallback_directory=None):
                     if fallback_im.size != tuple(blueprint["canvas_size"]):
                         raise ValueError("Fallback canvas mismatch: " + slot_name)
                     layer = fallback_im.convert("RGBA")
+        if slot_name in ("top", "bottom") and layer.getbbox() is None:
+            raise ValueError("Clothing layer is empty and no painted fallback exists: " + slot_name)
         if layer.getbbox() is None:
             if slot["required"]:
                 raise ValueError("Required layer is empty: " + slot_name)
