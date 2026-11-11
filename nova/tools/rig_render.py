@@ -32,7 +32,7 @@ def render_pose(parts, pose, canvas_size):
     return result
 
 
-def render_loop(parts, keyframes, canvas_size, frame_count, duration_ms=100):
+def render_loop(parts, keyframes, canvas_size, frame_count, duration_ms=100, joints=None):
     """Return a list of RGBA frames, suitable for GIF or APNG export."""
     try:
         from .rig_animation import sample_loop
@@ -40,4 +40,11 @@ def render_loop(parts, keyframes, canvas_size, frame_count, duration_ms=100):
         from rig_animation import sample_loop
     if type(duration_ms) is not int or duration_ms < 20:
         raise ValueError('Invalid duration')
-    return [render_pose(parts, pose, canvas_size) for pose in sample_loop(keyframes, frame_count)]
+    poses = sample_loop(keyframes, frame_count)
+    if joints is not None:
+        try:
+            from .rig_hierarchy import resolve_hierarchy
+        except ImportError:
+            from rig_hierarchy import resolve_hierarchy
+        poses = [resolve_hierarchy(joints, pose) for pose in poses]
+    return [render_pose(parts, pose, canvas_size) for pose in poses]
