@@ -1,5 +1,6 @@
 """Editable image-free NOVA rig blueprints for chibi and adult characters."""
 from copy import deepcopy
+import math
 
 SLOT_JOINTS = {
     "body": "torso", "head": "head", "eyes": "head", "mouth": "head",
@@ -67,7 +68,7 @@ def validate_blueprint(blueprint):
             raise ValueError("Invalid slot joint: " + str(name))
         pivot = slot.get("pivot")
         if (not isinstance(pivot, list) or len(pivot) != 2
-                or any(type(v) not in (int, float) or not 0 <= v <= size[i]
+                or any(type(v) not in (int, float) or not math.isfinite(v) or not 0 <= v <= size[i]
                        for i, v in enumerate(pivot))):
             raise ValueError("Invalid slot pivot: " + str(name))
     try:
