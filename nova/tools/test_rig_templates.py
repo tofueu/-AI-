@@ -35,6 +35,12 @@ class BlueprintTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_blueprint(broken)
 
+    def test_infinite_slot_pivot_rejected(self):
+        broken = create_blueprint("chibi")
+        broken["slots"]["hat"]["pivot"] = [float("inf"), 1]
+        with self.assertRaises(ValueError):
+            validate_blueprint(broken)
+
     def test_invalid_style(self):
         with self.assertRaises(ValueError):
             create_blueprint("unknown")
