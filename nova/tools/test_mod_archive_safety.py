@@ -35,13 +35,16 @@ class ModArchiveSafetyTests(unittest.TestCase):
             # Modify the central directory encryption flag to simulate a hostile archive.
             data = bytearray(archive.read_bytes())
             index = 0
+            patched = 0
             while True:
-                index = data.find(b'PK\\x01\\x02', index)
+                index = data.find(b'PK\x01\x02', index)
                 if index < 0:
                     break
                 flag = int.from_bytes(data[index + 8:index + 10], 'little')
                 data[index + 8:index + 10] = (flag | 1).to_bytes(2, 'little')
                 index += 4
+                patched += 1
+            self.assertEqual(patched, 2, 'Expected to patch both central directory entries')
             archive.write_bytes(data)
             destination = root / 'imported'
             with self.assertRaisesRegex(ValueError, 'Unsafe MOD member'):
