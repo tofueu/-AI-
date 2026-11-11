@@ -26,12 +26,13 @@ def _members(archive):
         p = PurePosixPath(name)
         if (not name or '\\' in name or p.is_absolute() or
                 len(p.parts) != 1 or p.name in ('.', '..') or
-                info.is_dir() or p.name in seen or
+                info.is_dir() or p.name.casefold() in seen or
+                (info.flag_bits & 0x1) or
                 (info.external_attr >> 16) & 0o170000 == 0o120000):
             raise ValueError(f'Unsafe MOD member: {name}')
         if p.suffix.lower() not in ('.png', '.json', '.txt'):
             raise ValueError(f'Unsupported MOD member: {name}')
-        seen.add(p.name)
+        seen.add(p.name.casefold())
         total += info.file_size
         if total > MAX_UNCOMPRESSED:
             raise ValueError('MOD archive exceeds size limit')
