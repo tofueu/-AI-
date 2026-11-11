@@ -24,6 +24,13 @@ def replace_layer(source, slot, replacement, destination):
         raise ValueError('Source is not a MOD folder')
     if destination.exists():
         raise FileExistsError(destination)
+    # A variant must never be staged inside its own source tree.
+    if destination.resolve().is_relative_to(source.resolve()):
+        raise ValueError('Destination cannot be inside source MOD')
+    if replacement.is_symlink():
+        raise ValueError('Replacement cannot be a symlink')
+    if any(p.is_symlink() for p in source.iterdir()):
+        raise ValueError('Source MOD cannot contain symlinks')
     manifest = json.loads((source / 'mod.json').read_text(encoding='utf-8'))
     canvas = tuple(manifest['canvas'])
     if len(canvas) != 2 or any(type(x) is not int or x <= 0 for x in canvas):
@@ -43,6 +50,8 @@ def replace_layer(source, slot, replacement, destination):
             matching[0]['visible'] = True
     else:
         raise ValueError('Invalid layers manifest')
+    if any(other != slot and entry == filename for other, entry in layers.items()) if isinstance(layers, dict) else any(entry['slot'] != slot and entry['file'] == filename for entry in layers):
+        raise ValueError('Layer filename is already used by another slot')
     target_name = Path(filename)
     if target_name.name != filename or filename in ('.', '..') or not filename.lower().endswith('.png'):
         raise ValueError('Unsafe layer filename')
