@@ -49,6 +49,15 @@ def load_mod(directory, fallback_directory=None):
             if im.size != tuple(blueprint["canvas_size"]):
                 raise ValueError("Layer canvas mismatch: " + slot_name)
             layer = im.convert("RGBA")
+        if layer.getbbox() is None and slot["fallback"] and fallback_root and source_root == root:
+            fallback_target = (fallback_root / (slot_name + ".png")).resolve()
+            if not fallback_target.is_relative_to(fallback_root):
+                raise ValueError("Unsafe fallback path")
+            if fallback_target.is_file():
+                with Image.open(fallback_target) as fallback_im:
+                    if fallback_im.size != tuple(blueprint["canvas_size"]):
+                        raise ValueError("Fallback canvas mismatch: " + slot_name)
+                    layer = fallback_im.convert("RGBA")
         if layer.getbbox() is None:
             if slot["required"]:
                 raise ValueError("Required layer is empty: " + slot_name)
