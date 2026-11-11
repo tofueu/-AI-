@@ -29,8 +29,11 @@ def replace_layer(source, slot, replacement, destination):
         raise ValueError('Destination cannot be inside source MOD')
     if replacement.is_symlink():
         raise ValueError('Replacement cannot be a symlink')
-    if any(p.is_symlink() for p in source.iterdir()):
-        raise ValueError('Source MOD cannot contain symlinks')
+    # copytree follows nested symlinks by default. Reject them before staging
+    # so a crafted MOD cannot copy files from outside its own directory.
+    for item in source.rglob('*'):
+        if item.is_symlink():
+            raise ValueError('Source MOD cannot contain symlinks')
     manifest = json.loads((source / 'mod.json').read_text(encoding='utf-8'))
     canvas = tuple(manifest['canvas'])
     if len(canvas) != 2 or any(type(x) is not int or x <= 0 for x in canvas):
