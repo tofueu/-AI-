@@ -70,9 +70,15 @@ def export_mod(source_dir, archive_path):
         raise FileExistsError(archive_path)
     if not source_dir.is_dir():
         raise FileNotFoundError(source_dir)
-    files = sorted(p for p in source_dir.iterdir() if p.is_file())
+    entries = list(source_dir.iterdir())
+    if any(not p.is_file() for p in entries):
+        raise ValueError('MOD directory contains unsupported entries')
+    files = sorted(entries)
     if len(files) > MAX_FILES or not REQUIRED.issubset({p.name for p in files}):
         raise ValueError('Invalid MOD directory')
+    names = [p.name.casefold() for p in files]
+    if len(names) != len(set(names)):
+        raise ValueError('Case-colliding MOD filenames')
     total = 0
     for p in files:
         if p.is_symlink() or p.suffix.lower() not in ('.png', '.json', '.txt'):
