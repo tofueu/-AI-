@@ -70,6 +70,10 @@ def export_mod(source_dir, archive_path):
         raise FileExistsError(archive_path)
     if not source_dir.is_dir():
         raise FileNotFoundError(source_dir)
+    # Never create the output archive inside the source MOD tree.
+    # This would mutate the original asset folder even on success.
+    if archive_path.resolve().is_relative_to(source_dir.resolve()):
+        raise ValueError('MOD export destination must be outside source directory')
     entries = list(source_dir.iterdir())
     if any(not p.is_file() for p in entries):
         raise ValueError('MOD directory contains unsupported entries')
