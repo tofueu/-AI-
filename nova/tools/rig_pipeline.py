@@ -10,7 +10,7 @@ except ImportError:
 
 
 def export_rig_animation(parts, keyframes, canvas_size, frame_count, destination,
-                         duration_ms=100, loop=0):
+                         duration_ms=100, loop=0, joints=None):
     """Render joint-driven GIF without changing source images or overwriting output."""
     if not isinstance(parts, (list, tuple)) or not parts:
         raise ValueError("At least one rig part required")
@@ -25,5 +25,5 @@ def export_rig_animation(parts, keyframes, canvas_size, frame_count, destination
         raise ValueError("Destination must be a GIF")
     if path.exists():
         raise FileExistsError(path)
-    frames = render_loop(parts, keyframes, canvas_size, frame_count, duration_ms)
+    frames = render_loop(parts, keyframes, canvas_size, frame_count, duration_ms, joints=joints)
     return export_gif(frames, path, duration_ms, loop)
