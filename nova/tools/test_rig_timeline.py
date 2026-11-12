@@ -26,6 +26,20 @@ class TimelineTests(unittest.TestCase):
         with self.assertRaises(ValueError): sample_pose(RIG, bad, 0)
     def test_nonloop_clamp(self):
         self.assertEqual(sample_pose(RIG, {**TIMELINE, "loop": False}, 2000)["head"], [0.7, 0.4])
+    def test_blend_return_to_first(self):
+        self.assertAlmostEqual(sample_pose(RIG, TIMELINE, 750)["head"][0], 0.6)
+        self.assertAlmostEqual(sample_pose(RIG, TIMELINE, 999)["head"][0], 0.5004)
+    def test_exact_wrap(self):
+        self.assertEqual(sample_pose(RIG, TIMELINE, 1000), sample_pose(RIG, TIMELINE, 0))
+    def test_no_return_when_last_frame_at_duration(self):
+        frames = [*TIMELINE["frames"], {"time_ms": 1000, "joints": {"head": [0.5, 0.2]}}]
+        self.assertAlmostEqual(sample_pose(RIG, {**TIMELINE, "frames": frames}, 750)["head"][0], 0.6)
+    def test_invalid_frame_type(self):
+        with self.assertRaises(ValueError):
+            sample_pose(RIG, {**TIMELINE, "frames": [None]}, 0)
+    def test_invalid_rig_type(self):
+        with self.assertRaises(ValueError):
+            sample_pose(None, TIMELINE, 0)
 
 if __name__ == "__main__":
     unittest.main()
