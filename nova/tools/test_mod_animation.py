@@ -54,13 +54,20 @@ class ModAnimationTests(unittest.TestCase):
                         result.seek(index)
                         frames.append(result.convert("RGBA").copy())
                     self.assertTrue(
-                        any(ImageChops.difference(frames[0], frame).getbbox() is not None
+                        any(any(channel.getbbox() is not None for channel in ImageChops.difference(frames[0], frame).split())
                             for frame in frames[1:]),
                         "Pose keyframes must produce visible GIF motion")
                 self.assertEqual(
                     {p.name: p.read_bytes() for p in root.glob("*.png")}, originals)
                 with self.assertRaises(FileExistsError):
                     export_mod_animation(root, KEYFRAMES, 6, destination, fallback_directory=fallback)
+
+    def test_rgba_motion_comparison_detects_rgb_only_changes(self):
+        first = Image.new("RGBA", (4, 4), (20, 30, 40, 255))
+        second = Image.new("RGBA", (4, 4), (40, 30, 20, 255))
+        difference = ImageChops.difference(first, second)
+        self.assertIsNone(difference.getbbox(), "Pillow RGBA getbbox ignores RGB when alpha difference is zero")
+        self.assertTrue(any(channel.getbbox() is not None for channel in difference.split()))
 
     def test_missing_required_layer_does_not_create_output(self):
         with tempfile.TemporaryDirectory() as tmp:
