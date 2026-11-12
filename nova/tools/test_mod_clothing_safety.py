@@ -55,6 +55,31 @@ class ClothingSafetyTests(unittest.TestCase):
         self.assertEqual(blueprint["style"], "chibi")
         self.assertEqual(len(parts), 4)
 
+    def test_invisible_rgb_clothing_uses_painted_fallback(self):
+        """Nonzero RGB with alpha zero must still count as transparent."""
+        self.manifest(("body", "head", "top", "bottom"))
+        for name in ("body", "head"):
+            self.paint(self.root, name)
+        for name in ("top", "bottom"):
+            self.paint(self.root, name, alpha=0)
+            self.paint(self.fallback, name, alpha=255)
+        _, parts = load_mod(self.root, self.fallback)
+        clothes = {part["slot"]: part["image"] for part in parts
+                   if part["slot"] in ("top", "bottom")}
+        self.assertEqual(set(clothes), {"top", "bottom"})
+        for image in clothes.values():
+            self.assertEqual(image.getpixel((0, 0))[3], 255)
+
+    def test_invisible_rgb_clothing_without_fallback_rejected(self):
+        """RGB data alone must not satisfy mandatory visible clothing."""
+        self.manifest(("body", "head", "top", "bottom"))
+        for name in ("body", "head"):
+            self.paint(self.root, name)
+        for name in ("top", "bottom"):
+            self.paint(self.root, name, alpha=0)
+        with self.assertRaisesRegex(ValueError, "Clothing layer is empty"):
+            load_mod(self.root)
+
     def test_empty_fallback_rejected(self):
         self.manifest(("body", "head"))
         for name in ("body", "head"):
