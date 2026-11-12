@@ -30,16 +30,20 @@ class ModAnimationTests(unittest.TestCase):
                     im = Image.new("RGBA", size, (0, 0, 0, 0))
                     im.putpixel((256, 170), (200, 80, 120, 255))
                     im.save(root / (name + ".png"))
+                fallback = root / "basic_clothing"
+                fallback.mkdir()
+                for slot in ("top", "bottom"):
+                    Image.new("RGBA", size, (60, 80, 110, 255)).save(fallback / (slot + ".png"))
                 before = (root / "head.png").read_bytes()
                 destination = root / "preview.gif"
-                export_mod_animation(root, KEYFRAMES, 6, destination, duration_ms=120)
+                export_mod_animation(root, KEYFRAMES, 6, destination, duration_ms=120, fallback_directory=fallback)
                 self.assertTrue(destination.is_file())
                 with Image.open(destination) as result:
                     self.assertEqual(result.n_frames, 6)
                     self.assertEqual(result.size, size)
                 self.assertEqual((root / "head.png").read_bytes(), before)
                 with self.assertRaises(FileExistsError):
-                    export_mod_animation(root, KEYFRAMES, 6, destination)
+                    export_mod_animation(root, KEYFRAMES, 6, destination, fallback_directory=fallback)
 
     def test_missing_required_layer_does_not_create_output(self):
         with tempfile.TemporaryDirectory() as tmp:
