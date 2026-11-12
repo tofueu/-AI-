@@ -23,6 +23,9 @@ def render(manifest_path, output_path):
         raise ValueError('Unknown layer slot')
     if not layers.get('body'):
         raise ValueError('A base body/clothing layer is required')
+    require_clothes = data.get('require_clothes', False)
+    if type(require_clothes) is not bool:
+        raise ValueError('require_clothes must be a boolean')
     fallback = data.get('fallback_clothes')
     if fallback is not None and (not isinstance(fallback, str) or not fallback):
         raise ValueError('fallback_clothes must be a nonempty PNG path')
@@ -41,6 +44,8 @@ def render(manifest_path, output_path):
                 clothes_name = None
     if not clothes_name and fallback:
         clothes_name = fallback
+    if require_clothes and not clothes_name:
+        raise ValueError('Clothing is required; supply clothes or fallback_clothes')
     if fallback and clothes_name == fallback:
         fallback_path = (root / fallback).resolve()
         if not fallback_path.is_relative_to(root) or fallback_path.suffix.lower() != '.png':
