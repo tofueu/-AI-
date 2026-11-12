@@ -67,7 +67,17 @@ def render(manifest_path, output_path):
                 continue
             result.alpha_composite(layer)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    result.save(output_path)
+    # Exclusive creation closes the check/write race; never replace a user's export.
+    try:
+        with output_path.open('xb') as target:
+            try:
+                result.save(target, format='PNG')
+            except BaseException:
+                target.close()
+                output_path.unlink(missing_ok=True)
+                raise
+    except FileExistsError:
+        raise FileExistsError('Refusing to overwrite existing output') from None
     return output_path
 
 
