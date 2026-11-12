@@ -90,5 +90,17 @@ class ClothingSafetyTests(unittest.TestCase):
             load_mod(self.root, self.fallback)
 
 
+    def test_manifest_symlink_outside_mod_rejected(self):
+        """An imported MOD must not read a manifest outside its directory."""
+        outside = Path(self.tmp.name) / "external.json"
+        outside.write_text('{"style":"chibi","layers":{}}', encoding="utf-8")
+        try:
+            (self.root / "manifest.json").symlink_to(outside)
+        except (OSError, NotImplementedError):
+            self.skipTest("Symlinks unavailable on this platform")
+        with self.assertRaisesRegex(ValueError, "Unsafe MOD manifest path"):
+            load_mod(self.root)
+
+
 if __name__ == "__main__":
     unittest.main()
