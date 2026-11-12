@@ -31,11 +31,14 @@ def render(manifest_path, output_path):
     clothes_name = layers.get('clothes')
     if clothes_name:
         # An entirely transparent clothing layer counts as absent.
-        candidate = (root / clothes_name).resolve() if isinstance(clothes_name, str) else None
-        if candidate is not None and candidate.is_relative_to(root) and candidate.suffix.lower() == '.png':
-            with Image.open(candidate) as check:
-                if check.convert('RGBA').getchannel('A').getbbox() is None:
-                    clothes_name = None
+        if not isinstance(clothes_name, str):
+            raise ValueError('Layer path must be a string')
+        candidate = (root / clothes_name).resolve()
+        if not candidate.is_relative_to(root) or candidate.suffix.lower() != '.png':
+            raise ValueError('Layer must be a PNG inside the MOD folder')
+        with Image.open(candidate) as check:
+            if check.convert('RGBA').getchannel('A').getbbox() is None:
+                clothes_name = None
     if not clothes_name and fallback:
         clothes_name = fallback
     if fallback and clothes_name == fallback:
