@@ -7,10 +7,20 @@ def _point(value):
         raise ValueError("Joint coordinates must be finite normalized xy pairs")
     return [float(value[0]), float(value[1])]
 
+def _blend(a, b, weight):
+    return {k: [a[k][i] + (b[k][i] - a[k][i]) * weight for i in range(2)] for k in a}
+
 def sample_pose(rig, timeline, time_ms):
-    """Return a fresh joint map interpolated at time_ms without mutating inputs."""
+    """Return a fresh joint map interpolated at time_ms without mutating inputs.
+
+    Looping timelines blend the final keyframe back to the first across the
+    remaining duration. For a smooth wrap, authors should put the first
+    keyframe at time zero and leave time before duration for the return.
+    """
     if type(time_ms) not in (int, float) or not math.isfinite(time_ms) or time_ms < 0:
         raise ValueError("Invalid sample time")
+    if not isinstance(rig, dict) or not isinstance(timeline, dict):
+        raise ValueError("Invalid rig or timeline")
     base = rig.get("joints")
     if not isinstance(base, dict) or not base:
         raise ValueError("Rig must contain joints")
@@ -25,6 +35,8 @@ def sample_pose(rig, timeline, time_ms):
     previous = -1
     prepared = []
     for frame in frames:
+        if not isinstance(frame, dict):
+            raise ValueError("Invalid keyframe")
         t = frame.get("time_ms")
         changes = frame.get("joints")
         if (type(t) not in (int, float) or not math.isfinite(t)
@@ -43,6 +55,8 @@ def sample_pose(rig, timeline, time_ms):
         return {k: v.copy() for k, v in states[0][1].items()}
     for (ta, a), (tb, b) in zip(states, states[1:]):
         if ta <= t <= tb:
-            weight = (t - ta) / (tb - ta)
-            return {k: [a[k][i] + (b[k][i] - a[k][i]) * weight for i in range(2)] for k in pose}
-    return {k: v.copy() for k, v in states[-1][1].items()}
+            return _blend(a, b, (t - ta) / (tb - ta))
+    last_time, last_state = states[-1]
+    if loop and last_time < duration:
+        return _blend(last_state, states[0][1], (t - last_time) / (duration - last_time))
+    return {k: v.copy() for k, v in last_state.items()}
