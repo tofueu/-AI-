@@ -28,8 +28,9 @@ def export_gif(frames, destination, duration_ms=100, loop=0):
     for frame in frames:
         rgba = frame.convert("RGBA")
         alpha = rgba.getchannel("A")
-        rgb = Image.new("RGB", size, (0, 0, 0))
-        rgb.paste(rgba, mask=alpha)
+        # Preserve straight RGB for visible pixels: alpha-masked paste would
+        # premultiply edge colours against black and create dark halos.
+        rgb = rgba.convert("RGB")
         indexed = rgb.quantize(colors=255)
         # Reserve index 255 for transparent pixels.
         indexed.putpalette(indexed.getpalette()[:765] + [0, 0, 0])
