@@ -18,7 +18,10 @@ def load_mod(directory, fallback_directory=None):
     root = Path(directory).resolve(strict=True)
     if not root.is_dir():
         raise ValueError("MOD root must be a directory")
-    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    manifest_path = (root / "manifest.json").resolve(strict=True)
+    if not manifest_path.is_relative_to(root) or not manifest_path.is_file():
+        raise ValueError("Unsafe MOD manifest path")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if not isinstance(manifest, dict):
         raise ValueError("Invalid MOD manifest")
     blueprint = create_blueprint(manifest.get("style"))
