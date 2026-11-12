@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from PIL import Image
 
-SLOTS = ('body', 'head', 'eyes', 'mouth', 'hair_back', 'clothes', 'hair_front', 'accessory')
+SLOTS = ('body', 'hair_back', 'clothes', 'head', 'eyes', 'mouth', 'hair_front', 'accessory')
 
 
 def render(manifest_path, output_path):
