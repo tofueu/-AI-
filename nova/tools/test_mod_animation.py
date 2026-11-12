@@ -37,7 +37,11 @@ class ModAnimationTests(unittest.TestCase):
                 fallback = root / "basic_clothing"
                 fallback.mkdir()
                 for slot in ("top", "bottom"):
-                    Image.new("RGBA", size, (60, 80, 110, 255)).save(fallback / (slot + ".png"))
+                    clothing = Image.new("RGBA", size, (0, 0, 0, 0))
+                    ImageDraw.Draw(clothing).rectangle(
+                        (225, 270 if slot == "top" else 330, 285, 325 if slot == "top" else 390),
+                        fill=(60, 80, 110, 255))
+                    clothing.save(fallback / (slot + ".png"))
                 originals = {p.name: p.read_bytes() for p in root.glob("*.png")}
                 destination = root / "preview.gif"
                 export_mod_animation(root, KEYFRAMES, 6, destination, duration_ms=120, fallback_directory=fallback)
