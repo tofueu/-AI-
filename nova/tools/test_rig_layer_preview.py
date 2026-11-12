@@ -4,6 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 from PIL import Image
+from unittest.mock import patch
 from nova.tools.create_mod_template import create_template
 from nova.tools.rig_layer_preview import render_frames, export_gif
 
@@ -35,6 +36,32 @@ class RigLayerPreviewTests(unittest.TestCase):
                 self.assertTrue(dest.is_file())
                 with self.assertRaises(FileExistsError):
                     export_gif(root, timeline, dest, fps=4)
+
+    def test_failed_gif_encoder_leaves_no_partial_output(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = create_template(Path(tmp) / "mod", "chibi")
+            timeline = {"duration_ms": 1000, "frames": [
+                {"time_ms": 0, "joints": {}}
+            ]}
+            target = Path(tmp) / "preview.gif"
+            with patch.object(Image.Image, "save", side_effect=OSError("encoder failed")):
+                with self.assertRaisesRegex(OSError, "encoder failed"):
+                    export_gif(root, timeline, target, fps=2)
+            self.assertFalse(target.exists())
+            self.assertEqual(list(Path(tmp).glob(".nova-preview-*.gif")), [])
+
+    def test_existing_gif_remains_unchanged(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = create_template(Path(tmp) / "mod", "chibi")
+            timeline = {"duration_ms": 1000, "frames": [
+                {"time_ms": 0, "joints": {}}
+            ]}
+            target = Path(tmp) / "preview.gif"
+            target.write_bytes(b"existing user content")
+            with self.assertRaises(FileExistsError):
+                export_gif(root, timeline, target, fps=2)
+            self.assertEqual(target.read_bytes(), b"existing user content")
+            self.assertEqual(list(Path(tmp).glob(".nova-preview-*.gif")), [])
 
     def test_reject_escape_path(self):
         with tempfile.TemporaryDirectory() as tmp:
