@@ -66,6 +66,6 @@ def load_mod(directory, fallback_directory=None):
             if slot["required"]:
                 raise ValueError("Required layer is empty: " + slot_name)
             continue
-        parts.append({"image": layer, "joint": slot["joint"],
+        parts.append({"slot": slot_name, "image": layer, "joint": slot["joint"],
                       "pivot": tuple(slot["pivot"]), "offset": (0, 0)})
     return blueprint, parts
