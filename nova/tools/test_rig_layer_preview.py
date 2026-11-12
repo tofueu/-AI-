@@ -6,7 +6,7 @@ from pathlib import Path
 from PIL import Image
 from unittest.mock import patch
 from nova.tools.create_mod_template import create_template
-from nova.tools.rig_layer_preview import render_frames, export_gif
+from nova.tools.rig_layer_preview import render_frames, export_gif, export_png_frames
 
 
 class RigLayerPreviewTests(unittest.TestCase):
@@ -62,6 +62,31 @@ class RigLayerPreviewTests(unittest.TestCase):
                 export_gif(root, timeline, target, fps=2)
             self.assertEqual(target.read_bytes(), b"existing user content")
             self.assertEqual(list(Path(tmp).glob(".nova-preview-*.gif")), [])
+
+    def test_png_sequence_preserves_transparency_and_refuses_overwrite(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = create_template(Path(tmp) / "mod", "chibi")
+            timeline = {"duration_ms": 1000, "frames": [{"time_ms": 0, "joints": {}}]}
+            target = Path(tmp) / "frames"
+            export_png_frames(root, timeline, target, fps=3)
+            paths = sorted(target.glob("frame_*.png"))
+            self.assertEqual(len(paths), 3)
+            with Image.open(paths[0]) as frame:
+                self.assertEqual(frame.mode, "RGBA")
+                self.assertEqual(frame.getpixel((0, 0))[3], 0)
+            with self.assertRaises(FileExistsError):
+                export_png_frames(root, timeline, target, fps=3)
+            self.assertEqual(len(list(target.iterdir())), 3)
+
+    def test_png_encoder_failure_cleans_new_directory(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = create_template(Path(tmp) / "mod", "adult")
+            timeline = {"duration_ms": 1000, "frames": [{"time_ms": 0, "joints": {}}]}
+            target = Path(tmp) / "frames"
+            with patch.object(Image.Image, "save", side_effect=OSError("PNG encoder failed")):
+                with self.assertRaisesRegex(OSError, "PNG encoder failed"):
+                    export_png_frames(root, timeline, target, fps=2)
+            self.assertFalse(target.exists())
 
     def test_reject_escape_path(self):
         with tempfile.TemporaryDirectory() as tmp:
