@@ -35,5 +35,16 @@ class GifTransparencyTests(unittest.TestCase):
                 export_gif(frames, output)
 
 
+    def test_translucent_edge_keeps_original_rgb(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            frame = Image.new("RGBA", (8, 8), (0, 0, 0, 0))
+            frame.putpixel((3, 3), (240, 120, 60, 180))
+            output = Path(tmp) / "edge.gif"
+            export_gif([frame], output)
+            with Image.open(output) as gif:
+                pixel = gif.convert("RGBA").getpixel((3, 3))
+                self.assertEqual(pixel, (240, 120, 60, 255))
+                self.assertEqual(gif.convert("RGBA").getpixel((0, 0))[3], 0)
+
 if __name__ == "__main__":
     unittest.main()
