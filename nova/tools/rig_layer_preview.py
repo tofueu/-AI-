@@ -98,3 +98,23 @@ def export_gif(mod_dir, timeline, output_path, fps=12):
         if temporary is not None:
             temporary.unlink(missing_ok=True)
     return target
+
+
+def export_png_frames(mod_dir, timeline, output_dir, fps=12):
+    """Export numbered transparent RGBA frames to a new directory only.
+
+    Refuse existing destinations and clean up an incomplete new directory if
+    encoding fails. Source MOD layers are never modified.
+    """
+    import shutil
+
+    frames = render_frames(mod_dir, timeline, fps)
+    target = Path(output_dir)
+    target.mkdir(parents=False, exist_ok=False)
+    try:
+        for index, frame in enumerate(frames):
+            frame.save(target / f"frame_{index:04d}.png", format="PNG")
+    except Exception:
+        shutil.rmtree(target)
+        raise
+    return target
