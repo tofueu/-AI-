@@ -69,11 +69,32 @@ def render_frames(mod_dir, timeline, fps=12):
 
 
 def export_gif(mod_dir, timeline, output_path, fps=12):
-    """Export a preview GIF, refusing to overwrite existing output."""
+    """Export a preview GIF atomically without overwriting an existing file.
+
+    A failed encoder leaves no partial destination. The temporary file stays
+    in the destination directory so the final hard link is on one filesystem.
+    """
+    import os
+    import tempfile
+
     frames = render_frames(mod_dir, timeline, fps)
     target = Path(output_path)
-    with target.open("xb") as handle:
-        frames[0].save(handle, format="GIF", save_all=True,
-                       append_images=frames[1:], duration=round(1000 / fps),
-                       loop=0, disposal=2, transparency=0)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb", suffix=".gif", prefix=".nova-preview-",
+            dir=target.parent, delete=False
+        ) as handle:
+            temporary = Path(handle.name)
+        frames[0].save(
+            temporary, format="GIF", save_all=True,
+            append_images=frames[1:], duration=round(1000 / fps),
+            loop=0, disposal=2, transparency=0
+        )
+        # os.link fails with FileExistsError if target already exists.
+        # Unlike replace/rename, it never overwrites user files.
+        os.link(temporary, target)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
     return target
