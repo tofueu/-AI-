@@ -4,6 +4,7 @@ This is a rigid-layer preview, not skinning or a finished character animation.
 """
 from pathlib import Path
 import json
+import math
 from PIL import Image
 from nova.tools.rig_timeline import sample_pose
 
@@ -72,7 +73,7 @@ def render_frames(mod_dir, timeline, fps=12):
             raise ValueError("Fallback clothing is transparent")
         images["clothes"] = fallback
     duration = timeline["duration_ms"]
-    if type(duration) not in (int, float) or not 0 < duration <= 60000:
+    if type(duration) not in (int, float) or not math.isfinite(duration) or not 0 < duration <= 60000:
         raise ValueError("Invalid duration")
     count = max(1, round(duration * fps / 1000))
     if count > 3600:
