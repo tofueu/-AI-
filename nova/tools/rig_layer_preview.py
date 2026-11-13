@@ -20,14 +20,21 @@ def render_frames(mod_dir, timeline, fps=12):
     if type(fps) is not int or not 1 <= fps <= 60:
         raise ValueError("fps must be an integer from 1 to 60")
     root = Path(mod_dir).resolve()
+    # Reject symlinks escaping the MOD directory, including metadata files.
+    for metadata in ("manifest.json", "rig.json"):
+        source = (root / metadata).resolve()
+        if not source.is_relative_to(root) or not source.is_file():
+            raise ValueError("MOD metadata must stay inside MOD directory: " + metadata)
     manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
     rig = json.loads((root / "rig.json").read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict) or not isinstance(rig, dict):
+        raise ValueError("Invalid MOD metadata")
     width, height = manifest["canvas"]
     if type(width) is not int or type(height) is not int or not 1 <= width <= 4096 or not 1 <= height <= 4096:
         raise ValueError("Invalid canvas")
     layers = manifest["layers"]
-    if not isinstance(layers, dict):
-        raise ValueError("Invalid layers")
+    if not isinstance(layers, dict) or set(layers) - set(ORDER):
+        raise ValueError("Invalid or unknown MOD layers")
     images = {}
     for slot in ORDER:
         name = layers.get(slot)
