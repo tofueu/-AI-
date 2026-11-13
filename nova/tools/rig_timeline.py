@@ -64,5 +64,9 @@ def sample_pose(rig, timeline, time_ms):
             return _blend(a, b, (t - ta) / (tb - ta))
     last_time, last_state = states[-1]
     if loop and last_time < duration:
-        return _blend(last_state, states[0][1], (t - last_time) / (duration - last_time))
+        # A delayed first keyframe starts at the rest pose at each wrap.
+        # Blend back to rest, not to the future first keyframe, to avoid
+        # a visible discontinuity at duration -> zero.
+        wrap_state = pose if states[0][0] > 0 else states[0][1]
+        return _blend(last_state, wrap_state, (t - last_time) / (duration - last_time))
     return {k: v.copy() for k, v in last_state.items()}
