@@ -14,8 +14,9 @@ SLOT_JOINTS = {
     "hair_front": "head", "accessory": "head",
     "arm_left": "left_hand", "arm_right": "right_hand",
     "leg_left": "left_foot", "leg_right": "right_foot",
+    "full_character": "hip",
 }
-ORDER = ("leg_left", "leg_right", "arm_left", "arm_right", "body", "hair_back", "clothes", "head", "eyes", "mouth", "hair_front", "accessory")
+ORDER = ("leg_left", "leg_right", "arm_left", "arm_right", "body", "hair_back", "clothes", "head", "eyes", "mouth", "hair_front", "accessory", "full_character")
 
 
 def render_frames(mod_dir, timeline, fps=12):
