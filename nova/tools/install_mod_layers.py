@@ -46,6 +46,11 @@ def install_layers(template_dir, destination, replacements):
         layer_path = source / name
         if not layer_path.resolve().is_relative_to(source) or not layer_path.is_file():
             raise ValueError("Template layer escapes template directory")
+    # Reject symlinks anywhere in the template: copytree follows links by default,
+    # including unrelated assets that may point outside the template directory.
+    for entry in source.rglob("*"):
+        if entry.is_symlink():
+            raise ValueError("Template contains a symbolic link")
     # Validate everything before creating output, including optional transparent layers.
     prepared = {}
     for slot, artwork in replacements.items():
