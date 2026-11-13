@@ -45,10 +45,12 @@ def render_frames(mod_dir, timeline, fps=12):
     images = {}
     for slot in ORDER:
         name = layers.get(slot)
-        if name is None or slot in hidden_slots:
+        if name is None:
             continue
-        if not isinstance(name, str) or not name.endswith(".png") or Path(name).name != name:
+        if not isinstance(name, str) or not name.endswith(".png") or Path(name).name != name or name in (".", ".."):
             raise ValueError("Invalid layer filename")
+        if slot in hidden_slots:
+            continue
         candidate = (root / name).resolve()
         if not candidate.is_relative_to(root) or not candidate.is_file():
             raise ValueError("Layer must be a PNG inside MOD directory")
