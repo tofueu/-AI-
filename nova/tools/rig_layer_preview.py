@@ -40,7 +40,7 @@ def render_frames(mod_dir, timeline, fps=12):
         name = layers.get(slot)
         if name is None:
             continue
-        if not isinstance(name, str) or not name.endswith(".png"):
+        if not isinstance(name, str) or not name.endswith(".png") or Path(name).name != name:
             raise ValueError("Invalid layer filename")
         candidate = (root / name).resolve()
         if not candidate.is_relative_to(root) or not candidate.is_file():
@@ -57,12 +57,14 @@ def render_frames(mod_dir, timeline, fps=12):
     clothes = images.get("clothes")
     if require_clothes and (clothes is None or clothes.getchannel("A").getbbox() is None):
         fallback_name = manifest.get("fallback_clothes")
-        if not isinstance(fallback_name, str) or not fallback_name.endswith(".png"):
+        if not isinstance(fallback_name, str) or not fallback_name.endswith(".png") or Path(fallback_name).name != fallback_name:
             raise ValueError("Required clothes are missing and no fallback is configured")
         fallback_path = (root / fallback_name).resolve()
         if not fallback_path.is_relative_to(root) or not fallback_path.is_file():
             raise ValueError("Fallback clothing must be a PNG inside MOD directory")
         with Image.open(fallback_path) as source:
+            if source.format != "PNG":
+                raise ValueError("Fallback clothing must contain PNG data")
             if source.size != (width, height):
                 raise ValueError("Fallback clothing size does not match canvas")
             fallback = source.convert("RGBA")
