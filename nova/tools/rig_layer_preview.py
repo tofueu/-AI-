@@ -36,10 +36,16 @@ def render_frames(mod_dir, timeline, fps=12):
     layers = manifest["layers"]
     if not isinstance(layers, dict) or set(layers) - set(ORDER):
         raise ValueError("Invalid or unknown MOD layers")
+    hidden_slots = manifest.get("hidden_slots", [])
+    if not isinstance(hidden_slots, list) or any(
+        not isinstance(slot, str) or slot not in ORDER for slot in hidden_slots
+    ) or len(hidden_slots) != len(set(hidden_slots)):
+        raise ValueError("Invalid hidden_slots")
+    hidden_slots = set(hidden_slots)
     images = {}
     for slot in ORDER:
         name = layers.get(slot)
-        if name is None:
+        if name is None or slot in hidden_slots:
             continue
         if not isinstance(name, str) or not name.endswith(".png") or Path(name).name != name:
             raise ValueError("Invalid layer filename")
