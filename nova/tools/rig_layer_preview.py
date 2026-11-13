@@ -12,8 +12,8 @@ SLOT_JOINTS = {
     "body": "hip", "hair_back": "head", "clothes": "hip",
     "head": "head", "eyes": "head", "mouth": "head",
     "hair_front": "head", "accessory": "head",
-    "arm_left": "hand_left", "arm_right": "hand_right",
-    "leg_left": "foot_left", "leg_right": "foot_right",
+    "arm_left": "left_hand", "arm_right": "right_hand",
+    "leg_left": "left_foot", "leg_right": "right_foot",
 }
 ORDER = ("leg_left", "leg_right", "arm_left", "arm_right", "body", "hair_back", "clothes", "head", "eyes", "mouth", "hair_front", "accessory")
 
