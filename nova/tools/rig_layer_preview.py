@@ -42,6 +42,24 @@ def render_frames(mod_dir, timeline, fps=12):
             if source.size != (width, height):
                 raise ValueError("Layer size does not match canvas")
             images[slot] = source.convert("RGBA")
+    require_clothes = manifest.get("require_clothes", False)
+    if type(require_clothes) is not bool:
+        raise ValueError("Invalid require_clothes flag")
+    clothes = images.get("clothes")
+    if require_clothes and (clothes is None or clothes.getchannel("A").getbbox() is None):
+        fallback_name = manifest.get("fallback_clothes")
+        if not isinstance(fallback_name, str) or not fallback_name.endswith(".png"):
+            raise ValueError("Required clothes are missing and no fallback is configured")
+        fallback_path = (root / fallback_name).resolve()
+        if not fallback_path.is_relative_to(root) or not fallback_path.is_file():
+            raise ValueError("Fallback clothing must be a PNG inside MOD directory")
+        with Image.open(fallback_path) as source:
+            if source.size != (width, height):
+                raise ValueError("Fallback clothing size does not match canvas")
+            fallback = source.convert("RGBA")
+        if fallback.getchannel("A").getbbox() is None:
+            raise ValueError("Fallback clothing is transparent")
+        images["clothes"] = fallback
     duration = timeline["duration_ms"]
     if type(duration) not in (int, float) or not 0 < duration <= 60000:
         raise ValueError("Invalid duration")
