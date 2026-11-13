@@ -46,6 +46,8 @@ def render_frames(mod_dir, timeline, fps=12):
         if not candidate.is_relative_to(root) or not candidate.is_file():
             raise ValueError("Layer must be a PNG inside MOD directory")
         with Image.open(candidate) as source:
+            if source.format != "PNG":
+                raise ValueError("MOD layer must contain PNG data")
             if source.size != (width, height):
                 raise ValueError("Layer size does not match canvas")
             images[slot] = source.convert("RGBA")
