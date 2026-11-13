@@ -36,6 +36,16 @@ def install_layers(template_dir, destination, replacements):
     layers = manifest.get("layers")
     if not isinstance(layers, dict) or set(layers) != set(SLOTS):
         raise ValueError("Invalid MOD slots")
+    names = list(layers.values())
+    if any(not isinstance(name, str) or not name.endswith(".png")
+           or Path(name).name != name or name in (".", "..") for name in names):
+        raise ValueError("Unsafe MOD layer filenames")
+    if len(set(names)) != len(names):
+        raise ValueError("Duplicate MOD layer filenames")
+    for name in names:
+        layer_path = source / name
+        if not layer_path.resolve().is_relative_to(source) or not layer_path.is_file():
+            raise ValueError("Template layer escapes template directory")
     # Validate everything before creating output, including optional transparent layers.
     prepared = {}
     for slot, artwork in replacements.items():
