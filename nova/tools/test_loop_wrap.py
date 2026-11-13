@@ -18,7 +18,9 @@ class LoopWrapTests(unittest.TestCase):
                 self.assertAlmostEqual(before_wrap["head"][0], after_wrap["head"][0], places=4)
                 self.assertAlmostEqual(before_wrap["head"][1], after_wrap["head"][1], places=4)
                 self.assertEqual(after_wrap["head"], [0.5, 0.2])
-                self.assertEqual(sample_pose(rig, timeline, 125)["head"], [0.6, 0.30000000000000004])
+                midpoint = sample_pose(rig, timeline, 125)["head"]
+                self.assertAlmostEqual(midpoint[0], 0.6)
+                self.assertAlmostEqual(midpoint[1], 0.3)
                 self.assertEqual(rig["joints"]["head"], [0.5, 0.2])
 
     def test_zero_start_frame_still_wraps_to_first_keyframe(self):
