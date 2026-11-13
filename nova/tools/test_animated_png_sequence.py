@@ -21,6 +21,9 @@ class AnimatedPngSequenceTests(unittest.TestCase):
                 head = Image.new("RGBA", (width, height))
                 head.putpixel((width // 2, height // 3), (255, 0, 0, 255))
                 head.save(root / "head.png")
+                clothing = Image.new("RGBA", (width, height))
+                clothing.putpixel((5, 5), (100, 100, 100, 255))
+                clothing.save(root / "clothes.png")
                 original = (root / "head.png").read_bytes()
                 x, y = rig["joints"]["head"]
                 timeline = {
