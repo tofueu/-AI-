@@ -9,7 +9,7 @@ from pathlib import Path
 
 from PIL import Image
 
-SLOTS = ("body", "hair_back", "clothes", "head", "eyes", "mouth", "hair_front", "accessory")
+SLOTS = ("body", "arm_left", "arm_right", "leg_left", "leg_right", "hair_back", "clothes", "head", "eyes", "mouth", "hair_front", "accessory")
 SIZES = {"chibi": (512, 512), "adult": (512, 768)}
 
 
