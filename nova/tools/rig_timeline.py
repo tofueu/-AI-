@@ -51,7 +51,13 @@ def sample_pose(rig, timeline, time_ms):
         state = {**state, **changes}
         states.append((t, state))
     t = time_ms % duration if loop else min(time_ms, duration)
-    if t <= states[0][0]:
+    if t < states[0][0]:
+        # Before the first keyframe, ease from the authored rest pose rather
+        # than jumping directly to a future keyframe.
+        first_time, first_state = states[0]
+        if first_time > 0:
+            return _blend(pose, first_state, t / first_time)
+    if t == states[0][0]:
         return {k: v.copy() for k, v in states[0][1].items()}
     for (ta, a), (tb, b) in zip(states, states[1:]):
         if ta <= t <= tb:
