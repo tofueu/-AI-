@@ -7,6 +7,7 @@ import json
 import math
 from PIL import Image
 from nova.tools.rig_timeline import sample_pose
+from nova.tools.export_safety import validate_export_destination
 
 SLOT_JOINTS = {
     "body": "hip", "hair_back": "head", "clothes": "hip",
@@ -120,7 +121,7 @@ def export_gif(mod_dir, timeline, output_path, fps=12):
     import tempfile
 
     frames = render_frames(mod_dir, timeline, fps)
-    target = Path(output_path)
+    target = validate_export_destination(mod_dir, output_path)
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(
@@ -151,7 +152,7 @@ def export_png_frames(mod_dir, timeline, output_dir, fps=12):
     import shutil
 
     frames = render_frames(mod_dir, timeline, fps)
-    target = Path(output_dir)
+    target = validate_export_destination(mod_dir, output_dir)
     target.mkdir(parents=False, exist_ok=False)
     try:
         for index, frame in enumerate(frames):
