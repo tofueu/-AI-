@@ -1,4 +1,4 @@
-"""Generate a reusable, rig-relative NOVA idle/wave/walk timeline (not finished art).
+"""Generate a reusable, rig-relative NOVA idle/wave/walk/jump timeline (not finished art).
 
 Usage: python -m nova.tools.create_motion_timeline MOD_DIR OUTPUT.json --motion wave
 The source MOD and rig are read-only; existing output files are never replaced.
@@ -11,8 +11,8 @@ from pathlib import Path
 
 
 def create_motion_timeline(mod_dir, destination, motion="wave"):
-    if motion not in ("wave", "idle", "walk"):
-        raise ValueError("motion must be wave, idle or walk")
+    if motion not in ("wave", "idle", "walk", "jump"):
+        raise ValueError("motion must be wave, idle, walk or jump")
     root = Path(mod_dir).resolve()
     rig_path = (root / "rig.json").resolve()
     if not rig_path.is_relative_to(root) or not rig_path.is_file():
@@ -48,6 +48,15 @@ def create_motion_timeline(mod_dir, destination, motion="wave"):
             offsets["right_foot"] = [-stride, lift_right]
             offsets["left_hand"] = [-stride * 0.7, 0]
             offsets["right_hand"] = [stride * 0.7, 0]
+        elif motion == "jump":
+            # Crouch, lift and land with both feet synchronized.
+            height = -0.045 * max(0, math.sin(phase / 2))
+            offsets["hip"] = [0, height]
+            offsets["head"] = [0, height + bob]
+            offsets["left_foot"] = [0, height]
+            offsets["right_foot"] = [0, height]
+            offsets["left_hand"] = [-0.015 * math.sin(phase / 2), height]
+            offsets["right_hand"] = [0.015 * math.sin(phase / 2), height]
         frames.append({
             "time_ms": index * 250,
             "joints": {
@@ -72,10 +81,10 @@ def create_motion_timeline(mod_dir, destination, motion="wave"):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Create NOVA loopable idle/wave timeline")
+    parser = argparse.ArgumentParser(description="Create NOVA loopable idle/wave/walk/jump timeline")
     parser.add_argument("mod_dir", type=Path)
     parser.add_argument("destination", type=Path)
-    parser.add_argument("--motion", choices=("idle", "wave", "walk"), default="wave")
+    parser.add_argument("--motion", choices=("idle", "wave", "walk", "jump"), default="wave")
     args = parser.parse_args(argv)
     print(create_motion_timeline(args.mod_dir, args.destination, args.motion))
 
