@@ -18,9 +18,11 @@ def create_motion_timeline(mod_dir, destination, motion="wave"):
     if not rig_path.is_relative_to(root) or not rig_path.is_file():
         raise ValueError("rig.json must be inside MOD directory")
     rig = json.loads(rig_path.read_text(encoding="utf-8"))
+    if not isinstance(rig, dict) or not isinstance(rig.get("joints"), dict):
+        raise ValueError("rig.json must contain a joints object")
     joints = rig["joints"]
     for key in ("head", "hip", "right_hand", "left_hand", "left_foot", "right_foot"):
-        point = joints[key]
+        point = joints.get(key)
         if not isinstance(point, list) or len(point) != 2 or any(
             type(v) not in (int, float) or not math.isfinite(v) or not 0 <= v <= 1 for v in point
         ):
@@ -55,6 +57,12 @@ def create_motion_timeline(mod_dir, destination, motion="wave"):
             },
         })
     timeline = {"duration_ms": 2000, "frames": frames}
+    # Reject motions that would move any animated joint outside the normalized canvas.
+    # This also protects user-authored rigs whose joints are close to an edge.
+    for frame in frames:
+        for name, point in frame["joints"].items():
+            if any(not 0 <= coordinate <= 1 for coordinate in point):
+                raise ValueError("Motion moves joint outside canvas: " + name)
     destination = Path(destination)
     # Exclusive creation ensures an existing animation is never overwritten.
     with destination.open("x", encoding="utf-8") as output:
