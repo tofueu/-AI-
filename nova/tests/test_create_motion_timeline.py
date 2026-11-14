@@ -1,4 +1,4 @@
-"""Tests for authored idle/wave/walk timelines and source immutability."""
+"""Tests for authored idle/wave/walk/jump timelines and source immutability."""
 import json
 import tempfile
 import unittest
@@ -12,7 +12,7 @@ from nova.tools.rig_timeline import sample_pose
 class MotionTimelineTests(unittest.TestCase):
     def test_both_variants_both_motions(self):
         for variant in ("chibi", "adult"):
-            for motion in ("idle", "wave", "walk"):
+            for motion in ("idle", "wave", "walk", "jump"):
                 with self.subTest(variant=variant, motion=motion), tempfile.TemporaryDirectory() as temp:
                     root = Path(temp)
                     mod = create_template(root / "mod", variant)
@@ -38,6 +38,10 @@ class MotionTimelineTests(unittest.TestCase):
                         self.assertNotEqual(quarter["right_foot"], first["right_foot"])
                         self.assertNotEqual(quarter["left_hand"], first["left_hand"])
                         self.assertNotEqual(quarter["right_hand"], first["right_hand"])
+                    if motion == "jump":
+                        self.assertNotEqual(mid["hip"], first["hip"])
+                        self.assertNotEqual(mid["left_foot"], first["left_foot"])
+                        self.assertNotEqual(mid["right_foot"], first["right_foot"])
                     with self.assertRaises(FileExistsError):
                         create_motion_timeline(mod, dest, motion)
 
@@ -71,7 +75,7 @@ class MotionTimelineTests(unittest.TestCase):
             mod = create_template(root / "mod", "chibi")
             output = root / "invalid.json"
             with self.assertRaises(ValueError):
-                create_motion_timeline(mod, output, "jump")
+                create_motion_timeline(mod, output, "teleport")
             self.assertFalse(output.exists())
 
 
