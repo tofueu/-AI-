@@ -157,7 +157,7 @@ def export_png_frames(mod_dir, timeline, output_dir, fps=12):
     try:
         for index, frame in enumerate(frames):
             frame.save(target / f"frame_{index:04d}.png", format="PNG")
-    except Exception:
+    except BaseException:
         shutil.rmtree(target)
         raise
     return target
