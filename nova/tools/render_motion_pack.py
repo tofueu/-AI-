@@ -8,6 +8,8 @@ import json
 import shutil
 from pathlib import Path
 
+from nova.tools.export_safety import validate_export_destination
+
 from nova.tools.create_motion_timeline import create_motion_timeline
 from nova.tools.export_motion_pack import MOTIONS
 from nova.tools.rig_layer_preview import export_gif, export_png_frames
@@ -18,7 +20,7 @@ def render_motion_pack(mod_dir, destination, *, format="gif", fps=12):
         raise ValueError("format must be gif or png")
     if type(fps) is not int or not 1 <= fps <= 60:
         raise ValueError("fps must be an integer from 1 to 60")
-    destination = Path(destination)
+    destination = validate_export_destination(mod_dir, destination)
     destination.mkdir(parents=False, exist_ok=False)
     try:
         for motion in MOTIONS:
