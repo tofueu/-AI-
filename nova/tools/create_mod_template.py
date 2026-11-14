@@ -61,6 +61,30 @@ def _write_template(destination, variant):
         "left_foot": [0.41, 0.94],
         "right_foot": [0.59, 0.94],
     }
+    # Keyframed normalized joint offsets; editable independently of the artwork.
+    # Frame zero and the last frame match for a seamless loop.
+    motion = {
+        "format": "nova-motion-v1",
+        "variant": variant,
+        "coordinate_system": "normalized_xy_offsets",
+        "fps": 12,
+        "clips": {
+            "idle": [
+                {"frame": 0, "offsets": {"head": [0, 0], "left_hand": [0, 0], "right_hand": [0, 0]}},
+                {"frame": 6, "offsets": {"head": [0, -0.008], "left_hand": [0, -0.004], "right_hand": [0, -0.004]}},
+                {"frame": 12, "offsets": {"head": [0, 0], "left_hand": [0, 0], "right_hand": [0, 0]}},
+            ],
+            "typing": [
+                {"frame": 0, "offsets": {"left_hand": [0, 0], "right_hand": [0, 0]}},
+                {"frame": 2, "offsets": {"left_hand": [0, -0.012], "right_hand": [0, 0.006]}},
+                {"frame": 4, "offsets": {"left_hand": [0, 0.006], "right_hand": [0, -0.012]}},
+                {"frame": 6, "offsets": {"left_hand": [0, 0], "right_hand": [0, 0]}},
+            ],
+        },
+    }
+    (destination / "animations.json").write_text(
+        json.dumps(motion, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+    )
     (destination / "rig.json").write_text(
         json.dumps({"variant": variant, "coordinate_system": "normalized_xy", "joints": joints},
                    indent=2) + "\n", encoding="utf-8"
