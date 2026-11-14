@@ -83,7 +83,7 @@ def _write_template(destination, variant):
         },
     }
     (destination / "animations.json").write_text(
-        json.dumps(motion, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+        json.dumps(motion, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     (destination / "rig.json").write_text(
         json.dumps({"variant": variant, "coordinate_system": "normalized_xy", "joints": joints},
