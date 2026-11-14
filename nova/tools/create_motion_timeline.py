@@ -65,7 +65,7 @@ def create_motion_timeline(mod_dir, destination, motion="wave"):
                 for name, delta in offsets.items()
             },
         })
-    timeline = {"duration_ms": 2000, "frames": frames}
+    timeline = {"duration_ms": 2000, "loop": True, "frames": frames}
     # Reject motions that would move any animated joint outside the normalized canvas.
     # This also protects user-authored rigs whose joints are close to an edge.
     for frame in frames:
