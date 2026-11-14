@@ -52,6 +52,27 @@ class RendererIntegrationTests(unittest.TestCase):
                           self.source, "idle", self.root / "hidden")
         self.assertFalse((self.root / "hidden").exists())
 
+    def test_transparent_placeholder_is_ignored(self):
+        Image.new("RGBA", (8, 8), (0, 0, 0, 0)).save(self.source / "empty.png")
+        layers = [
+            {"file": "empty.png", "joint": "head", "anchor": [4, 4], "order": 1},
+            {**self.layers[0], "order": 2},
+        ]
+        output = self.root / "with_placeholder"
+        render_frames(RIG, MOTION, layers, self.source, "idle", output, frame_count=4)
+        with Image.open(output / "frame_0000.png") as frame:
+            self.assertEqual(frame.getpixel((32, 32)), (255, 0, 0, 255))
+        self.assertTrue((self.source / "empty.png").exists())
+
+    def test_only_transparent_layers_fail_without_output(self):
+        Image.new("RGBA", (8, 8), (0, 0, 0, 0)).save(self.source / "empty.png")
+        output = self.root / "only_empty"
+        with self.assertRaisesRegex(ValueError, "no nonempty visible layers"):
+            render_frames(RIG, MOTION,
+                          [{"file": "empty.png", "joint": "head", "anchor": [4, 4]}],
+                          self.source, "idle", output)
+        self.assertFalse(output.exists())
+
     def test_path_escape_rejected_before_output(self):
         with self.assertRaises(ValueError):
             render_frames(RIG, MOTION, [{**self.layers[0], "file": "../outside.png"}],
