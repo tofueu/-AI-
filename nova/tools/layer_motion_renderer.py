@@ -24,9 +24,13 @@ def render_frames(rig, motion, layers, source_dir, clip, output_dir, frame_count
         if layer["joint"] not in rig["joints"]:
             raise ValueError("unknown joint")
         with Image.open(path) as img:
-            prepared.append((layer["joint"], layer["anchor"], img.convert("RGBA")))
+            rgba = img.convert("RGBA")
+            # A transparent placeholder is not a drawable layer.
+            if rgba.getchannel("A").getbbox() is None:
+                continue
+            prepared.append((layer["joint"], layer["anchor"], rgba))
     if not prepared:
-        raise ValueError("no visible layers")
+        raise ValueError("no nonempty visible layers")
     duration = motion["clips"][clip][-1]["frame"]
     target.mkdir(parents=True, exist_ok=False)
     frames = []
