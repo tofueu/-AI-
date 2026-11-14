@@ -16,7 +16,8 @@ SLOT_JOINTS = {
     "leg_left": "left_foot", "leg_right": "right_foot",
     "full_character": "hip",
 }
-ORDER = ("leg_left", "leg_right", "arm_left", "arm_right", "body", "hair_back", "clothes", "head", "eyes", "mouth", "hair_front", "accessory", "full_character")
+# A full-character image is a base, not an opaque overlay: slot MODs must remain visible.
+ORDER = ("full_character", "leg_left", "leg_right", "arm_left", "arm_right", "body", "hair_back", "clothes", "head", "eyes", "mouth", "hair_front", "accessory")
 
 
 def render_frames(mod_dir, timeline, fps=12):
