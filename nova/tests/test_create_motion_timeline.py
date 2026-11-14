@@ -1,4 +1,4 @@
-"""Tests for authored idle/wave timelines and source immutability."""
+"""Tests for authored idle/wave/walk timelines and source immutability."""
 import json
 import tempfile
 import unittest
@@ -12,7 +12,7 @@ from nova.tools.rig_timeline import sample_pose
 class MotionTimelineTests(unittest.TestCase):
     def test_both_variants_both_motions(self):
         for variant in ("chibi", "adult"):
-            for motion in ("idle", "wave"):
+            for motion in ("idle", "wave", "walk"):
                 with self.subTest(variant=variant, motion=motion), tempfile.TemporaryDirectory() as temp:
                     root = Path(temp)
                     mod = create_template(root / "mod", variant)
@@ -32,6 +32,12 @@ class MotionTimelineTests(unittest.TestCase):
                     self.assertNotEqual(mid["head"], first["head"])
                     if motion == "wave":
                         self.assertNotEqual(mid["right_hand"], first["right_hand"])
+                    if motion == "walk":
+                        quarter = sample_pose(rig, timeline, 500)
+                        self.assertNotEqual(quarter["left_foot"], first["left_foot"])
+                        self.assertNotEqual(quarter["right_foot"], first["right_foot"])
+                        self.assertNotEqual(quarter["left_hand"], first["left_hand"])
+                        self.assertNotEqual(quarter["right_hand"], first["right_hand"])
                     with self.assertRaises(FileExistsError):
                         create_motion_timeline(mod, dest, motion)
 
