@@ -41,6 +41,30 @@ class MotionTimelineTests(unittest.TestCase):
                     with self.assertRaises(FileExistsError):
                         create_motion_timeline(mod, dest, motion)
 
+    def test_malformed_rig_does_not_create_output(self):
+        for bad_rig in ({}, {"joints": []}, {"joints": {"head": [0.5, 0.5]}}):
+            with self.subTest(bad_rig=bad_rig), tempfile.TemporaryDirectory() as temp:
+                root = Path(temp)
+                mod = create_template(root / "mod", "chibi")
+                (mod / "rig.json").write_text(json.dumps(bad_rig), encoding="utf-8")
+                output = root / "motion.json"
+                with self.assertRaises(ValueError):
+                    create_motion_timeline(mod, output, "walk")
+                self.assertFalse(output.exists())
+
+    def test_edge_joint_motion_is_rejected_before_output(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            mod = create_template(root / "mod", "adult")
+            rig_path = mod / "rig.json"
+            rig = json.loads(rig_path.read_text(encoding="utf-8"))
+            rig["joints"]["head"] = [0.5, 0.0]
+            rig_path.write_text(json.dumps(rig), encoding="utf-8")
+            output = root / "motion.json"
+            with self.assertRaisesRegex(ValueError, "outside canvas"):
+                create_motion_timeline(mod, output, "idle")
+            self.assertFalse(output.exists())
+
     def test_invalid_motion_does_not_create_output(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
