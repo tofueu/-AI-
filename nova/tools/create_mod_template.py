@@ -5,6 +5,7 @@ Each PNG is a full-canvas RGBA layer and can be replaced by an artist.
 """
 import argparse
 import json
+import shutil
 from pathlib import Path
 
 from PIL import Image
@@ -16,10 +17,20 @@ SIZES = {"chibi": (512, 512), "adult": (512, 768)}
 def create_template(destination, variant):
     if variant not in SIZES:
         raise ValueError("variant must be chibi or adult")
-    destination = Path(destination).resolve()
-    if destination.exists() and any(destination.iterdir()):
-        raise FileExistsError("Template destination must be empty")
-    destination.mkdir(parents=True, exist_ok=True)
+    destination = Path(destination)
+    # Never reuse an existing folder: failures must not delete user artwork.
+    if destination.exists():
+        raise FileExistsError("Template destination already exists")
+    destination.mkdir(parents=False, exist_ok=False)
+    try:
+        _write_template(destination, variant)
+    except BaseException:
+        shutil.rmtree(destination)
+        raise
+    return destination
+
+
+def _write_template(destination, variant):
     size = SIZES[variant]
     layers = {}
     for slot in SLOTS:
@@ -54,7 +65,6 @@ def create_template(destination, variant):
         json.dumps({"variant": variant, "coordinate_system": "normalized_xy", "joints": joints},
                    indent=2) + "\n", encoding="utf-8"
     )
-    return destination
 
 
 if __name__ == "__main__":
