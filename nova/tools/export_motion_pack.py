@@ -7,13 +7,15 @@ import argparse
 import shutil
 from pathlib import Path
 
+from nova.tools.export_safety import validate_export_destination
+
 from nova.tools.create_motion_timeline import create_motion_timeline
 
 MOTIONS = ("idle", "wave", "walk", "jump")
 
 
 def export_motion_pack(mod_dir, destination):
-    destination = Path(destination)
+    destination = validate_export_destination(mod_dir, destination)
     destination.mkdir(parents=False, exist_ok=False)
     try:
         for motion in MOTIONS:
