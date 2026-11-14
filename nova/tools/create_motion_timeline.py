@@ -1,4 +1,4 @@
-"""Generate a reusable, rig-relative NOVA idle/wave timeline (not finished art).
+"""Generate a reusable, rig-relative NOVA idle/wave/walk timeline (not finished art).
 
 Usage: python -m nova.tools.create_motion_timeline MOD_DIR OUTPUT.json --motion wave
 The source MOD and rig are read-only; existing output files are never replaced.
@@ -11,15 +11,15 @@ from pathlib import Path
 
 
 def create_motion_timeline(mod_dir, destination, motion="wave"):
-    if motion not in ("wave", "idle"):
-        raise ValueError("motion must be wave or idle")
+    if motion not in ("wave", "idle", "walk"):
+        raise ValueError("motion must be wave, idle or walk")
     root = Path(mod_dir).resolve()
     rig_path = (root / "rig.json").resolve()
     if not rig_path.is_relative_to(root) or not rig_path.is_file():
         raise ValueError("rig.json must be inside MOD directory")
     rig = json.loads(rig_path.read_text(encoding="utf-8"))
     joints = rig["joints"]
-    for key in ("head", "hip", "right_hand"):
+    for key in ("head", "hip", "right_hand", "left_hand", "left_foot", "right_foot"):
         point = joints[key]
         if not isinstance(point, list) or len(point) != 2 or any(
             type(v) not in (int, float) or not math.isfinite(v) or not 0 <= v <= 1 for v in point
@@ -36,6 +36,16 @@ def create_motion_timeline(mod_dir, destination, motion="wave"):
                 -0.06 * math.sin(phase),
                 -0.10 * (1 - math.cos(phase)) / 2,
             ]
+        elif motion == "walk":
+            # Opposite foot/hand phases create a cyclic, in-place walk preview.
+            # These are translations only; no joint rotation or skinning.
+            stride = 0.025 * math.sin(phase)
+            lift_left = -0.018 * max(0, math.cos(phase))
+            lift_right = -0.018 * max(0, -math.cos(phase))
+            offsets["left_foot"] = [stride, lift_left]
+            offsets["right_foot"] = [-stride, lift_right]
+            offsets["left_hand"] = [-stride * 0.7, 0]
+            offsets["right_hand"] = [stride * 0.7, 0]
         frames.append({
             "time_ms": index * 250,
             "joints": {
@@ -57,7 +67,7 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="Create NOVA loopable idle/wave timeline")
     parser.add_argument("mod_dir", type=Path)
     parser.add_argument("destination", type=Path)
-    parser.add_argument("--motion", choices=("idle", "wave"), default="wave")
+    parser.add_argument("--motion", choices=("idle", "wave", "walk"), default="wave")
     args = parser.parse_args(argv)
     print(create_motion_timeline(args.mod_dir, args.destination, args.motion))
 
