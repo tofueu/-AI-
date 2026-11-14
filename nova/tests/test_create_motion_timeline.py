@@ -24,10 +24,12 @@ class MotionTimelineTests(unittest.TestCase):
                     timeline = json.loads(dest.read_text(encoding="utf-8"))
                     rig = json.loads(before)
                     self.assertEqual(timeline["duration_ms"], 2000)
+                    self.assertIs(timeline["loop"], True)
                     self.assertEqual(len(timeline["frames"]), 9)
                     first = sample_pose(rig, timeline, 0)
                     last = sample_pose(rig, timeline, 2000)
                     self.assertEqual(first, last)
+                    self.assertEqual(sample_pose(rig, timeline, 250), sample_pose(rig, timeline, 2250))
                     mid = sample_pose(rig, timeline, 1000)
                     self.assertNotEqual(mid["head"], first["head"])
                     if motion == "wave":
