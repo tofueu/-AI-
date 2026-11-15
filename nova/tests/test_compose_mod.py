@@ -47,6 +47,27 @@ class ComposeModTests(unittest.TestCase):
             with self.assertRaises(FileExistsError):
                 compose(folder, fallback, target)
 
+    def test_invalid_layer_metadata_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            generate(root)
+            folder = root / "chibi"
+            path = folder / "manifest.json"
+            original = json.loads(path.read_text())
+            for field, bad, message in (
+                ("order", True, "order"),
+                ("order", "0", "order"),
+                ("visible", "false", "visibility"),
+                ("visible", 0, "visibility"),
+            ):
+                with self.subTest(field=field, bad=bad):
+                    manifest = json.loads(json.dumps(original))
+                    manifest["layers"][0][field] = bad
+                    path.write_text(json.dumps(manifest))
+                    with self.assertRaisesRegex(ValueError, message):
+                        compose(folder, root / "fallback.png")
+            path.write_text(json.dumps(original))
+
     def test_missing_fallback_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
