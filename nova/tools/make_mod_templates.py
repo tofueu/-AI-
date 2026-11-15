@@ -46,8 +46,7 @@ def generate(destination):
                 ],
                 "note": "Blank authoring template only. Paint body and clothing before rendering; required layers cannot remain transparent."
             }
-            (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "
-", encoding="utf-8")
+            (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # Validate staged artifacts before publishing either profile.
         for profile, spec in PROFILES.items():
             root = staged / profile
