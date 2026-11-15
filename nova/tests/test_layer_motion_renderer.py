@@ -99,6 +99,16 @@ class RendererIntegrationTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertTrue((self.source / "head.png").exists())
 
+    def test_invalid_anchor_rejected_before_output(self):
+        for index, anchor in enumerate(([4], [float("nan"), 4], ["bad", 4], [float("inf"), 4])):
+            with self.subTest(anchor=anchor):
+                output = self.root / f"bad_anchor_{index}"
+                with self.assertRaisesRegex(ValueError, "invalid layer anchor"):
+                    render_frames(RIG, MOTION, [{**self.layers[0], "anchor": anchor}],
+                                  self.source, "idle", output)
+                self.assertFalse(output.exists())
+                self.assertTrue((self.source / "head.png").exists())
+
     def test_path_escape_rejected_before_output(self):
         with self.assertRaises(ValueError):
             render_frames(RIG, MOTION, [{**self.layers[0], "file": "../outside.png"}],
