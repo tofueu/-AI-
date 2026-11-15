@@ -46,5 +46,8 @@ def resolve_outfit(base_layers, mod_layers, required_slots=("body", "clothing"),
         candidate = {**base.get(slot, {}), **layer}
         if slot in required_slots and not drawable(candidate):
             continue
+        if slot not in required_slots and source_dir is not None and not drawable(candidate):
+            # Keep the slot for rig/order compatibility, but never draw an empty asset.
+            candidate["visible"] = False
         resolved[slot] = candidate
     return sorted(resolved.values(), key=lambda layer: (layer.get("order", 0), layer["slot"]))
