@@ -95,5 +95,26 @@ class TemplateTests(unittest.TestCase):
             self.assertEqual(list(Path(temp).iterdir()), [])
 
 
+    def test_invalid_staged_rig_and_order_are_not_published(self):
+        original_dumps = json.dumps
+        for corruption in ("joints", "order"):
+            with self.subTest(corruption=corruption), tempfile.TemporaryDirectory() as temp:
+                def corrupt_manifest(value, *args, **kwargs):
+                    if isinstance(value, dict) and value.get("profile") == "adult":
+                        value = dict(value)
+                        if corruption == "joints":
+                            value["joints"] = {"root": [-1, -1]}
+                        else:
+                            value["layers"] = [dict(layer) for layer in value["layers"]]
+                            value["layers"][0]["order"] = 99
+                    return original_dumps(value, *args, **kwargs)
+
+                with patch("nova.tools.make_mod_templates.json.dumps", side_effect=corrupt_manifest):
+                    with self.assertRaisesRegex(ValueError, "invalid staged template"):
+                        generate(temp)
+                self.assertFalse((Path(temp) / "chibi").exists())
+                self.assertFalse((Path(temp) / "adult").exists())
+                self.assertEqual(list(Path(temp).iterdir()), [])
+
 if __name__ == "__main__":
     unittest.main()
