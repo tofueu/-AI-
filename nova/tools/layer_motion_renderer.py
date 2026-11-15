@@ -1,4 +1,5 @@
 """Render joint-anchored MOD layers to RGBA PNG frames and a looping GIF."""
+import math
 from pathlib import Path
 from PIL import Image
 from nova.tools.motion_sampler import sample_pose
@@ -23,6 +24,10 @@ def render_frames(rig, motion, layers, source_dir, clip, output_dir, frame_count
             raise ValueError("unsafe or missing layer")
         if layer["joint"] not in rig["joints"]:
             raise ValueError("unknown joint")
+        anchor = layer.get("anchor")
+        if (not isinstance(anchor, (list, tuple)) or len(anchor) != 2
+                or any(type(v) not in (int, float) or not math.isfinite(v) for v in anchor)):
+            raise ValueError("invalid layer anchor")
         with Image.open(path) as img:
             rgba = img.convert("RGBA")
             # A transparent placeholder is not a drawable layer.
