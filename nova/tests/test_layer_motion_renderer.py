@@ -85,6 +85,20 @@ class RendererIntegrationTests(unittest.TestCase):
         self.assertFalse(output.exists())
         self.assertTrue((self.source / "head.png").exists())
 
+    def test_invalid_late_segment_rejected_before_output(self):
+        # The first segment is valid; a bad joint appears only after it.
+        invalid = {**MOTION, "clips": {"idle": [
+            {"frame": 0, "offsets": {"head": [0, 0]}},
+            {"frame": 2, "offsets": {"head": [0.125, 0]}},
+            {"frame": 4, "offsets": {"missing_joint": [0, 0]}},
+            {"frame": 6, "offsets": {"head": [0, 0]}},
+        ]}}
+        output = self.root / "invalid_late"
+        with self.assertRaisesRegex(ValueError, "unknown joint"):
+            render_frames(RIG, invalid, self.layers, self.source, "idle", output)
+        self.assertFalse(output.exists())
+        self.assertTrue((self.source / "head.png").exists())
+
     def test_path_escape_rejected_before_output(self):
         with self.assertRaises(ValueError):
             render_frames(RIG, MOTION, [{**self.layers[0], "file": "../outside.png"}],
