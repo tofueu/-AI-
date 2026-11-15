@@ -34,5 +34,25 @@ class TemplateTests(unittest.TestCase):
             self.assertEqual(original.read_bytes(), before)
 
 
+    def test_unknown_files_in_existing_profile_are_preserved(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "adult"
+            root.mkdir()
+            artwork = root / "custom_hair.png"
+            artwork.write_bytes(b"precious user artwork")
+            with self.assertRaises(FileExistsError):
+                generate(temp)
+            self.assertEqual(artwork.read_bytes(), b"precious user artwork")
+            self.assertFalse((Path(temp) / "chibi").exists())
+            self.assertFalse((root / "manifest.json").exists())
+
+    def test_empty_profile_directory_is_not_reused(self):
+        with tempfile.TemporaryDirectory() as temp:
+            (Path(temp) / "chibi").mkdir()
+            with self.assertRaises(FileExistsError):
+                generate(temp)
+            self.assertFalse((Path(temp) / "adult").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
