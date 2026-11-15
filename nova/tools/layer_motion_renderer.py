@@ -34,7 +34,11 @@ def render_frames(rig, motion, layers, source_dir, clip, output_dir, frame_count
     # Validate the actual clip and all joint offsets before creating any output.
     # A malformed clip must never leave behind a partial render directory.
     duration = motion["clips"][clip][-1]["frame"]
-    sample_pose(rig, motion, clip, 0)
+    # Validate every segment, including joints that appear only in later keys.
+    # The sampler checks the two keys surrounding the requested time.
+    keys = motion["clips"][clip]
+    for left, right in zip(keys, keys[1:]):
+        sample_pose(rig, motion, clip, (left["frame"] + right["frame"]) / 2)
     target.mkdir(parents=True, exist_ok=False)
     frames = []
     try:
