@@ -73,6 +73,18 @@ class RendererIntegrationTests(unittest.TestCase):
                           self.source, "idle", output)
         self.assertFalse(output.exists())
 
+    def test_invalid_motion_rejected_before_output(self):
+        invalid = {**MOTION, "clips": {"idle": [
+            {"frame": 0, "offsets": {"head": [0, 0]}},
+            {"frame": 4, "offsets": {"missing_joint": [0, 0]}},
+            {"frame": 8, "offsets": {"head": [0, 0]}},
+        ]}}
+        output = self.root / "invalid_motion"
+        with self.assertRaises(ValueError):
+            render_frames(RIG, invalid, self.layers, self.source, "idle", output)
+        self.assertFalse(output.exists())
+        self.assertTrue((self.source / "head.png").exists())
+
     def test_path_escape_rejected_before_output(self):
         with self.assertRaises(ValueError):
             render_frames(RIG, MOTION, [{**self.layers[0], "file": "../outside.png"}],
