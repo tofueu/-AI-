@@ -28,6 +28,25 @@ class ComposeModTests(unittest.TestCase):
                 self.assertEqual(result.getpixel((0, 0)), (0, 255, 0, 255))
                 self.assertFalse((root / "output.png").exists())
 
+    def test_new_export_is_png_and_preserves_sources(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            generate(root)
+            folder = root / "chibi"
+            body = folder / "body.png"
+            Image.new("RGBA", (512, 512), "red").save(body)
+            original = body.read_bytes()
+            fallback = root / "fallback.png"
+            Image.new("RGBA", (512, 512), "green").save(fallback)
+            target = root / "render.png"
+            compose(folder, fallback, target)
+            with Image.open(target) as rendered:
+                self.assertEqual(rendered.format, "PNG")
+                self.assertEqual(rendered.getpixel((0, 0)), (0, 255, 0, 255))
+            self.assertEqual(body.read_bytes(), original)
+            with self.assertRaises(FileExistsError):
+                compose(folder, fallback, target)
+
     def test_missing_fallback_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
