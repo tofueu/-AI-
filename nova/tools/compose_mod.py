@@ -59,7 +59,13 @@ def compose(mod_dir, base_outfit, output_path=None):
         result = Image.alpha_composite(result, images[slot])
     if output_path is not None:
         output = Path(output_path)
-        if output.exists():
-            raise FileExistsError(output)
-        result.save(output)
+        # Exclusive creation prevents concurrent renders from overwriting an existing MOD export.
+        # Remove only the newly created partial file if PNG encoding fails.
+        with output.open("xb") as handle:
+            try:
+                result.save(handle, format="PNG")
+            except Exception:
+                handle.close()
+                output.unlink(missing_ok=True)
+                raise
     return result
