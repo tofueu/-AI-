@@ -36,7 +36,12 @@ def resolve_outfit(base_layers, mod_layers, required_slots=("body", "clothing"),
         base[slot] = dict(layer)
     if any(slot not in base or not drawable(base[slot]) for slot in required_slots):
         raise ValueError("base outfit lacks drawable required slots")
-    resolved = dict(base)
+    resolved = {
+        slot: ({**layer, "visible": False}
+               if slot not in required_slots and source_dir is not None and not drawable(layer)
+               else dict(layer))
+        for slot, layer in base.items()
+    }
     seen_mod_slots = set()
     for layer in mod_layers:
         slot = layer["slot"]
