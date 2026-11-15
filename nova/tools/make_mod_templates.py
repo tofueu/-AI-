@@ -53,8 +53,8 @@ def generate(destination):
             manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
             if manifest["profile"] != profile or manifest["canvas"] != spec["canvas"]:
                 raise ValueError(f"invalid staged template manifest: {profile}")
-            if [layer["slot"] for layer in manifest["layers"]] != list(SLOTS):
-                raise ValueError(f"invalid staged template layers: {profile}")
+            if manifest.get("joints") != spec["joints"]:\n                raise ValueError(f"invalid staged template joints: {profile}")\n            if [layer["slot"] for layer in manifest["layers"]] != list(SLOTS):
+                raise ValueError(f"invalid staged template layers: {profile}")\n            if [layer["order"] for layer in manifest["layers"]] != list(range(len(SLOTS))):\n                raise ValueError(f"invalid staged template layer order: {profile}")
             for slot in SLOTS:
                 with Image.open(root / (slot + ".png")) as image:
                     image.verify()
