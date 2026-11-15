@@ -17,6 +17,11 @@ PROFILES = {
 def generate(destination):
     destination = Path(destination)
     outputs = []
+    for profile in PROFILES:
+        root = destination / profile
+        paths = [root / (slot + ".png") for slot in SLOTS] + [root / "manifest.json"]
+        if any(path.exists() for path in paths):
+            raise FileExistsError(f"template already exists: {root}")
     for profile, spec in PROFILES.items():
         root = destination / profile
         files = [root / (slot + ".png") for slot in SLOTS]
