@@ -17,11 +17,12 @@ PROFILES = {
 def generate(destination):
     destination = Path(destination)
     outputs = []
+    # An existing profile directory may contain unrecognized user art or a MOD.
+    # Never write into it, even when the expected template filenames are absent.
     for profile in PROFILES:
         root = destination / profile
-        paths = [root / (slot + ".png") for slot in SLOTS] + [root / "manifest.json"]
-        if any(path.exists() for path in paths):
-            raise FileExistsError(f"template already exists: {root}")
+        if root.exists() or root.is_symlink():
+            raise FileExistsError(f"template profile directory already exists: {root}")
     for profile, spec in PROFILES.items():
         root = destination / profile
         files = [root / (slot + ".png") for slot in SLOTS]
