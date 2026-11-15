@@ -5,6 +5,8 @@ Requires Pillow. Never overwrites existing user artwork.
 """
 import argparse
 import json
+import shutil
+import tempfile
 from pathlib import Path
 from PIL import Image
 
@@ -23,29 +25,45 @@ def generate(destination):
         root = destination / profile
         if root.exists() or root.is_symlink():
             raise FileExistsError(f"template profile directory already exists: {root}")
-    for profile, spec in PROFILES.items():
-        root = destination / profile
-        files = [root / (slot + ".png") for slot in SLOTS]
-        manifest_path = root / "manifest.json"
-        # Refuse partial updates too: existing artwork and manifests remain untouched.
-        if any(path.exists() for path in files + [manifest_path]):
-            raise FileExistsError(f"template already exists: {root}")
-        root.mkdir(parents=True, exist_ok=True)
-        for path in files:
-            Image.new("RGBA", tuple(spec["canvas"]), (0, 0, 0, 0)).save(path)
-            outputs.append(path)
-        manifest = {
-            "schema_version": 1, "profile": profile, "canvas": spec["canvas"],
-            "joints": spec["joints"],
-            "layers": [
-                {"slot": slot, "file": slot + ".png", "order": i,
-                 "visible": slot in ("body", "clothing")}
-                for i, slot in enumerate(SLOTS)
-            ],
-            "note": "Blank authoring template only. Paint body and clothing before rendering; required layers cannot remain transparent."
-        }
-        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-        outputs.append(manifest_path)
+    # Build both profiles off-destination. A failed image write must not
+    # leave one usable-looking profile beside a half-written second profile.
+    destination.mkdir(parents=True, exist_ok=True)
+    staged = Path(tempfile.mkdtemp(prefix=".nova-templates-", dir=destination))
+    installed = []
+    try:
+        for profile, spec in PROFILES.items():
+            root = staged / profile
+            root.mkdir()
+            for slot in SLOTS:
+                Image.new("RGBA", tuple(spec["canvas"]), (0, 0, 0, 0)).save(root / (slot + ".png"))
+            manifest = {
+                "schema_version": 1, "profile": profile, "canvas": spec["canvas"],
+                "joints": spec["joints"],
+                "layers": [
+                    {"slot": slot, "file": slot + ".png", "order": i,
+                     "visible": slot in ("body", "clothing")}
+                    for i, slot in enumerate(SLOTS)
+                ],
+                "note": "Blank authoring template only. Paint body and clothing before rendering; required layers cannot remain transparent."
+            }
+            (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        # Recheck before installing in case another process created a profile.
+        for profile in PROFILES:
+            target = destination / profile
+            if target.exists() or target.is_symlink():
+                raise FileExistsError(f"template profile directory already exists: {target}")
+        for profile in PROFILES:
+            target = destination / profile
+            (staged / profile).rename(target)
+            installed.append(target)
+            outputs.extend(target / (slot + ".png") for slot in SLOTS)
+            outputs.append(target / "manifest.json")
+    except Exception:
+        for target in reversed(installed):
+            shutil.rmtree(target)
+        raise
+    finally:
+        shutil.rmtree(staged, ignore_errors=True)
     return outputs
 
 def main():
