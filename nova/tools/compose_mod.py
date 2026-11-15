@@ -21,7 +21,13 @@ def compose(mod_dir, base_outfit, output_path=None):
         raise ValueError("invalid canvas")
     size = tuple(canvas)
     layers = manifest["layers"]
-    slots = [layer["slot"] for layer in layers]
+    if not isinstance(layers, list) or any(not isinstance(layer, dict) for layer in layers):
+        raise ValueError("invalid MOD layers")
+    if any(type(layer.get("order")) is not int for layer in layers):
+        raise ValueError("invalid layer order")
+    if any(type(layer.get("visible", True)) is not bool for layer in layers):
+        raise ValueError("invalid layer visibility")
+    slots = [layer.get("slot") for layer in layers]
     if len(slots) != len(set(slots)) or set(slots) != set(SLOTS):
         raise ValueError("missing, duplicated, or unknown MOD slots")
     if sorted(layer["order"] for layer in layers) != list(range(len(SLOTS))):
