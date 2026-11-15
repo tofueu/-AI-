@@ -44,11 +44,21 @@ def render_frames(rig, motion, layers, source_dir, clip, output_dir, frame_count
     keys = motion["clips"][clip]
     for left, right in zip(keys, keys[1:]):
         sample_pose(rig, motion, clip, (left["frame"] + right["frame"]) / 2)
+    # Preflight every output pose, including base rig coordinates, before writing.
+    poses = []
+    for index in range(frame_count):
+        pose = sample_pose(rig, motion, clip, duration * index / frame_count)
+        for joint, _, _ in prepared:
+            xy = pose[joint]
+            if (not isinstance(xy, (list, tuple)) or len(xy) != 2
+                    or any(type(v) not in (int, float) or not math.isfinite(v) for v in xy)):
+                raise ValueError("invalid joint position")
+        poses.append(pose)
     target.mkdir(parents=True, exist_ok=False)
     frames = []
     try:
         for index in range(frame_count):
-            pose = sample_pose(rig, motion, clip, duration * index / frame_count)
+            pose = poses[index]
             canvas = Image.new("RGBA", (width, height))
             for joint, anchor, img in prepared:
                 x, y = pose[joint]
