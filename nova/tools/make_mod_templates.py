@@ -46,7 +46,7 @@ def generate(destination):
                 ],
                 "note": "Blank authoring template only. Paint body and clothing before rendering; required layers cannot remain transparent."
             }
-            (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+            (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         # Recheck before installing in case another process created a profile.
         for profile in PROFILES:
             target = destination / profile
