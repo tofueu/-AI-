@@ -31,7 +31,10 @@ def render_frames(rig, motion, layers, source_dir, clip, output_dir, frame_count
             prepared.append((layer["joint"], layer["anchor"], rgba))
     if not prepared:
         raise ValueError("no nonempty visible layers")
+    # Validate the actual clip and all joint offsets before creating any output.
+    # A malformed clip must never leave behind a partial render directory.
     duration = motion["clips"][clip][-1]["frame"]
+    sample_pose(rig, motion, clip, 0)
     target.mkdir(parents=True, exist_ok=False)
     frames = []
     try:
