@@ -47,6 +47,22 @@ def generate(destination):
                 "note": "Blank authoring template only. Paint body and clothing before rendering; required layers cannot remain transparent."
             }
             (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        # Validate staged artifacts before publishing either profile.
+        for profile, spec in PROFILES.items():
+            root = staged / profile
+            manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+            if manifest["profile"] != profile or manifest["canvas"] != spec["canvas"]:
+                raise ValueError(f"invalid staged template manifest: {profile}")
+            if [layer["slot"] for layer in manifest["layers"]] != list(SLOTS):
+                raise ValueError(f"invalid staged template layers: {profile}")
+            for slot in SLOTS:
+                with Image.open(root / (slot + ".png")) as image:
+                    image.verify()
+                with Image.open(root / (slot + ".png")) as image:
+                    if image.mode != "RGBA" or image.size != tuple(spec["canvas"]):
+                        raise ValueError(f"invalid staged PNG: {profile}/{slot}")
+                    if image.getchannel("A").getbbox() is not None:
+                        raise ValueError(f"nontransparent starter layer: {profile}/{slot}")
         # Recheck before installing in case another process created a profile.
         for profile in PROFILES:
             target = destination / profile
