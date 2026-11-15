@@ -109,6 +109,16 @@ class RendererIntegrationTests(unittest.TestCase):
                 self.assertFalse(output.exists())
                 self.assertTrue((self.source / "head.png").exists())
 
+    def test_invalid_rig_joint_rejected_without_output(self):
+        for index, bad in enumerate((float("nan"), float("inf"), "bad")):
+            with self.subTest(value=bad):
+                rig = {**RIG, "joints": {"head": [bad, 0.5]}}
+                output = self.root / f"bad_joint_{index}"
+                with self.assertRaisesRegex(ValueError, "invalid joint position"):
+                    render_frames(rig, MOTION, self.layers, self.source, "idle", output)
+                self.assertFalse(output.exists())
+                self.assertTrue((self.source / "head.png").exists())
+
     def test_path_escape_rejected_before_output(self):
         with self.assertRaises(ValueError):
             render_frames(RIG, MOTION, [{**self.layers[0], "file": "../outside.png"}],
