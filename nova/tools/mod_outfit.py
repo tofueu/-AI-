@@ -28,12 +28,21 @@ def resolve_outfit(base_layers, mod_layers, required_slots=("body", "clothing"),
         except (OSError, ValueError):
             return False
 
-    base = {layer["slot"]: dict(layer) for layer in base_layers}
+    base = {}
+    for layer in base_layers:
+        slot = layer["slot"]
+        if slot in base:
+            raise ValueError(f"duplicate base slot: {slot}")
+        base[slot] = dict(layer)
     if any(slot not in base or not drawable(base[slot]) for slot in required_slots):
         raise ValueError("base outfit lacks drawable required slots")
     resolved = dict(base)
+    seen_mod_slots = set()
     for layer in mod_layers:
         slot = layer["slot"]
+        if slot in seen_mod_slots:
+            raise ValueError(f"duplicate MOD slot: {slot}")
+        seen_mod_slots.add(slot)
         candidate = {**base.get(slot, {}), **layer}
         if slot in required_slots and not drawable(candidate):
             continue
