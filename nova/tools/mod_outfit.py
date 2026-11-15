@@ -34,7 +34,7 @@ def resolve_outfit(base_layers, mod_layers, required_slots=("body", "clothing"),
     resolved = dict(base)
     for layer in mod_layers:
         slot = layer["slot"]
-        candidate = dict(layer)
+        candidate = {**base.get(slot, {}), **layer}
         if slot in required_slots and not drawable(candidate):
             continue
         resolved[slot] = candidate
