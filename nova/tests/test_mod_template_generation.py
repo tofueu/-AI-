@@ -65,5 +65,37 @@ class TemplateGenerationTests(unittest.TestCase):
             self.assertEqual(list(root.iterdir()), [])
 
 
+    def test_corrupt_png_is_rejected_before_install(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            real_save = Image.Image.save
+            count = 0
+
+            def corrupt_one_layer(image, fp, *args, **kwargs):
+                nonlocal count
+                count += 1
+                if count == 1:
+                    Path(fp).write_bytes(b"not a PNG")
+                    return None
+                return real_save(image, fp, *args, **kwargs)
+
+            with patch.object(Image.Image, "save", corrupt_one_layer):
+                with self.assertRaises(Exception):
+                    templates.generate(root)
+            self.assertEqual(list(root.iterdir()), [])
+
+    def test_existing_adult_directory_prevents_chibi_install(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            adult = root / "adult"
+            adult.mkdir()
+            sentinel = adult / "custom_mod.png"
+            sentinel.write_bytes(b"keep me")
+            with self.assertRaises(FileExistsError):
+                templates.generate(root)
+            self.assertEqual(sentinel.read_bytes(), b"keep me")
+            self.assertFalse((root / "chibi").exists())
+
+
 if __name__ == "__main__":
     unittest.main()
