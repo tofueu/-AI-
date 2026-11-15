@@ -46,15 +46,20 @@ def generate(destination):
                 ],
                 "note": "Blank authoring template only. Paint body and clothing before rendering; required layers cannot remain transparent."
             }
-            (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+            (root / "manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "
+", encoding="utf-8")
         # Validate staged artifacts before publishing either profile.
         for profile, spec in PROFILES.items():
             root = staged / profile
             manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
             if manifest["profile"] != profile or manifest["canvas"] != spec["canvas"]:
                 raise ValueError(f"invalid staged template manifest: {profile}")
-            if manifest.get("joints") != spec["joints"]:\n                raise ValueError(f"invalid staged template joints: {profile}")\n            if [layer["slot"] for layer in manifest["layers"]] != list(SLOTS):
-                raise ValueError(f"invalid staged template layers: {profile}")\n            if [layer["order"] for layer in manifest["layers"]] != list(range(len(SLOTS))):\n                raise ValueError(f"invalid staged template layer order: {profile}")
+            if manifest.get("joints") != spec["joints"]:
+                raise ValueError(f"invalid staged template joints: {profile}")
+            if [layer["slot"] for layer in manifest["layers"]] != list(SLOTS):
+                raise ValueError(f"invalid staged template layers: {profile}")
+            if [layer["order"] for layer in manifest["layers"]] != list(range(len(SLOTS))):
+                raise ValueError(f"invalid staged template layer order: {profile}")
             for slot in SLOTS:
                 with Image.open(root / (slot + ".png")) as image:
                     image.verify()
