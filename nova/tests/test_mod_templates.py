@@ -74,5 +74,26 @@ class TemplateTests(unittest.TestCase):
             self.assertFalse((Path(temp) / "adult").exists())
             self.assertEqual(list(Path(temp).iterdir()), [])
 
+    def test_corrupted_staged_png_prevents_publication(self):
+        with tempfile.TemporaryDirectory() as temp:
+            original_save = Image.Image.save
+            calls = 0
+
+            def corrupt_one_png(image, fp, *args, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == len(SLOTS) + 1:
+                    Path(fp).write_bytes(b"not a PNG")
+                    return None
+                return original_save(image, fp, *args, **kwargs)
+
+            with patch("nova.tools.make_mod_templates.Image.Image.save", new=corrupt_one_png):
+                with self.assertRaises(Exception):
+                    generate(temp)
+            self.assertFalse((Path(temp) / "chibi").exists())
+            self.assertFalse((Path(temp) / "adult").exists())
+            self.assertEqual(list(Path(temp).iterdir()), [])
+
+
 if __name__ == "__main__":
     unittest.main()
