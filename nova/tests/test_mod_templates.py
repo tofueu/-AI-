@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from PIL import Image
 from nova.tools.make_mod_templates import PROFILES, SLOTS, generate
 
@@ -53,6 +54,25 @@ class TemplateTests(unittest.TestCase):
                 generate(temp)
             self.assertFalse((Path(temp) / "adult").exists())
 
+
+    def test_failed_second_profile_rolls_back_both(self):
+        with tempfile.TemporaryDirectory() as temp:
+            original_new = Image.new
+            calls = 0
+
+            def fail_during_adult(*args, **kwargs):
+                nonlocal calls
+                calls += 1
+                if calls == len(SLOTS) + 1:
+                    raise OSError("simulated PNG encoder failure")
+                return original_new(*args, **kwargs)
+
+            with patch("nova.tools.make_mod_templates.Image.new", side_effect=fail_during_adult):
+                with self.assertRaisesRegex(OSError, "simulated"):
+                    generate(temp)
+            self.assertFalse((Path(temp) / "chibi").exists())
+            self.assertFalse((Path(temp) / "adult").exists())
+            self.assertEqual(list(Path(temp).iterdir()), [])
 
 if __name__ == "__main__":
     unittest.main()
