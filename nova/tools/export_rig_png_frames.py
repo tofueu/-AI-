@@ -5,6 +5,7 @@ editor. This exporter never changes the source artwork or replaces a directory.
 """
 import json
 from pathlib import Path
+from PIL import Image
 from nova.tools.rig_layer_renderer import render_sequence
 
 
@@ -22,6 +23,9 @@ def export_rig_png_frames(layers, attachments, keyframes, canvas, output_dir, *,
     )
     if len(frames) < 2:
         raise ValueError("animation requires at least two frames")
+    if any(not isinstance(frame, Image.Image) or frame.mode != "RGBA" or
+           frame.size != canvas for frame in frames):
+        raise ValueError("all animation frames must be canvas-sized RGBA images")
     # mkdir without exist_ok is exclusive: never overwrite an existing export.
     path.mkdir(parents=False, exist_ok=False)
     try:
