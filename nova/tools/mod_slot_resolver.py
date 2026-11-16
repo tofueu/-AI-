@@ -3,6 +3,7 @@ from PIL import Image
 
 SLOTS = ("body", "head", "eyes", "mouth", "hair", "hat", "top", "bottom", "shoes", "accessory")
 CLOTHING = ("top", "bottom", "shoes")
+REQUIRED = ("body", "head", *CLOTHING)
 
 
 def resolve_mod_layers(base, mod=None, *, canvas, visibility=None):
@@ -21,12 +22,17 @@ def resolve_mod_layers(base, mod=None, *, canvas, visibility=None):
     for name, layer in list(base.items()) + list(mod.items()):
         if not isinstance(layer, Image.Image) or layer.mode != "RGBA" or layer.size != canvas:
             raise ValueError(f"{name} must be a full-canvas RGBA image")
-    if not {"body", "head", *CLOTHING}.issubset(base):
+    if not set(REQUIRED).issubset(base):
         raise ValueError("official base must provide body, head and basic clothing")
+    # Transparent replacements must not erase mandatory body or clothing layers.
+    # Reject an unusable official base rather than exporting an invisible pet.
+    for slot in REQUIRED:
+        if base[slot].getchannel("A").getbbox() is None:
+            raise ValueError(f"official base {slot} must not be fully transparent")
     layers, visible = {}, {}
     for slot in SLOTS:
         candidate = mod.get(slot)
-        if slot in CLOTHING and (candidate is None or candidate.getchannel("A").getbbox() is None):
+        if slot in REQUIRED and (candidate is None or candidate.getchannel("A").getbbox() is None):
             candidate = base[slot]
         if candidate is None:
             candidate = base.get(slot)
@@ -34,5 +40,5 @@ def resolve_mod_layers(base, mod=None, *, canvas, visibility=None):
             continue
         layers[slot] = candidate.copy()
         nonempty = candidate.getchannel("A").getbbox() is not None
-        visible[slot] = nonempty and (slot in CLOTHING or visibility.get(slot, True))
+        visible[slot] = nonempty and (slot in REQUIRED or visibility.get(slot, True))
     return layers, visible
