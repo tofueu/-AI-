@@ -1,5 +1,6 @@
 """GIF export regression tests for layered NOVA poses."""
 import tempfile
+import shutil
 import unittest
 from pathlib import Path
 from PIL import Image
@@ -18,15 +19,18 @@ class RenderAnimationTests(unittest.TestCase):
             before = body.read_bytes()
             fallback = root / "outfit.png"
             Image.new("RGBA", (512, 512), "green").save(fallback)
+            second = root / "second-pose"
+            shutil.copytree(pose, second)
+            Image.new("RGBA", (512, 512), "blue").save(second / "body.png")
             target = root / "motion.gif"
-            render_gif([pose, pose], fallback, target, 150)
+            render_gif([pose, second], fallback, target, 150)
             with Image.open(target) as gif:
                 self.assertEqual(gif.format, "GIF")
                 self.assertEqual(gif.n_frames, 2)
                 self.assertEqual(gif.info["loop"], 0)
             self.assertEqual(body.read_bytes(), before)
             with self.assertRaises(FileExistsError):
-                render_gif([pose, pose], fallback, target)
+                render_gif([pose, second], fallback, target)
 
     def test_invalid_animation_inputs(self):
         with tempfile.TemporaryDirectory() as tmp:
