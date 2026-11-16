@@ -34,7 +34,7 @@ def export_rig_gif(layers, attachments, keyframes, canvas, output_path, *,
             frames[0].save(
                 stream, format="GIF", save_all=True,
                 append_images=frames[1:], duration=frame_duration_ms,
-                loop=0 if loop else 1, disposal=2, optimize=False,
+                **({"loop": 0} if loop else {}), disposal=2, optimize=False,
             )
         except BaseException:
             # An encoding failure must not leave a partial file behind.
