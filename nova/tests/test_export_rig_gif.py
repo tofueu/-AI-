@@ -35,6 +35,18 @@ class RigGifExportTests(unittest.TestCase):
             self.assertEqual(gif.size, (64, 64))
         self.assertEqual(self.layer.tobytes(), original)
 
+    def test_playback_loop_metadata(self):
+        export_rig_gif(self.layers, self.attachments, self.poses,
+                       (64, 64), self.path, frames_per_segment=4, loop=False)
+        with Image.open(self.path) as gif:
+            self.assertNotIn("loop", gif.info,
+                             "non-looping GIF must not include NETSCAPE repeat metadata")
+        self.path.unlink()
+        export_rig_gif(self.layers, self.attachments, self.poses,
+                       (64, 64), self.path, frames_per_segment=4, loop=True)
+        with Image.open(self.path) as gif:
+            self.assertEqual(gif.info.get("loop"), 0)
+
     def test_existing_output_not_overwritten(self):
         self.path.write_bytes(b"sentinel")
         with self.assertRaises(FileExistsError):
