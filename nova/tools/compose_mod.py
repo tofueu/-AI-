@@ -42,6 +42,9 @@ def compose(mod_dir, base_outfit, output_path=None):
         if filename != slot + ".png":
             raise ValueError("unsafe or mismatched layer path")
         path = root / filename
+        # A MOD may come from an untrusted archive: reject symlinked layers.
+        if path.is_symlink():
+            raise ValueError("unsafe symlinked MOD layer: " + slot)
         with Image.open(path) as source:
             source.load()
             if source.mode != "RGBA" or source.size != size:
