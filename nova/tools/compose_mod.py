@@ -14,7 +14,10 @@ SLOTS = REQUIRED + OPTIONAL
 
 def compose(mod_dir, base_outfit, output_path=None):
     root = Path(mod_dir)
-    manifest = json.loads((root / "manifest.json").read_text(encoding="utf-8"))
+    manifest_path = root / "manifest.json"
+    if root.is_symlink() or manifest_path.is_symlink():
+        raise ValueError("unsafe symlinked MOD directory or manifest")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     canvas = manifest["canvas"]
     if (not isinstance(canvas, list) or len(canvas) != 2
             or any(type(v) is not int or v <= 0 or v > 4096 for v in canvas)):
@@ -53,6 +56,8 @@ def compose(mod_dir, base_outfit, output_path=None):
     if images["body"].getchannel("A").getbbox() is None:
         raise ValueError("body artwork is required")
     if images["clothing"].getchannel("A").getbbox() is None:
+        if Path(base_outfit).is_symlink():
+            raise ValueError("unsafe symlinked fallback clothing")
         with Image.open(base_outfit) as source:
             source.load()
             if source.mode != "RGBA" or source.size != size:
