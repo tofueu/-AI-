@@ -41,5 +41,20 @@ class ExportRigPngFramesTests(unittest.TestCase):
             self.assertFalse(output.exists())
 
 
+    def test_rejects_invalid_frames_without_creating_output(self):
+        with tempfile.TemporaryDirectory() as root:
+            for frames in (
+                [Image.new("RGBA", (16, 16)), Image.new("RGB", (16, 16))],
+                [Image.new("RGBA", (16, 16)), Image.new("RGBA", (8, 16))],
+                [Image.new("RGBA", (16, 16)), object()],
+            ):
+                output = Path(root) / "frames"
+                with patch("nova.tools.export_rig_png_frames.render_sequence",
+                           return_value=frames):
+                    with self.assertRaises(ValueError):
+                        export_rig_png_frames({}, {}, [], (16, 16), output)
+                self.assertFalse(output.exists())
+
+
 if __name__ == "__main__":
     unittest.main()
