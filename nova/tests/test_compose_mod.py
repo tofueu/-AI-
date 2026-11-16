@@ -108,6 +108,31 @@ class ComposeModTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "symlinked"):
                 compose(folder, root / "fallback.png")
 
+    def test_symlinked_manifest_and_fallback_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            generate(root)
+            folder = root / "chibi"
+            Image.new("RGBA", (512, 512), "red").save(folder / "body.png")
+            fallback = root / "fallback.png"
+            Image.new("RGBA", (512, 512), "green").save(fallback)
+            original = folder / "manifest.json"
+            other = root / "external-manifest.json"
+            other.write_bytes(original.read_bytes())
+            original.unlink()
+            try:
+                original.symlink_to(other)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlinks unavailable on this platform")
+            with self.assertRaisesRegex(ValueError, "symlinked"):
+                compose(folder, fallback)
+            original.unlink()
+            original.write_bytes(other.read_bytes())
+            linked_fallback = root / "linked-fallback.png"
+            linked_fallback.symlink_to(fallback)
+            with self.assertRaisesRegex(ValueError, "symlinked"):
+                compose(folder, linked_fallback)
+
     def test_path_traversal_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
