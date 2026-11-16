@@ -28,6 +28,9 @@ def compose(mod_dir, base_outfit, output_path=None):
     if any(type(layer.get("visible", True)) is not bool for layer in layers):
         raise ValueError("invalid layer visibility")
     slots = [layer.get("slot") for layer in layers]
+    # Reject malformed JSON values before hashing slots (lists/dicts are unhashable).
+    if any(not isinstance(slot, str) for slot in slots):
+        raise ValueError("invalid MOD slot type")
     if len(slots) != len(set(slots)) or set(slots) != set(SLOTS):
         raise ValueError("missing, duplicated, or unknown MOD slots")
     if sorted(layer["order"] for layer in layers) != list(range(len(SLOTS))):
