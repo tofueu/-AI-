@@ -92,6 +92,22 @@ class ComposeModTests(unittest.TestCase):
             with self.assertRaises(FileNotFoundError):
                 compose(folder, root / "missing.png")
 
+    def test_symlinked_layer_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            generate(root)
+            folder = root / "chibi"
+            outside = root / "outside.png"
+            Image.new("RGBA", (512, 512), "red").save(outside)
+            layer = folder / "body.png"
+            layer.unlink()
+            try:
+                layer.symlink_to(outside)
+            except (OSError, NotImplementedError):
+                self.skipTest("symlinks unavailable on this platform")
+            with self.assertRaisesRegex(ValueError, "symlinked"):
+                compose(folder, root / "fallback.png")
+
     def test_path_traversal_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
