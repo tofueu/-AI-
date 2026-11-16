@@ -68,6 +68,21 @@ class ComposeModTests(unittest.TestCase):
                         compose(folder, root / "fallback.png")
             path.write_text(json.dumps(original))
 
+    def test_non_string_slot_rejected_cleanly(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            generate(root)
+            folder = root / "chibi"
+            path = folder / "manifest.json"
+            original = json.loads(path.read_text())
+            for bad in (None, 42, ["body"], {"name": "body"}):
+                with self.subTest(bad=bad):
+                    manifest = json.loads(json.dumps(original))
+                    manifest["layers"][0]["slot"] = bad
+                    path.write_text(json.dumps(manifest))
+                    with self.assertRaisesRegex(ValueError, "slot type"):
+                        compose(folder, root / "fallback.png")
+
     def test_missing_fallback_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
