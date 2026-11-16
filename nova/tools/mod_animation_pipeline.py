@@ -11,6 +11,9 @@ def _prepare(base, mod, canvas, visibility, attachments):
     layers, visible = resolve_mod_layers(base, mod, canvas=canvas, visibility=visibility)
     if not isinstance(attachments, dict):
         raise ValueError("attachments must be a dictionary")
+    # Hidden or empty optional slots do not need a rig attachment.
+    layers = {slot: image for slot, image in layers.items() if visible[slot]}
+    visible = {slot: True for slot in layers}
     missing = set(layers) - set(attachments)
     if missing:
         raise ValueError("missing joint attachments for: " + ", ".join(sorted(missing)))
