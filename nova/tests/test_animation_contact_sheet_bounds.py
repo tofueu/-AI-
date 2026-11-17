@@ -45,6 +45,16 @@ class ContactSheetBoundsTests(unittest.TestCase):
                                  columns=32, thumb_size=(1024, 1024))
         self.assertFalse((self.root / "out.png").exists())
 
+    def test_malformed_frame_names_rejected_as_value_error(self):
+        invalid = [None, 42, True, [], {}, "../frame_0000.png",
+                   "frame_0000.png/extra", "frame_abcd.png", "frame_0.png"]
+        for name in invalid:
+            with self.subTest(name=name):
+                self.manifest([8, 8], [name])
+                with self.assertRaises(ValueError):
+                    export_contact_sheet(self.sequence, self.root / "out.png")
+                self.assertFalse((self.root / "out.png").exists())
+
     def test_valid_single_frame_still_exports(self):
         self.manifest([8, 8], ["frame_0000.png"])
         output = export_contact_sheet(self.sequence, self.root / "out.png")
