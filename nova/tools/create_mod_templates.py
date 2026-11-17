@@ -23,7 +23,13 @@ def create_templates(destination, *, variants=None):
         raise ValueError("select unique variants")
     if any(name not in VARIANTS for name in chosen):
         raise ValueError("unknown variant")
-    # Reject symlinks anywhere in the destination ancestry, not only at the leaf.\n    # Otherwise a trusted-looking output path can redirect writes into source art.\n    if any(parent.is_symlink() for parent in (root, *root.parents)):\n        raise ValueError("symlink in output directory ancestry")\n    if root.exists() and not root.is_dir():\n        raise NotADirectoryError(str(root))\n    # Preflight all paths before writing anything, including symlink targets.
+    # Reject symlinks anywhere in the destination ancestry, not only at the leaf.
+    # Otherwise a trusted-looking output path can redirect writes into source art.
+    if any(parent.is_symlink() for parent in (root, *root.parents)):
+        raise ValueError("symlink in output directory ancestry")
+    if root.exists() and not root.is_dir():
+        raise NotADirectoryError(str(root))
+    # Preflight all paths before writing anything, including symlink targets.
     targets = []
     for name in chosen:
         folder = root / name
