@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {sampleNovaClip} from './clip-player.js';
+const bones=[{id:'root',x:0,y:0,rotation:0}];
+const clip=[{durationMs:100,pose:{root:{x:0}}},{durationMs:100,pose:{root:{x:10}}}];
+test('interpolates between frames',()=>assert.equal(sampleNovaClip(bones,clip,50).root.x,5));
+test('loops seamlessly',()=>assert.equal(sampleNovaClip(bones,clip,250).root.x,5));
+test('returns last pose when clamped',()=>assert.equal(sampleNovaClip(bones,clip,500,{loop:false}).root.x,10));
+test('rejects invalid frame durations',()=>assert.throws(()=>sampleNovaClip(bones,[{durationMs:0,pose:{}},clip[1]],0)));
+test('rejects invalid elapsed time',()=>assert.throws(()=>sampleNovaClip(bones,clip,-1)));
