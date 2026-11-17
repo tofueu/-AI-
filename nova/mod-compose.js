@@ -1,7 +1,7 @@
 // Pure NOVA layered MOD resolver. No file, browser or network access.
 export const MOD_SLOTS = Object.freeze(['body','face','eyes','mouth','hair_back','hair_front','top','bottom','shoes','hat','accessory']);
 const required = new Set(['body','top','bottom']);
-const safePath = value => typeof value === 'string' && value.length <= 240 && /^(?!\/)(?!.*(?:^|\/)\.\.?\/)(?!.*\\)[a-z0-9_/-]+\.(?:png|webp)$/i.test(value);
+const safePath = value => typeof value === 'string' && value.length <= 240 && /^(?!\/)(?!.*(?:^|\/)\.\.?\/)(?!.*\\)[a-z0-9_/-]+\.(?:png|webp)$/i.test(value) && !value.includes('//');
 function validatePack(pack) {
   if (!pack || typeof pack !== 'object' || Array.isArray(pack) || !pack.layers || typeof pack.layers !== 'object' || Array.isArray(pack.layers)) throw new Error('Invalid MOD pack');
   for (const [slot, path] of Object.entries(pack.layers)) {
