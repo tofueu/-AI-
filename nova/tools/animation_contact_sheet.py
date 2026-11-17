@@ -17,6 +17,8 @@ def export_contact_sheet(sequence_dir, output_path, *, columns=4, thumb_size=(19
             any(type(v) is not int or not 1 <= v <= 1024 for v in thumb_size)):
         raise ValueError("invalid thumbnail size")
     directory = Path(sequence_dir)
+    if directory.is_symlink() or (directory / "manifest.json").is_symlink():
+        raise ValueError("symlinked sequence directory or manifest is forbidden")
     manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
     names = manifest["frames"]
     if not isinstance(names, list) or not names:
@@ -28,7 +30,10 @@ def export_contact_sheet(sequence_dir, output_path, *, columns=4, thumb_size=(19
         if (not isinstance(name, str) or not name.startswith("frame_") or
                 not name.endswith(".png") or Path(name).name != name):
             raise ValueError("invalid frame name")
-        with Image.open(directory / name) as source:
+        frame_path = directory / name
+        if frame_path.is_symlink():
+            raise ValueError("symlinked frame is forbidden")
+        with Image.open(frame_path) as source:
             if source.mode != "RGBA" or list(source.size) != manifest["canvas"]:
                 raise ValueError("frame does not match RGBA manifest canvas")
             frames.append(source.copy())
@@ -51,6 +56,13 @@ def export_contact_sheet(sequence_dir, output_path, *, columns=4, thumb_size=(19
         sheet.alpha_composite(checker, (x, y))
         draw.text((x + 6, y + h + 4), f"{index:04d}", fill=(30, 30, 30, 255))
     output = Path(output_path)
+    if output.is_symlink():
+        raise ValueError("symlinked output is forbidden")
     with output.open("xb") as handle:
-        sheet.save(handle, format="PNG")
+        try:
+            sheet.save(handle, format="PNG")
+        except BaseException:
+            handle.close()
+            output.unlink(missing_ok=True)
+            raise
     return output
