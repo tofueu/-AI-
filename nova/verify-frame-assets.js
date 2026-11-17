@@ -5,6 +5,8 @@ import {createHash} from 'node:crypto';
 import {assessNovaAnimationReadiness} from './animation-readiness.js';
 
 const PNG = Buffer.from([137,80,78,71,13,10,26,10]);
+const MAX_FRAME_DIMENSION = 8192;
+const MAX_FRAME_BYTES = 32 * 1024 * 1024;
 export async function verifyNovaFrameAssets(root, variant, clips, requiredActions) {
   const metadata = assessNovaAnimationReadiness(variant, clips, requiredActions);
   const failures = [...metadata.failures];
@@ -31,9 +33,13 @@ export async function verifyNovaFrameAssets(root, variant, clips, requiredAction
           failures.push(`${clip.action}: asset symlink outside root ${asset}`); continue;
         }
         const data = await readFile(actual);
+        const width = data.length >= 24 ? data.readUInt32BE(16) : 0;
+        const height = data.length >= 24 ? data.readUInt32BE(20) : 0;
         if (data.length < 33 || !data.subarray(0,8).equals(PNG) ||
             data.toString('ascii',12,16) !== 'IHDR' ||
-            data.readUInt32BE(16) === 0 || data.readUInt32BE(20) === 0) {
+            width === 0 || height === 0 ||
+            width > MAX_FRAME_DIMENSION || height > MAX_FRAME_DIMENSION ||
+            data.length > MAX_FRAME_BYTES) {
           failures.push(`${clip.action}: invalid PNG ${asset}`); continue;
         }
         const hash = createHash('sha256').update(data).digest('hex');
