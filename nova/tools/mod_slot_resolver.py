@@ -38,7 +38,13 @@ def resolve_mod_layers(base, mod=None, *, canvas, visibility=None):
             candidate = base.get(slot)
         if candidate is None:
             continue
-        # Keep official clothing beneath partially transparent MOD artwork.\n        # This prevents cutouts in a replacement from exposing an undressed pet.\n        if slot in CLOTHING and candidate is not base[slot]:\n            composed = base[slot].copy()\n            composed.alpha_composite(candidate)\n            candidate = composed\n        layers[slot] = candidate.copy()
+        # Keep official clothing beneath partially transparent MOD artwork.
+        # This prevents cutouts in a replacement from exposing an undressed pet.
+        if slot in CLOTHING and candidate is not base[slot]:
+            composed = base[slot].copy()
+            composed.alpha_composite(candidate)
+            candidate = composed
+        layers[slot] = candidate.copy()
         nonempty = candidate.getchannel("A").getbbox() is not None
         visible[slot] = nonempty and (slot in REQUIRED or visibility.get(slot, True))
     return layers, visible
