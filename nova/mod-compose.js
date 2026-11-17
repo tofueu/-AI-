@@ -20,7 +20,7 @@ export function composeMod(base, mod) {
     else if (required.has(slot) || replacement === undefined) {
       if (original !== undefined && original !== null) {
         layers[slot] = original;
-        if (required.has(slot)) fallbackSlots.push(slot);
+        if (required.has(slot) && replacement === null) fallbackSlots.push(slot);
       }
     }
     if (required.has(slot) && !layers[slot]) throw new Error(`Missing required base clothing/body: ${slot}`);
