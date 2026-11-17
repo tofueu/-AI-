@@ -39,7 +39,7 @@ class ContactSheetBoundsTests(unittest.TestCase):
                     export_contact_sheet(self.sequence, self.root / "out.png")
 
     def test_excessive_sheet_allocation_rejected(self):
-        self.manifest([8, 8], ["frame_0000.png"] * 1)
+        self.manifest([8, 8], ["frame_%04d.png" % i for i in range(65)])
         with self.assertRaises(ValueError):
             export_contact_sheet(self.sequence, self.root / "out.png",
                                  columns=32, thumb_size=(1024, 1024))
