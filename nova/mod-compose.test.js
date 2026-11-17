@@ -13,3 +13,14 @@ test('reject repeated path separators in both base and replacement assets',()=>{
   assert.throws(()=>composeMod({layers:{...base.layers,top:'base//top.png'}},{layers:{}}),/Unsafe MOD layer/);
   assert.equal(composeMod(base,{layers:{hair_front:'mod/hair.png'}}).layers.hair_front,'mod/hair.png');
 });
+
+test('fallback slots report explicit missing clothing, not untouched defaults',()=>{
+  const untouched=composeMod(base,{layers:{}});
+  assert.deepEqual(untouched.fallbackSlots,[]);
+  assert.equal(untouched.layers.top,'base/top.png');
+  const hidden=composeMod(base,{layers:{top:null,bottom:null}});
+  assert.deepEqual(hidden.fallbackSlots,['top','bottom']);
+  assert.equal(hidden.layers.bottom,'base/bottom.png');
+  const replaced=composeMod(base,{layers:{top:'mod/top.png'}});
+  assert.deepEqual(replaced.fallbackSlots,[]);
+});
