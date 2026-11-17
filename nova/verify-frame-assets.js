@@ -1,5 +1,5 @@
 // Validate actual PNG frame bytes; a manifest alone cannot prove animation exists.
-import {readFile} from 'node:fs/promises';
+import {readFile, realpath} from 'node:fs/promises';
 import {resolve, relative, isAbsolute, sep} from 'node:path';
 import {createHash} from 'node:crypto';
 import {assessNovaAnimationReadiness} from './animation-readiness.js';
@@ -9,6 +9,7 @@ export async function verifyNovaFrameAssets(root, variant, clips, requiredAction
   const metadata = assessNovaAnimationReadiness(variant, clips, requiredActions);
   const failures = [...metadata.failures];
   const base = resolve(root);
+  const realBase = await realpath(base);
   const seen = new Map();
   for (const clip of clips) {
     if (!clip || !Array.isArray(clip.frames)) continue;
@@ -24,7 +25,12 @@ export async function verifyNovaFrameAssets(root, variant, clips, requiredAction
         failures.push(`${clip.action}: asset outside root`); continue;
       }
       try {
-        const data = await readFile(path);
+        const actual = await realpath(path);
+        const actualRel = relative(realBase, actual);
+        if (!actualRel || actualRel === '..' || actualRel.startsWith('..' + sep) || isAbsolute(actualRel)) {
+          failures.push(`${clip.action}: asset symlink outside root ${asset}`); continue;
+        }
+        const data = await readFile(actual);
         if (data.length < 33 || !data.subarray(0,8).equals(PNG) ||
             data.toString('ascii',12,16) !== 'IHDR' ||
             data.readUInt32BE(16) === 0 || data.readUInt32BE(20) === 0) {
