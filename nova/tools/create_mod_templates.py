@@ -6,6 +6,7 @@ Requires Pillow. Does not overwrite existing artwork or claim to produce PSD.
 import argparse
 import json
 from pathlib import Path
+from shutil import rmtree
 
 from PIL import Image
 
@@ -32,23 +33,33 @@ def create_templates(destination, *, variants=None):
         raise FileExistsError("template output already exists")
     if root.is_symlink() or any((root / name).is_symlink() for name in chosen):
         raise ValueError("symlink output directory")
-    for name in chosen:
-        width, height = VARIANTS[name]
-        folder = root / name
-        folder.mkdir(parents=True, exist_ok=True)
-        for slot in SLOTS:
-            Image.new("RGBA", (width, height), (0, 0, 0, 0)).save(folder / (slot + ".png"))
-        manifest = {
-            "format": "nova-mod-template-v1",
-            "variant": name,
-            "canvas": [width, height],
-            "slots_back_to_front": list(SLOTS),
-            "layers": {slot: slot + ".png" for slot in SLOTS},
-            "notes": "Blank painting guides only. Supply nontransparent official base body/head/top/bottom/shoes at runtime. Joint attachments and animation are separate.",
-        }
-        (folder / "manifest.json").write_text(
-            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
-        )
+    # Never mix newly generated layers with an existing variant directory.
+    if any((root / name).exists() for name in chosen):
+        raise FileExistsError("variant output directory already exists")
+    created_dirs = []
+    try:
+        for name in chosen:
+            width, height = VARIANTS[name]
+            folder = root / name
+            folder.mkdir(parents=True, exist_ok=False)
+            created_dirs.append(folder)
+            for slot in SLOTS:
+                Image.new("RGBA", (width, height), (0, 0, 0, 0)).save(folder / (slot + ".png"))
+            manifest = {
+                "format": "nova-mod-template-v1",
+                "variant": name,
+                "canvas": [width, height],
+                "slots_back_to_front": list(SLOTS),
+                "layers": {slot: slot + ".png" for slot in SLOTS},
+                "notes": "Blank painting guides only. Supply nontransparent official base body/head/top/bottom/shoes at runtime. Joint attachments and animation are separate.",
+            }
+            (folder / "manifest.json").write_text(
+                json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+            )
+    except Exception:
+        for folder in reversed(created_dirs):
+            rmtree(folder)
+        raise
     return targets
 
 
