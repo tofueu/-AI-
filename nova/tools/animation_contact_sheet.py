@@ -25,6 +25,16 @@ def export_contact_sheet(sequence_dir, output_path, *, columns=4, thumb_size=(19
         raise ValueError("manifest has no frames")
     if not isinstance(manifest.get("canvas"), list) or len(manifest["canvas"]) != 2:
         raise ValueError("invalid manifest canvas")
+    # Validate bounds before opening any frames or allocating the output.
+    canvas = manifest["canvas"]
+    if any(type(v) is not int or not 1 <= v <= 4096 for v in canvas):
+        raise ValueError("invalid manifest canvas dimensions")
+    if len(names) > 256 or len(set(names)) != len(names):
+        raise ValueError("too many or duplicate animation frames")
+    w, h = thumb_size
+    rows = (len(names) + columns - 1) // columns
+    if columns * w * rows * (h + 24) > 64_000_000:
+        raise ValueError("contact sheet exceeds pixel limit")
     frames = []
     for name in names:
         if (not isinstance(name, str) or not name.startswith("frame_") or
@@ -37,8 +47,6 @@ def export_contact_sheet(sequence_dir, output_path, *, columns=4, thumb_size=(19
             if source.mode != "RGBA" or list(source.size) != manifest["canvas"]:
                 raise ValueError("frame does not match RGBA manifest canvas")
             frames.append(source.copy())
-    w, h = thumb_size
-    rows = (len(frames) + columns - 1) // columns
     sheet = Image.new("RGBA", (columns * w, rows * (h + 24)), (240, 240, 240, 255))
     draw = ImageDraw.Draw(sheet)
     for index, frame in enumerate(frames):
