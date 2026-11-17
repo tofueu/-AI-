@@ -4,6 +4,7 @@ This is an inspection aid, not approved character artwork. It never changes
 source frames or overwrites an existing destination.
 """
 import json
+import re
 from pathlib import Path
 
 from PIL import Image, ImageDraw
@@ -29,17 +30,20 @@ def export_contact_sheet(sequence_dir, output_path, *, columns=4, thumb_size=(19
     canvas = manifest["canvas"]
     if any(type(v) is not int or not 1 <= v <= 4096 for v in canvas):
         raise ValueError("invalid manifest canvas dimensions")
-    if len(names) > 256 or len(set(names)) != len(names):
-        raise ValueError("too many or duplicate animation frames")
+    if len(names) > 256:
+        raise ValueError("too many animation frames")
+    # Reject malformed/unhashable names before set() and before opening files.
+    if any(type(name) is not str or not re.fullmatch(r"frame_[0-9]{4,8}\.png", name)
+           for name in names):
+        raise ValueError("invalid frame name")
+    if len(set(names)) != len(names):
+        raise ValueError("duplicate animation frames")
     w, h = thumb_size
     rows = (len(names) + columns - 1) // columns
     if columns * w * rows * (h + 24) > 64_000_000:
         raise ValueError("contact sheet exceeds pixel limit")
     frames = []
     for name in names:
-        if (not isinstance(name, str) or not name.startswith("frame_") or
-                not name.endswith(".png") or Path(name).name != name):
-            raise ValueError("invalid frame name")
         frame_path = directory / name
         if frame_path.is_symlink():
             raise ValueError("symlinked frame is forbidden")
