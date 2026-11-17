@@ -7,3 +7,9 @@ test('null optional layer hides it',()=>{const r=composeMod(base,{layers:{hat:nu
 test('required clothing falls back',()=>{const r=composeMod(base,{layers:{top:null}});assert.equal(r.layers.top,'base/top.png');assert.ok(r.fallbackSlots.includes('top'));});
 test('unsafe paths and unknown slots rejected',()=>{assert.throws(()=>composeMod(base,{layers:{top:'../secret.png'}}));assert.throws(()=>composeMod(base,{layers:{unknown:'a.png'}}));});
 test('required base clothing cannot be absent',()=>{assert.throws(()=>composeMod({layers:{body:'body.png'}},{layers:{}}));});
+
+test('reject repeated path separators in both base and replacement assets',()=>{
+  assert.throws(()=>composeMod(base,{layers:{hair_front:'mod//hair.png'}}),/Unsafe MOD layer/);
+  assert.throws(()=>composeMod({layers:{...base.layers,top:'base//top.png'}},{layers:{}}),/Unsafe MOD layer/);
+  assert.equal(composeMod(base,{layers:{hair_front:'mod/hair.png'}}).layers.hair_front,'mod/hair.png');
+});
