@@ -59,3 +59,15 @@ test('reject PNG symlink escaping asset root', async () => {
     await rm(outside,{recursive:true,force:true});
   }
 });
+
+test('reject oversized PNG dimensions while allowing bounded frames', async () => {
+  const dir = await mkdtemp(join(tmpdir(),'nova-'));
+  try {
+    for (const clip of clips()) for (const frame of clip.frames)
+      await writeFile(join(dir,frame.asset),png(frame.index + 1));
+    await writeFile(join(dir,'idle-0.png'),png(8193));
+    const result = await verifyNovaFrameAssets(dir,'chibi',clips());
+    assert.equal(result.ready,false);
+    assert.ok(result.failures.some(x=>x.includes('invalid PNG idle-0.png')));
+  } finally { await rm(dir,{recursive:true,force:true}); }
+});
