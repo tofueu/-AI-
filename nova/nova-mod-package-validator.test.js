@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {validateNovaModPackage} from './nova-mod-package-validator.js';
+const slots = ['body','head','eyes','mouth','hairBack','hairFront','outfit','hat','accessory','armL','armR','legL','legR'];
+const make = () => ({schemaVersion:1,variant:'chibi',canvas:{width:512,height:512},slots:[...slots],requiredSlots:['body','head','outfit'],layers:Object.fromEntries(slots.map(s=>[s,null]))});
+test('empty template identifies base fallback requirements',()=>{const x=validateNovaModPackage(make());assert.deepEqual(x.needsBase,['body','head','outfit']);assert.equal(x.missing.length,13)});
+test('visible PNG file resolves layer',()=>{const m=make();m.layers.body={path:'artwork/body.png',visible:true};const x=validateNovaModPackage(m,{'artwork/body.png':true});assert.deepEqual(x.present,['body']);assert.deepEqual(x.needsBase,['head','outfit'])});
+test('hidden PNG does not count as supplied clothing',()=>{const m=make();m.layers.outfit={path:'artwork/outfit.png',visible:false};const x=validateNovaModPackage(m,{'artwork/outfit.png':true});assert.deepEqual(x.hidden,['outfit']);assert.ok(x.needsBase.includes('outfit'))});
+test('rejects traversal and unknown slots',()=>{const m=make();m.layers.head={path:'artwork/../secret.png',visible:true};assert.throws(()=>validateNovaModPackage(m),/Invalid layer/);delete m.layers.head;m.layers.unknown=null;assert.throws(()=>validateNovaModPackage(m),/Invalid layers/)});
+test('rejects malformed canvas and variant',()=>{const m=make();m.canvas.width=0;assert.throws(()=>validateNovaModPackage(m),/Invalid canvas/);m.canvas.width=512;m.variant='other';assert.throws(()=>validateNovaModPackage(m),/Invalid NOVA variant/)});
