@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {embedNovaSvgPngAssets} from './embedded-svg.js';
+const png=()=>{const b=new Uint8Array(24);b.set([137,80,78,71,13,10,26,10]);b.set([73,72,68,82],12);b[19]=2;b[23]=2;return b;};
+const svg=p=>'<svg><image href="'+p+'"/></svg>';
+test('embeds PNG as data URI',()=>{const r=embedNovaSvgPngAssets(svg('base/body.png'),{'base/body.png':png()});assert.match(r.svg,/data:image\/png;base64,/);assert.deepEqual(r.embeddedPaths,['base/body.png']);});
+test('resolves XML escaped asset path',()=>assert.deepEqual(embedNovaSvgPngAssets(svg('mods/a&amp;b.png'),{'mods/a&b.png':png()}).embeddedPaths,['mods/a&b.png']));
+test('rejects missing PNG',()=>assert.throws(()=>embedNovaSvgPngAssets(svg('missing.png'),{}),/Missing/));
+test('rejects traversal and absolute paths',()=>{for(const p of ['../x.png','/x.png','a/../x.png'])assert.throws(()=>embedNovaSvgPngAssets(svg(p),{}),/Unsafe/);});
+test('rejects bad PNG signature',()=>{const b=png();b[0]=0;assert.throws(()=>embedNovaSvgPngAssets(svg('a.png'),{'a.png':b}),/header/);});
+test('rejects zero or oversized PNG dimensions',()=>{const b=png();b[19]=0;assert.throws(()=>embedNovaSvgPngAssets(svg('a.png'),{'a.png':b}),/dimensions/);const c=png();c[16]=1;assert.throws(()=>embedNovaSvgPngAssets(svg('a.png'),{'a.png':c}),/dimensions/);});
+test('preserves already embedded images',()=>{const s=svg('data:image/png;base64,AAAA');assert.equal(embedNovaSvgPngAssets(s,{}).svg,s);});
