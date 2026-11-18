@@ -6,7 +6,7 @@ const clip={frames:[{at:0,pose:{head:{x:0}}},{at:1000,pose:{head:{x:.2}}}]};
 test('non-looping animation retains final posed artwork',()=>{
  const {svg}=renderNovaPosedModAnimationSvg(base,{},clip,{width:100,height:100,fps:2});
  assert.match(svg,/repeatCount="1" fill="freeze"/);
- assert.match(svg,/translate\\(20 0\\)/);
+ assert.ok(svg.includes('translate(20 0)'), 'final frame should translate head by 20px');
  assert.equal((svg.match(/data-slot="head"/g)||[]).length,3);
 });
 test('looping artwork animation wraps without final duplicate',()=>{
