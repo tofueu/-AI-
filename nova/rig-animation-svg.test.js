@@ -24,12 +24,19 @@ test('rejects invalid FPS', () => assert.throws(
 
 test('one-shot animation stops instead of looping', () => {
   const svg = renderNovaRigAnimationSvg({...clip,loop:false},{fps:4});
-  assert.equal((svg.match(/repeatCount="1"/g)||[]).length,4);
-  assert.equal((svg.match(/fill="freeze"/g)||[]).length,4);
+  assert.equal((svg.match(/repeatCount="1"/g)||[]).length,5);
+  assert.equal((svg.match(/fill="freeze"/g)||[]).length,5);
   assert.doesNotMatch(svg,/repeatCount="indefinite"/);
 });
 test('rejects invalid canvas dimensions', () => {
   for (const options of [{width:0},{height:-1},{width:1.5},{height:9000},{width:Infinity}]) {
     assert.throws(() => renderNovaRigAnimationSvg(clip,options),/canvas dimensions/);
   }
+});
+
+test('one-shot animation keeps a distinct terminal pose instead of wrapping to first frame', () => {
+  const svg = renderNovaRigAnimationSvg({...clip,loop:false},{fps:4});
+  assert.equal((svg.match(/<animate /g)||[]).length,5);
+  assert.match(svg,/values="hidden;hidden;hidden;hidden;visible"/);
+  assert.doesNotMatch(svg,/values="visible;hidden;hidden;hidden;visible"/);
 });
