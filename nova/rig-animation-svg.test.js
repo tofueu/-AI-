@@ -21,3 +21,15 @@ test('rejects excessive frames', () => assert.throws(
 test('rejects invalid FPS', () => assert.throws(
   () => renderNovaRigAnimationSvg(clip,{fps:0}),/FPS/
 ));
+
+test('one-shot animation stops instead of looping', () => {
+  const svg = renderNovaRigAnimationSvg({...clip,loop:false},{fps:4});
+  assert.equal((svg.match(/repeatCount="1"/g)||[]).length,4);
+  assert.equal((svg.match(/fill="freeze"/g)||[]).length,4);
+  assert.doesNotMatch(svg,/repeatCount="indefinite"/);
+});
+test('rejects invalid canvas dimensions', () => {
+  for (const options of [{width:0},{height:-1},{width:1.5},{height:9000},{width:Infinity}]) {
+    assert.throws(() => renderNovaRigAnimationSvg(clip,options),/canvas dimensions/);
+  }
+});
