@@ -1,15 +1,16 @@
+import {resolveNovaMod} from './character-mod.js';
 import {readFile, writeFile} from 'node:fs/promises';
-import {resolve, dirname, relative, isAbsolute, sep} from 'node:path';
+import {resolve, relative, isAbsolute, sep} from 'node:path';
 import {renderPortableNovaModSvg} from './portable-mod-svg.js';
 
 const usage = 'Usage: node nova/export-portable-svg.js <manifest.json> <assets-directory> <output.svg>';
 export async function exportPortableNovaSvg(manifestFile, assetsDirectory, outputFile) {
   if (![manifestFile, assetsDirectory, outputFile].every(v => typeof v === 'string' && v.length)) throw Error(usage);
   const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
-  if (!manifest || !manifest.base || !manifest.assets && !assetsDirectory) throw Error('Missing base character');
+  if (!manifest || !manifest.base) throw Error('Missing base character');
   const root = resolve(assetsDirectory);
   const assets = Object.create(null);
-  const {layers} = (await import('./character-mod.js')).resolveNovaMod(manifest.base, manifest.mod ?? {});
+  const {layers} = resolveNovaMod(manifest.base, manifest.mod ?? {});
   for (const layer of Object.values(layers)) {
     if (!layer?.visible) continue;
     const file = resolve(root, layer.path);
