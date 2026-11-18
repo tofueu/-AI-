@@ -51,3 +51,21 @@ test('rejects a PNG symlink that escapes the asset directory',async(t)=>{
   await assert.rejects(readFile(output),/ENOENT/);
  } finally {await rm(dir,{recursive:true,force:true});}
 });
+
+test('refuses to overwrite the input manifest or asset files',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-svg-'));
+ try {
+  const assets=join(dir,'assets');await mkdir(assets);
+  const manifest=join(dir,'manifest.json');
+  const base={variant:'chibi',layers:{
+   body:{path:'body.png'},head:{path:'head.png'},outfit:{path:'outfit.png'}
+  }};
+  for(const slot of ['body','head','outfit']) await writeFile(join(assets,slot+'.png'),png());
+  const original=JSON.stringify({base});await writeFile(manifest,original);
+  await assert.rejects(exportPortableNovaSvg(manifest,assets,manifest),/Output overlaps input manifest/);
+  assert.equal(await readFile(manifest,'utf8'),original);
+  const asset=join(assets,'body.png'),before=await readFile(asset);
+  await assert.rejects(exportPortableNovaSvg(manifest,assets,asset),/Output overlaps asset directory/);
+  assert.deepEqual(await readFile(asset),before);
+ } finally {await rm(dir,{recursive:true,force:true});}
+});
