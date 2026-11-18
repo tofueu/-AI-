@@ -8,13 +8,12 @@ export function renderNovaRigAnimationSvg(clip, { width=320, height=480, fps=12,
   const { durationMs } = sampleNovaTimeline(clip, 0);
   const count = Math.max(2, Math.ceil(durationMs * fps / 1000));
   if (count > maxFrames) throw Error('Animation exceeds frame cap');
-  const durationSeconds = durationMs / 1000;
+  const keyTimes = Array.from({length:count+1}, (_,i) => (i/count).toFixed(8)).join(';');
   const frames = Array.from({length:count}, (_,i) => {
     const svg = renderNovaRigSvg(clip, i * durationMs / count, {width,height});
     const inner = svg.slice(svg.indexOf('>')+1, svg.lastIndexOf('</svg>'));
-    const start = i / count;
-    const end = (i+1) / count;
-    return `<g visibility="hidden"><set attributeName="visibility" to="visible" begin="${(start*durationSeconds).toFixed(6)}s" dur="${((end-start)*durationSeconds).toFixed(6)}s" repeatCount="indefinite"/>${inner}</g>`;
+    const values = Array.from({length:count+1}, (_,j) => (j%count===i ? 'visible' : 'hidden')).join(';');
+    return `<g visibility="hidden"><animate attributeName="visibility" calcMode="discrete" values="${values}" keyTimes="${keyTimes}" dur="${durationMs}ms" repeatCount="indefinite"/>${inner}</g>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${frames.join('')}</svg>`;
 }
