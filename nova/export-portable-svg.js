@@ -10,6 +10,20 @@ export async function exportPortableNovaSvg(manifestFile, assetsDirectory, outpu
   const manifest = JSON.parse(await readFile(manifestFile, 'utf8'));
   if (!manifest || !manifest.base) throw Error('Missing base character');
   const root = await realpath(resolve(assetsDirectory));
+  const destination = resolve(outputFile);
+  // Never overwrite the manifest or an existing PNG asset with an SVG export.
+  const sourceManifest = await realpath(resolve(manifestFile));
+  if (destination === sourceManifest) throw Error('Output overlaps input manifest');
+  try {
+    const existing = await realpath(destination);
+    if (existing === sourceManifest) throw Error('Output overlaps input manifest');
+    const within = relative(root, existing);
+    if (within === '' || (within !== '..' && !within.startsWith('..' + sep) && !isAbsolute(within))) throw Error('Output overlaps asset directory');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+  const destinationRel = relative(root, destination);
+  if (destinationRel === '' || (destinationRel !== '..' && !destinationRel.startsWith('..' + sep) && !isAbsolute(destinationRel))) throw Error('Output overlaps asset directory');
   const assets = Object.create(null);
   const {layers} = resolveNovaMod(manifest.base, manifest.mod ?? {});
   for (const layer of Object.values(layers)) {
