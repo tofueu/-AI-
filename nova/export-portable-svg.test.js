@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp, mkdir, writeFile, readFile, rm} from 'node:fs/promises';
+import {mkdtemp, mkdir, writeFile, readFile, rm, symlink} from 'node:fs/promises';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {exportPortableNovaSvg} from './export-portable-svg.js';
@@ -29,6 +29,25 @@ test('missing PNG rejects export without writing output',async()=>{
   const manifest=join(dir,'manifest.json'),output=join(dir,'preview.svg');
   await writeFile(manifest,JSON.stringify({base:{variant:'chibi',layers:{body:{path:'body.png'},head:{path:'head.png'},outfit:{path:'outfit.png'}}}}));
   await assert.rejects(exportPortableNovaSvg(manifest,dir,output),/ENOENT/);
+  await assert.rejects(readFile(output),/ENOENT/);
+ } finally {await rm(dir,{recursive:true,force:true});}
+});
+
+test('rejects a PNG symlink that escapes the asset directory',async(t)=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-svg-'));
+ try {
+  const assets=join(dir,'assets');await mkdir(assets);
+  const outside=join(dir,'outside.png');await writeFile(outside,png());
+  try {await symlink(outside,join(assets,'body.png'));} catch(error) {
+   if (['EPERM','EACCES','ENOTSUP'].includes(error.code)) {t.skip('symlinks unavailable');return;}
+   throw error;
+  }
+  const manifest=join(dir,'manifest.json'),output=join(dir,'preview.svg');
+  const base={variant:'chibi',layers:{
+   body:{path:'body.png'},head:{path:'head.png'},outfit:{path:'outfit.png'}
+  }};
+  await writeFile(manifest,JSON.stringify({base}));
+  await assert.rejects(exportPortableNovaSvg(manifest,assets,output),/Asset escapes directory/);
   await assert.rejects(readFile(output),/ENOENT/);
  } finally {await rm(dir,{recursive:true,force:true});}
 });
