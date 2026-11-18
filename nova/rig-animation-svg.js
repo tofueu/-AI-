@@ -5,7 +5,9 @@ import { sampleNovaTimeline } from './skeletal-timeline.js';
 export function renderNovaRigAnimationSvg(clip, { width=320, height=480, fps=12, maxFrames=240 }={}) {
   if (!Number.isInteger(fps) || fps < 1 || fps > 60) throw Error('Invalid animation FPS');
   if (!Number.isInteger(maxFrames) || maxFrames < 2 || maxFrames > 600) throw Error('Invalid frame cap');
+  if (!Number.isInteger(width) || width < 1 || width > 8192 || !Number.isInteger(height) || height < 1 || height > 8192) throw Error('Invalid canvas dimensions');
   const { durationMs } = sampleNovaTimeline(clip, 0);
+  const repeatCount = clip.loop === false ? '1' : 'indefinite';
   const count = Math.max(2, Math.ceil(durationMs * fps / 1000));
   if (count > maxFrames) throw Error('Animation exceeds frame cap');
   const keyTimes = Array.from({length:count+1}, (_,i) => (i/count).toFixed(8)).join(';');
