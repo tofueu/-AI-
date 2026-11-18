@@ -1,5 +1,5 @@
 // NOVA character MOD manifest resolver. Pure data; rendering and PSD export are separate.
-export const NOVA_SLOTS = Object.freeze(['body','head','eyes','mouth','hairBack','hairFront','outfit','hat','accessory']);
+export const NOVA_SLOTS = Object.freeze(['body','head','eyes','mouth','hairBack','hairFront','outfit','hat','accessory','armL','armR','legL','legR']);
 const REQUIRED = new Set(['body','head','outfit']);
 const VARIANTS = new Set(['chibi','adult']);
 const safePath = path => typeof path === 'string' && path.length > 0 && path.length <= 240 && !path.startsWith('/') && !path.includes('\\') && path.split('/').every(part => part !== '' && part !== '.' && part !== '..') && /\.png$/i.test(path);
