@@ -1,15 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {buildPortableNovaPreview} from './portable-preview.js';
-const png = Buffer.concat([Buffer.from([137,80,78,71,13,10,26,10]), Buffer.alloc(24)]);
-const svg='<svg xmlns="http://www.w3.org/2000/svg"><image href="hair.png" width="10" height="10"/></svg>';
-const seq={variant:'chibi',action:'walk',fps:8,frames:[{svg},{svg}]};
-test('embeds PNG layers in every frame',()=>{
-  const html=buildPortableNovaPreview(seq,{'hair.png':png});
-  const encoded=html.match(/const frames=(\[[^;]+\]);/)[1];
-  const frames=JSON.parse(encoded);
-  assert.equal(frames.length,2);
-  assert.match(Buffer.from(frames[0],'base64').toString(),/data:image\/png;base64/);
+import {renderPortableNovaModSvg} from './portable-preview.js';
+const png=()=>{const b=new Uint8Array(24);b.set([137,80,78,71,13,10,26,10]);b.set([73,72,68,82],12);b[19]=2;b[23]=2;return b;};
+const base=variant=>({variant,layers:{body:{path:'base/body.png'},head:{path:'base/head.png'},outfit:{path:'base/outfit.png'}}});
+const assets=()=>Object.fromEntries(['base/body.png','base/head.png','base/outfit.png','mods/hat.png'].map(p=>[p,png()]));
+for(const variant of ['chibi','adult']) test(`${variant} portable SVG embeds all visible PNG layers`,()=>{
+ const result=renderPortableNovaModSvg(base(variant),{},assets());
+ assert.equal(result.variant,variant);
+ assert.equal(result.embeddedPaths.length,3);
+ assert.equal((result.svg.match(/data:image\/png;base64,/g)||[]).length,3);
+ assert.doesNotMatch(result.svg,/href="base\//);
 });
-test('rejects missing layer',()=>assert.throws(()=>buildPortableNovaPreview(seq,{}),/Missing MOD layer/));
-test('rejects non-PNG layer',()=>assert.throws(()=>buildPortableNovaPreview(seq,{'hair.png':Buffer.from('not png')}),/Invalid PNG/));
+test('MOD accessory override and outfit fallback are applied before embedding',()=>{
+ const result=renderPortableNovaModSvg(base('chibi'),{layers:{outfit:null,hat:{path:'mods/hat.png'}}},assets());
+ assert.deepEqual(result.fallbacks,['outfit']);
+ assert.deepEqual(result.embeddedPaths,['base/body.png','base/head.png','base/outfit.png','mods/hat.png']);
+});
+test('missing referenced PNG fails rather than emitting broken preview',()=>assert.throws(()=>renderPortableNovaModSvg(base('adult'),{},{}),/Missing/));
+test('rejects invalid preview dimensions',()=>assert.throws(()=>renderPortableNovaModSvg(base('adult'),{},assets(),{width:0}),/dimensions/));
