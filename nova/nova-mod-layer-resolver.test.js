@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {resolveNovaModLayers} from './nova-mod-layer-resolver.js';
+const slots=['body','head','eyes','mouth','hairBack','hairFront','outfit','hat','accessory','armL','armR','legL','legR'];
+const manifest=()=>({schemaVersion:1,variant:'chibi',canvas:{width:512,height:512},slots:[...slots],requiredSlots:['body','head','outfit'],layers:Object.fromEntries(slots.map(slot=>[slot,null]))});
+const base={body:'artwork/base_body.png',head:'artwork/base_head.png',outfit:'artwork/base_outfit.png'};
+test('blank MOD uses complete base clothing',()=>{const x=resolveNovaModLayers(manifest(),{},base);assert.deepEqual(x.usedBase,['body','head','outfit']);assert.equal(x.layers.outfit.source,'base')});
+test('supplied MOD overrides only its own slot',()=>{const m=manifest();m.layers.head={path:'artwork/head.png',visible:true};const x=resolveNovaModLayers(m,{'artwork/head.png':true},base);assert.equal(x.layers.head.source,'mod');assert.equal(x.layers.body.source,'base')});
+test('hidden optional layer stays hidden',()=>{const m=manifest();m.layers.hat={path:'artwork/hat.png',visible:false};const x=resolveNovaModLayers(m,{'artwork/hat.png':true},{...base,hat:'artwork/base_hat.png'});assert.equal(x.layers.hat,null)});
+test('hidden required clothing falls back to base',()=>{const m=manifest();m.layers.outfit={path:'artwork/outfit.png',visible:false};const x=resolveNovaModLayers(m,{'artwork/outfit.png':true},base);assert.equal(x.layers.outfit.source,'base')});
+test('rejects missing required base clothing',()=>{assert.throws(()=>resolveNovaModLayers(manifest(),{}, {body:base.body,head:base.head}),/Missing required base layer: outfit/)});
+test('rejects unsafe base paths',()=>{assert.throws(()=>resolveNovaModLayers(manifest(),{}, {...base,outfit:'../secret.png'}),/Invalid base layer path/)});
+test('supports adult variant',()=>{const m=manifest();m.variant='adult';assert.equal(resolveNovaModLayers(m,{},base).variant,'adult')});
