@@ -19,8 +19,8 @@ for (const variant of ['chibi','adult']) test(`exports self-contained ${variant}
   assert.equal(result.variant,variant);
   assert.equal(result.embeddedPaths.length,3);
   const svg=await readFile(output,'utf8');
-  assert.equal((svg.match(/data:image\\/png;base64,/g)||[]).length,3);
-  assert.doesNotMatch(svg,/href="base\\//);
+  assert.equal((svg.match(/data:image\/png;base64,/g)||[]).length,3);
+  assert.doesNotMatch(svg,/href="base\//);
  } finally {await rm(dir,{recursive:true,force:true});}
 });
 test('missing PNG rejects export without writing output',async()=>{
