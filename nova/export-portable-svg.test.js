@@ -5,7 +5,8 @@ import {tmpdir} from 'node:os';
 import {join} from 'node:path';
 import {exportPortableNovaSvg} from './export-portable-svg.js';
 
-const png=()=>{const b=Buffer.alloc(24);b.set([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82]);b.writeUInt32BE(2,16);b.writeUInt32BE(2,20);return b;};
+// Valid 1x1 PNG, rather than a truncated IHDR-only fixture.
+const png=()=>Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/lXcAAAAASUVORK5CYII=','base64');
 for (const variant of ['chibi','adult']) test(`exports self-contained ${variant} SVG and retains outfit fallback`,async()=>{
  const dir=await mkdtemp(join(tmpdir(),'nova-svg-'));
  try {
