@@ -40,3 +40,11 @@ test('one-shot animation keeps a distinct terminal pose instead of wrapping to f
   assert.match(svg,/values="hidden;hidden;hidden;hidden;visible"/);
   assert.doesNotMatch(svg,/values="visible;hidden;hidden;hidden;visible"/);
 });
+
+test('omitted loop flag defaults to a one-shot clip, consistent with timeline sampling', () => {
+  const {loop, ...oneShot} = clip;
+  const svg = renderNovaRigAnimationSvg(oneShot,{fps:4});
+  assert.equal((svg.match(/repeatCount="1"/g)||[]).length,5);
+  assert.doesNotMatch(svg,/repeatCount="indefinite"/);
+  assert.match(svg,/values="hidden;hidden;hidden;hidden;visible"/);
+});
