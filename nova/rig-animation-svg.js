@@ -11,10 +11,11 @@ export function renderNovaRigAnimationSvg(clip, { width=320, height=480, fps=12,
   const count = Math.max(2, Math.ceil(durationMs * fps / 1000));
   if (count > maxFrames) throw Error('Animation exceeds frame cap');
   const keyTimes = Array.from({length:count+1}, (_,i) => (i/count).toFixed(8)).join(';');
-  const frames = Array.from({length:count}, (_,i) => {
+  const frameCount = clip.loop === false ? count + 1 : count;
+  const frames = Array.from({length:frameCount}, (_,i) => {
     const svg = renderNovaRigSvg(clip, i * durationMs / count, {width,height});
     const inner = svg.slice(svg.indexOf('>')+1, svg.lastIndexOf('</svg>'));
-    const values = Array.from({length:count+1}, (_,j) => (j%count===i ? 'visible' : 'hidden')).join(';');
+    const values = Array.from({length:count+1}, (_,j) => ((clip.loop === false ? j === i : j%count === i) ? 'visible' : 'hidden')).join(';');
     return `<g visibility="hidden"><animate attributeName="visibility" calcMode="discrete" values="${values}" keyTimes="${keyTimes}" dur="${durationMs}ms" repeatCount="${repeatCount}" fill="freeze"/>${inner}</g>`;
   });
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${frames.join('')}</svg>`;
