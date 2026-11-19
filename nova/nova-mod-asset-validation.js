@@ -2,6 +2,7 @@
 // Header validation is not a substitute for full PNG decoding or CRC checks.
 import {validateNovaModPackage} from './nova-mod-package-validator.js';
 import {inspectNovaPngAsset} from './nova-png-asset-inspector.js';
+import {validateNovaPngChunks} from './nova-png-chunk-validator.js';
 
 export function inspectNovaModAssets(manifest, files = {}, options = {}) {
   if (!files || typeof files !== 'object' || Array.isArray(files)) throw new Error('Invalid file collection');
@@ -11,7 +12,9 @@ export function inspectNovaModAssets(manifest, files = {}, options = {}) {
   for (const slot of report.present) {
     const path = manifest.layers[slot].path;
     try {
-      inspected[slot] = inspectNovaPngAsset(files[path], manifest.canvas, options);
+      const header = inspectNovaPngAsset(files[path], manifest.canvas, options);
+      const chunks = validateNovaPngChunks(files[path], options);
+      inspected[slot] = {...header, ...chunks};
     } catch (error) {
       errors.push({slot, path, reason: error instanceof Error ? error.message : String(error)});
     }
