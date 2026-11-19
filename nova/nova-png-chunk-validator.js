@@ -13,6 +13,8 @@ function crc32(b,start,end) {
 export function validateNovaPngChunks(bytes, options={}) {
   if (!(bytes instanceof Uint8Array)) throw new Error('PNG bytes required');
   const maxBytes=options.maxBytes??16*1024*1024;
+  const maxPixels=options.maxPixels??16*1024*1024;
+  if(!Number.isSafeInteger(maxPixels)||maxPixels<1) throw new Error('Invalid PNG pixel limit');
   if (!Number.isSafeInteger(maxBytes)||maxBytes<45||bytes.length>maxBytes) throw new Error('PNG size exceeds limit');
   if (bytes.length<8 || !SIGNATURE.every((v,i)=>bytes[i]===v)) throw new Error('Invalid PNG signature');
   let pos=8, count=0, idat=0, ended=false, seenIDAT=false, idatClosed=false, seenPLTE=false, seenTRNS=false, colorType=null, bitDepth=null, paletteEntries=0;
@@ -22,7 +24,7 @@ export function validateNovaPngChunks(bytes, options={}) {
     if(length>bytes.length-pos-12) throw new Error('Truncated PNG chunk payload');
     const typeStart=pos+4, dataStart=pos+8, crcPos=dataStart+length;
     const type=String.fromCharCode(...bytes.subarray(typeStart,typeStart+4));
-    if(!/^[A-Za-z]{4}$/.test(type)) throw new Error('Invalid PNG chunk type');
+    if(!/^[A-Za-z]{4}$/.test(type) || type[2]!==type[2].toUpperCase()) throw new Error('Invalid PNG chunk type');
     if(crc32(bytes,typeStart,crcPos)!==u32(bytes,crcPos)) throw new Error('PNG CRC mismatch: '+type);
     if(count===0 && (type!=='IHDR'||length!==13)) throw new Error('PNG must begin with IHDR');
     if(count>0 && type==='IHDR') throw new Error('Duplicate PNG IHDR');
@@ -31,6 +33,7 @@ export function validateNovaPngChunks(bytes, options={}) {
       bitDepth=bytes[dataStart+8];colorType=bytes[dataStart+9];
       const depths={0:[1,2,4,8,16],2:[8,16],3:[1,2,4,8],4:[8,16],6:[8,16]};
       if(!width||!height||width>0x7fffffff||height>0x7fffffff) throw new Error('Invalid PNG dimensions');
+      if(width*height>maxPixels) throw new Error('PNG pixel count exceeds limit');
       if(!depths[colorType]?.includes(bitDepth)) throw new Error('Invalid PNG color type or bit depth');
       if(bytes[dataStart+10]!==0||bytes[dataStart+11]!==0||bytes[dataStart+12]>1) throw new Error('Invalid PNG compression, filter or interlace method');
     }
