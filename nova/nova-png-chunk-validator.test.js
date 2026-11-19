@@ -16,3 +16,10 @@ test('rejects duplicate IHDR',()=>assert.throws(()=>validateNovaPngChunks(png(ih
 test('rejects missing IDAT',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,iend)),/IEND/));
 test('rejects unknown critical chunk',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,chunk('ABCD'),idat,iend)),/critical/));
 test('rejects nonconsecutive IDAT',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,idat,chunk('tEXt'),idat,iend)),/Nonconsecutive/));
+
+test('rejects zero dimensions',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,0,0,0,0,1,8,6,0,0,0]),idat,iend)),/dimensions/));
+test('rejects unsupported color-depth combinations',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,4,6,0,0,0]),idat,iend)),/color type/));
+test('rejects unsupported compression',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,8,6,1,0,0]),idat,iend)),/compression/));
+test('requires palette for indexed PNG',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,8,3,0,0,0]),idat,iend)),/requires PLTE/));
+test('rejects grayscale palettes',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,8,0,0,0,0]),chunk('PLTE',[0,0,0]),idat,iend)),/forbidden/));
+test('rejects oversized indexed palette',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,1,3,0,0,0]),chunk('PLTE',[0,0,0,1,1,1,2,2,2]),idat,iend)),/palette capacity/));
