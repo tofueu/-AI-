@@ -31,3 +31,9 @@ test('rejects transparency after IDAT',()=>assert.throws(()=>validateNovaPngChun
 test('rejects transparency on RGBA',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,chunk('tRNS',[0,0]),idat,iend)),/forbidden/));
 test('rejects transparency exceeding palette',()=>assert.throws(()=>validateNovaPngChunks(png(indexed,chunk('PLTE',[1,2,3]),chunk('tRNS',[0,1]),idat,iend)),/palette length/));
 test('rejects duplicate transparency',()=>assert.throws(()=>validateNovaPngChunks(png(rgb,chunk('tRNS',[0,0,0,0,0,0]),chunk('tRNS',[0,0,0,0,0,0]),idat,iend)),/Duplicate/));
+
+test('rejects PNG pixel count above default limit',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,0x80,0,0,0,0x80,8,6,0,0,0]),idat,iend),{maxPixels:100}),/pixel count/));
+test('accepts custom pixel limit at exact boundary',()=>assert.equal(validateNovaPngChunks(png(chunk('IHDR',[0,0,0,2,0,0,0,2,8,6,0,0,0]),idat,iend),{maxPixels:4}).crcValid,true));
+test('rejects invalid pixel limit',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,idat,iend),{maxPixels:0}),/pixel limit/));
+test('rejects PNG chunk with lowercase reserved bit',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,chunk('abca'),idat,iend)),/chunk type/));
+test('accepts ancillary chunk with uppercase reserved bit',()=>assert.equal(validateNovaPngChunks(png(ihdr,chunk('abCa'),idat,iend)).crcValid,true));
