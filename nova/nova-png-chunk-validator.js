@@ -15,7 +15,7 @@ export function validateNovaPngChunks(bytes, options={}) {
   const maxBytes=options.maxBytes??16*1024*1024;
   if (!Number.isSafeInteger(maxBytes)||maxBytes<45||bytes.length>maxBytes) throw new Error('PNG size exceeds limit');
   if (bytes.length<8 || !SIGNATURE.every((v,i)=>bytes[i]===v)) throw new Error('Invalid PNG signature');
-  let pos=8, count=0, idat=0, ended=false, seenIDAT=false, idatClosed=false;
+  let pos=8, count=0, idat=0, ended=false, seenIDAT=false, idatClosed=false, seenPLTE=false;
   while(pos<bytes.length) {
     if (bytes.length-pos<12) throw new Error('Truncated PNG chunk');
     const length=u32(bytes,pos);
@@ -26,6 +26,12 @@ export function validateNovaPngChunks(bytes, options={}) {
     if(crc32(bytes,typeStart,crcPos)!==u32(bytes,crcPos)) throw new Error('PNG CRC mismatch: '+type);
     if(count===0 && (type!=='IHDR'||length!==13)) throw new Error('PNG must begin with IHDR');
     if(count>0 && type==='IHDR') throw new Error('Duplicate PNG IHDR');
+    if(type==='PLTE') {
+      if(seenPLTE) throw new Error('Duplicate PNG PLTE');
+      if(seenIDAT) throw new Error('PNG PLTE must precede IDAT');
+      if(length===0 || length%3!==0 || length>768) throw new Error('Invalid PNG PLTE length');
+      seenPLTE=true;
+    }
     if(type==='IDAT') {
       if(idatClosed) throw new Error('Nonconsecutive PNG IDAT chunks');
       seenIDAT=true;idat++;
