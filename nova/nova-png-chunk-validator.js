@@ -52,7 +52,9 @@ export function validateNovaPngChunks(bytes, options={}) {
       if(colorType===3 && (!seenPLTE || length===0)) throw new Error('Indexed PNG tRNS requires PLTE');
       if(colorType===3 && length>0 && length>paletteEntries) throw new Error('PNG tRNS exceeds palette length');
       if(colorType===0 && length!==2) throw new Error('Invalid grayscale PNG tRNS length');
+      if(colorType===0 && length===2 && ((bytes[dataStart]<<8)|bytes[dataStart+1]) >= 2**bitDepth) throw new Error('PNG grayscale tRNS sample exceeds bit depth');
       if(colorType===2 && length!==6) throw new Error('Invalid truecolor PNG tRNS length');
+      if(colorType===2 && length===6 && bitDepth===8 && [0,2,4].some(i=>bytes[dataStart+i]!==0)) throw new Error('PNG truecolor tRNS sample exceeds bit depth');
       seenTRNS=true;
     }
     if(type==='IDAT') {
