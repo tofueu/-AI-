@@ -16,6 +16,14 @@ export function inspectNovaModAssets(manifest, files = {}, options = {}) {
       errors.push({slot, path, reason: error instanceof Error ? error.message : String(error)});
     }
   }
+  // A visible, declared file that is absent is an invalid MOD, not an
+  // intentionally empty layer. Required slots may still use base fallback.
+  for (const slot of report.missing) {
+    const layer = manifest.layers[slot];
+    if (layer !== null && layer?.visible === true) {
+      errors.push({slot, path: layer.path, reason: 'declared visible PNG is missing'});
+    }
+  }
   const validSlots = report.present.filter(slot => Object.hasOwn(inspected, slot));
   const required = manifest.requiredSlots;
   return {
