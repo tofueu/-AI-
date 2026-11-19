@@ -9,13 +9,28 @@ const template = () => ({
   layers:Object.fromEntries(slots.map(slot=>[slot,null]))
 });
 function png(width=512,height=512,color=6) {
-  const b = new Uint8Array(33);
-  b.set([137,80,78,71,13,10,26,10,0,0,0,13,73,72,68,82]);
-  new DataView(b.buffer).setUint32(16,width);
-  new DataView(b.buffer).setUint32(20,height);
-  b.set([8,color,0,0,0],24);
-  return b;
+  const crcTable = Array.from({length:256},(_,n)=>{
+    for(let i=0;i<8;i++) n=n&1?(0xedb88320^(n>>>1)):n>>>1;
+    return n>>>0;
+  });
+  function chunk(type,data) {
+    const b=new Uint8Array(data.length+12), view=new DataView(b.buffer);
+    view.setUint32(0,data.length);
+    b.set([...type].map(c=>c.charCodeAt(0)),4);
+    b.set(data,8);
+    let crc=0xffffffff;
+    for(let i=4;i<b.length-4;i++) crc=crcTable[(crc^b[i])&255]^(crc>>>8);
+    view.setUint32(b.length-4,(crc^0xffffffff)>>>0);
+    return b;
+  }
+  const ihdr=new Uint8Array(13),v=new DataView(ihdr.buffer);
+  v.setUint32(0,width);v.setUint32(4,height);ihdr.set([8,color,0,0,0],8);
+  const parts=[Uint8Array.from([137,80,78,71,13,10,26,10]),chunk('IHDR',ihdr),chunk('IDAT',Uint8Array.from([1,2,3])),chunk('IEND',new Uint8Array())];
+  const result=new Uint8Array(parts.reduce((n,p)=>n+p.length,0));
+  let offset=0;for(const part of parts){result.set(part,offset);offset+=part.length;}
+  return result;
 }
+
 test('valid transparent layer passes and base fills remaining required slots',()=>{
   const m=template();m.layers.head={path:'artwork/head.png',visible:true};
   const r=inspectNovaModAssets(m,{'artwork/head.png':png()});
@@ -62,4 +77,20 @@ test('intentionally empty layers remain valid and use base fallback',()=>{
   assert.equal(r.valid,true);
   assert.deepEqual(r.errors,[]);
   assert.deepEqual(r.needsBase,['body','head','outfit']);
+});
+
+test('corrupt CRC is rejected before MOD can render',()=>{
+  const m=template();m.layers.head={path:'artwork/head.png',visible:true};
+  const bytes=png();bytes[29]^=1;
+  const r=inspectNovaModAssets(m,{'artwork/head.png':bytes});
+  assert.equal(r.valid,false);
+  assert.match(r.errors[0].reason,/CRC mismatch/);
+  assert.ok(r.needsBase.includes('head'));
+});
+test('truncated PNG is rejected even when IHDR is valid',()=>{
+  const m=template();m.layers.head={path:'artwork/head.png',visible:true};
+  const bytes=png().subarray(0,45);
+  const r=inspectNovaModAssets(m,{'artwork/head.png':bytes});
+  assert.equal(r.valid,false);
+  assert.ok(r.needsBase.includes('head'));
 });
