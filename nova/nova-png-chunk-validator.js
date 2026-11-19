@@ -15,7 +15,7 @@ export function validateNovaPngChunks(bytes, options={}) {
   const maxBytes=options.maxBytes??16*1024*1024;
   if (!Number.isSafeInteger(maxBytes)||maxBytes<45||bytes.length>maxBytes) throw new Error('PNG size exceeds limit');
   if (bytes.length<8 || !SIGNATURE.every((v,i)=>bytes[i]===v)) throw new Error('Invalid PNG signature');
-  let pos=8, count=0, idat=0, ended=false, seenIDAT=false, idatClosed=false, seenPLTE=false;
+  let pos=8, count=0, idat=0, ended=false, seenIDAT=false, idatClosed=false, seenPLTE=false, colorType=null, bitDepth=null;
   while(pos<bytes.length) {
     if (bytes.length-pos<12) throw new Error('Truncated PNG chunk');
     const length=u32(bytes,pos);
@@ -26,14 +26,25 @@ export function validateNovaPngChunks(bytes, options={}) {
     if(crc32(bytes,typeStart,crcPos)!==u32(bytes,crcPos)) throw new Error('PNG CRC mismatch: '+type);
     if(count===0 && (type!=='IHDR'||length!==13)) throw new Error('PNG must begin with IHDR');
     if(count>0 && type==='IHDR') throw new Error('Duplicate PNG IHDR');
+    if(type==='IHDR') {
+      const width=u32(bytes,dataStart), height=u32(bytes,dataStart+4);
+      bitDepth=bytes[dataStart+8];colorType=bytes[dataStart+9];
+      const depths={0:[1,2,4,8,16],2:[8,16],3:[1,2,4,8],4:[8,16],6:[8,16]};
+      if(!width||!height||width>0x7fffffff||height>0x7fffffff) throw new Error('Invalid PNG dimensions');
+      if(!depths[colorType]?.includes(bitDepth)) throw new Error('Invalid PNG color type or bit depth');
+      if(bytes[dataStart+10]!==0||bytes[dataStart+11]!==0||bytes[dataStart+12]>1) throw new Error('Invalid PNG compression, filter or interlace method');
+    }
     if(type==='PLTE') {
       if(seenPLTE) throw new Error('Duplicate PNG PLTE');
+      if(colorType===0||colorType===4) throw new Error('PNG PLTE forbidden for grayscale');
       if(seenIDAT) throw new Error('PNG PLTE must precede IDAT');
       if(length===0 || length%3!==0 || length>768) throw new Error('Invalid PNG PLTE length');
+      if(colorType===3 && length/3>2**bitDepth) throw new Error('PNG PLTE exceeds palette capacity');
       seenPLTE=true;
     }
     if(type==='IDAT') {
       if(idatClosed) throw new Error('Nonconsecutive PNG IDAT chunks');
+      if(colorType===3&&!seenPLTE) throw new Error('Indexed PNG requires PLTE');
       seenIDAT=true;idat++;
     } else if(seenIDAT) idatClosed=true;
     if(type==='IEND') {
