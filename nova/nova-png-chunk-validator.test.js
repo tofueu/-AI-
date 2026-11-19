@@ -52,3 +52,6 @@ test('rejects truecolor 8-bit transparency sample with high byte',()=>assert.thr
 test('accepts truecolor 8-bit transparency sample with zero high bytes',()=>assert.equal(
   validateNovaPngChunks(png(rgb,chunk('tRNS',[0,255,0,0,0,0]),idat,iend)).crcValid,true
 ));
+
+test('rejects PLTE after truecolor transparency',()=>assert.throws(()=>validateNovaPngChunks(png(rgb,chunk('tRNS',[0,0,0,0,0,0]),chunk('PLTE',[1,2,3]),idat,iend)),/PLTE must precede tRNS/));
+test('accepts PLTE before truecolor transparency',()=>assert.equal(validateNovaPngChunks(png(rgb,chunk('PLTE',[1,2,3]),chunk('tRNS',[0,0,0,0,0,0]),idat,iend)).crcValid,true));
