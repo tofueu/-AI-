@@ -15,7 +15,7 @@ export function validateNovaPngChunks(bytes, options={}) {
   const maxBytes=options.maxBytes??16*1024*1024;
   if (!Number.isSafeInteger(maxBytes)||maxBytes<45||bytes.length>maxBytes) throw new Error('PNG size exceeds limit');
   if (bytes.length<8 || !SIGNATURE.every((v,i)=>bytes[i]===v)) throw new Error('Invalid PNG signature');
-  let pos=8, count=0, idat=0, ended=false, seenIDAT=false, idatClosed=false, seenPLTE=false, colorType=null, bitDepth=null;
+  let pos=8, count=0, idat=0, ended=false, seenIDAT=false, idatClosed=false, seenPLTE=false, seenTRNS=false, colorType=null, bitDepth=null, paletteEntries=0;
   while(pos<bytes.length) {
     if (bytes.length-pos<12) throw new Error('Truncated PNG chunk');
     const length=u32(bytes,pos);
@@ -40,7 +40,17 @@ export function validateNovaPngChunks(bytes, options={}) {
       if(seenIDAT) throw new Error('PNG PLTE must precede IDAT');
       if(length===0 || length%3!==0 || length>768) throw new Error('Invalid PNG PLTE length');
       if(colorType===3 && length/3>2**bitDepth) throw new Error('PNG PLTE exceeds palette capacity');
-      seenPLTE=true;
+      paletteEntries=length/3;seenPLTE=true;
+    }
+    if(type==='tRNS') {
+      if(seenTRNS) throw new Error('Duplicate PNG tRNS');
+      if(seenIDAT) throw new Error('PNG tRNS must precede IDAT');
+      if(colorType===4||colorType===6) throw new Error('PNG tRNS forbidden for alpha color types');
+      if(colorType===3 && (!seenPLTE || length===0)) throw new Error('Indexed PNG tRNS requires PLTE');
+      if(colorType===3 && length>0 && length>paletteEntries) throw new Error('PNG tRNS exceeds palette length');
+      if(colorType===0 && length!==2) throw new Error('Invalid grayscale PNG tRNS length');
+      if(colorType===2 && length!==6) throw new Error('Invalid truecolor PNG tRNS length');
+      seenTRNS=true;
     }
     if(type==='IDAT') {
       if(idatClosed) throw new Error('Nonconsecutive PNG IDAT chunks');
