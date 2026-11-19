@@ -10,8 +10,9 @@ export function resolveNovaLayers(mod={},base={}) {
   const selected=Object.hasOwn(mod,name)?mod[name]:base[name];
   result[name]=(selected===null||selected===false||selected==='')?null:(selected??null);
  }
- if(!result.top&&!result.bottom){result.top=base.top??'builtin:basic-top';result.bottom=base.bottom??'builtin:basic-bottom';}
- if(!result.underwear)result.underwear=base.underwear??'builtin:basic-underwear';
+ if(!result.top)result.top=base.top||'builtin:basic-top';
+ if(!result.bottom)result.bottom=base.bottom||'builtin:basic-bottom';
+ if(!result.underwear)result.underwear=base.underwear||'builtin:basic-underwear';
  return result;
 }
 const lerp=(a,b,t)=>a+(b-a)*t;
