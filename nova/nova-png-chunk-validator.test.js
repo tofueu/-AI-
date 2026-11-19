@@ -37,3 +37,18 @@ test('accepts custom pixel limit at exact boundary',()=>assert.equal(validateNov
 test('rejects invalid pixel limit',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,idat,iend),{maxPixels:0}),/pixel limit/));
 test('rejects PNG chunk with lowercase reserved bit',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,chunk('abca'),idat,iend)),/chunk type/));
 test('accepts ancillary chunk with uppercase reserved bit',()=>assert.equal(validateNovaPngChunks(png(ihdr,chunk('abCa'),idat,iend)).crcValid,true));
+
+test('rejects grayscale transparency sample above bit depth',()=> {
+  const gray=chunk('IHDR',[0,0,0,1,0,0,0,1,1,0,0,0,0]);
+  assert.throws(()=>validateNovaPngChunks(png(gray,chunk('tRNS',[0,2]),idat,iend)),/sample exceeds bit depth/);
+});
+test('accepts grayscale transparency sample within bit depth',()=> {
+  const gray=chunk('IHDR',[0,0,0,1,0,0,0,1,1,0,0,0,0]);
+  assert.equal(validateNovaPngChunks(png(gray,chunk('tRNS',[0,1]),idat,iend)).crcValid,true);
+});
+test('rejects truecolor 8-bit transparency sample with high byte',()=>assert.throws(
+  ()=>validateNovaPngChunks(png(rgb,chunk('tRNS',[1,0,0,0,0,0]),idat,iend)),/sample exceeds bit depth/
+));
+test('accepts truecolor 8-bit transparency sample with zero high bytes',()=>assert.equal(
+  validateNovaPngChunks(png(rgb,chunk('tRNS',[0,255,0,0,0,0]),idat,iend)).crcValid,true
+));
