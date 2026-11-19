@@ -1,6 +1,7 @@
 import {readFile,writeFile,mkdir,realpath} from 'node:fs/promises';
 import {resolve,dirname,join,relative,isAbsolute,sep} from 'node:path';
 import {composeNovaModSvg} from './nova-mod-svg-compositor.js';
+import {validateNovaPng} from './nova-png-validation.js';
 
 // Portable previews embed each referenced PNG instead of leaving broken relative links.
 export async function exportPortableNovaPreviews(manifestPath,outputDirectory) {
@@ -17,10 +18,7 @@ export async function exportPortableNovaPreviews(manifestPath,outputDirectory) {
    const rel=relative(root,full);
    if(rel==='..'||rel.startsWith('..'+sep)||isAbsolute(rel))throw new Error('PNG escapes MOD directory: '+path);
    const bytes=await readFile(full);
-   const signature=Buffer.from([137,80,78,71,13,10,26,10]);
-   if(bytes.length<24||!bytes.subarray(0,8).equals(signature))throw new Error('Invalid PNG asset: '+path);
-   const width=bytes.readUInt32BE(16),height=bytes.readUInt32BE(20);
-   if(!width||!height||width>8192||height>8192)throw new Error('Invalid PNG dimensions: '+path);
+   validateNovaPng(bytes,path);
    const escaped=path.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll("'",'&apos;');
    portable=portable.replaceAll('href="'+escaped+'"','href="data:image/png;base64,'+bytes.toString('base64')+'"');
   }
