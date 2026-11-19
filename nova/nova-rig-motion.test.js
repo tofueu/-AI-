@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {NOVA_RIGS,NOVA_LAYERS,resolveNovaLayers,sampleNovaPose,novaMotionNames} from './nova-rig-motion.js';
+test('both variants have separate head and limb joints',()=>{for(const rig of Object.values(NOVA_RIGS))for(const name of ['head','handL','handR','footL','footR'])assert.ok(rig.joints[name]);});
+test('motions include idle walk and typing',()=>assert.deepEqual(novaMotionNames(),['idle','walk','typing']));
+test('animation loops without discontinuity at duration',()=>{for(const v of Object.keys(NOVA_RIGS))for(const m of novaMotionNames())assert.deepEqual(sampleNovaPose(v,m,0),sampleNovaPose(v,m,m==='idle'?1200:m==='walk'?800:600));});
+test('animation interpolates joint positions',()=>assert.notDeepEqual(sampleNovaPose('chibi','walk',0).joints.handL,sampleNovaPose('chibi','walk',100).joints.handL));
+test('MOD missing clothing gets basic outfit',()=>{const x=resolveNovaLayers({top:null,bottom:null});assert.equal(x.top,'builtin:basic-top');assert.equal(x.bottom,'builtin:basic-bottom');});
+test('explicit empty optional layer is hidden',()=>assert.equal(resolveNovaLayers({hat:null},{hat:'hat.png'}).hat,null));
+test('custom clothes replace defaults',()=>{const x=resolveNovaLayers({top:'shirt.png',bottom:'pants.png'});assert.equal(x.top,'shirt.png');assert.equal(x.bottom,'pants.png');});
+test('invalid variants and time rejected',()=>{assert.throws(()=>sampleNovaPose('missing','walk'));assert.throws(()=>sampleNovaPose('adult','walk',NaN));});
+test('layer slots include editable face and hair',()=>{for(const x of ['eyes','mouth','hairBack','hairFront','hat'])assert.ok(NOVA_LAYERS.includes(x));});
