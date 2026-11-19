@@ -48,3 +48,18 @@ test('invalid manifest and unsafe path still fail closed',()=>{
   const m=template();m.layers.head={path:'artwork/../head.png',visible:true};
   assert.throws(()=>inspectNovaModAssets(m,{}),/Invalid layer/);
 });
+
+test('declared visible PNG missing from files invalidates package',()=>{
+  const m=template();m.layers.head={path:'artwork/head.png',visible:true};
+  const r=inspectNovaModAssets(m,{});
+  assert.equal(r.valid,false);
+  assert.deepEqual(r.validSlots,[]);
+  assert.ok(r.needsBase.includes('head'));
+  assert.deepEqual(r.errors,[{slot:'head',path:'artwork/head.png',reason:'declared visible PNG is missing'}]);
+});
+test('intentionally empty layers remain valid and use base fallback',()=>{
+  const r=inspectNovaModAssets(template(),{});
+  assert.equal(r.valid,true);
+  assert.deepEqual(r.errors,[]);
+  assert.deepEqual(r.needsBase,['body','head','outfit']);
+});
