@@ -23,3 +23,11 @@ test('rejects unsupported compression',()=>assert.throws(()=>validateNovaPngChun
 test('requires palette for indexed PNG',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,8,3,0,0,0]),idat,iend)),/requires PLTE/));
 test('rejects grayscale palettes',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,8,0,0,0,0]),chunk('PLTE',[0,0,0]),idat,iend)),/forbidden/));
 test('rejects oversized indexed palette',()=>assert.throws(()=>validateNovaPngChunks(png(chunk('IHDR',[0,0,0,1,0,0,0,1,1,3,0,0,0]),chunk('PLTE',[0,0,0,1,1,1,2,2,2]),idat,iend)),/palette capacity/));
+
+const indexed=chunk('IHDR',[0,0,0,1,0,0,0,1,8,3,0,0,0]);
+const rgb=chunk('IHDR',[0,0,0,1,0,0,0,1,8,2,0,0,0]);
+test('accepts indexed transparency within palette',()=>assert.equal(validateNovaPngChunks(png(indexed,chunk('PLTE',[1,2,3]),chunk('tRNS',[0]),idat,iend)).crcValid,true));
+test('rejects transparency after IDAT',()=>assert.throws(()=>validateNovaPngChunks(png(rgb,idat,chunk('tRNS',[0,0,0,0,0,0]),iend)),/precede IDAT/));
+test('rejects transparency on RGBA',()=>assert.throws(()=>validateNovaPngChunks(png(ihdr,chunk('tRNS',[0,0]),idat,iend)),/forbidden/));
+test('rejects transparency exceeding palette',()=>assert.throws(()=>validateNovaPngChunks(png(indexed,chunk('PLTE',[1,2,3]),chunk('tRNS',[0,1]),idat,iend)),/palette length/));
+test('rejects duplicate transparency',()=>assert.throws(()=>validateNovaPngChunks(png(rgb,chunk('tRNS',[0,0,0,0,0,0]),chunk('tRNS',[0,0,0,0,0,0]),idat,iend)),/Duplicate/));
