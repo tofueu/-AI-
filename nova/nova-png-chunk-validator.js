@@ -39,6 +39,7 @@ export function validateNovaPngChunks(bytes, options={}) {
     }
     if(type==='PLTE') {
       if(seenPLTE) throw new Error('Duplicate PNG PLTE');
+      if(seenTRNS) throw new Error('PNG PLTE must precede tRNS');
       if(colorType===0||colorType===4) throw new Error('PNG PLTE forbidden for grayscale');
       if(seenIDAT) throw new Error('PNG PLTE must precede IDAT');
       if(length===0 || length%3!==0 || length>768) throw new Error('Invalid PNG PLTE length');
