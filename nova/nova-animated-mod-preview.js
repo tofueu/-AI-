@@ -18,7 +18,14 @@ export function renderNovaAnimatedModSvg(variant,motion,mod={},base={},options={
  const layerMarkup=[...svg.matchAll(/<(?:image|rect)\b[^>]*data-layer="([^"]+)"[^>]*\/>/g)];
  const output=[`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}" data-motion="${escapeAttribute(motion)}" data-variant="${escapeAttribute(variant)}">`];
  output.push('<style>');
- for(let i=0;i<frames;i++)output.push(`@keyframes nova-frame-${i}{0%,100%{opacity:0}${(100*i/frames).toFixed(5)}%{opacity:1}${(100*(i+1)/frames).toFixed(5)}%{opacity:0}}`);
+ // Each frame remains visible for exactly one slice of the cycle.
+ // A tiny epsilon prevents adjacent frames from both disappearing at a boundary.
+ for(let i=0;i<frames;i++){
+  const start=100*i/frames,end=100*(i+1)/frames;
+  const before=Math.max(0,start-0.0001),last=Math.max(start,end-0.0001);
+  const stops=i===0?`0%{opacity:1} ${last.toFixed(5)}%{opacity:1} ${end.toFixed(5)}%{opacity:0} 100%{opacity:0}`:`0%{opacity:0} ${before.toFixed(5)}%{opacity:0} ${start.toFixed(5)}%{opacity:1} ${last.toFixed(5)}%{opacity:1} ${end.toFixed(5)}%{opacity:0} 100%{opacity:0}`;
+  output.push(`@keyframes nova-frame-${i}{${stops}}`);
+ }
  output.push('</style>');
  for(let i=0;i<frames;i++){
   const pose=sampleNovaPose(variant,motion,DURATIONS[motion]*i/frames);
