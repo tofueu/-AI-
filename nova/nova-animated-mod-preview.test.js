@@ -21,3 +21,14 @@ test('reject invalid frames, time, motion, variant and paths',()=>{
  assert.throws(()=>renderNovaAnimatedModSvg('unknown','idle'),/variant/);
  assert.throws(()=>renderNovaAnimatedModSvg('chibi','idle',{head:'../escape.png'}),/Unsafe/);
 });
+
+test('animation keyframes hold each frame until the next frame begins',()=>{
+ const {svg}=renderNovaAnimatedModSvg('chibi','idle',{}, {},{frames:4});
+ const first=svg.match(/@keyframes nova-frame-0\{([^}]+\}[^}]+\}[^}]+\}[^}]+\})\}/)?.[1]??'';
+ assert.match(first,/0%\{opacity:1\}/);
+ assert.match(first,/24\.99990%\{opacity:1\}/);
+ assert.match(first,/25\.00000%\{opacity:0\}/);
+ assert.match(svg,/@keyframes nova-frame-1\{/);
+ assert.match(svg,/25\.00000%\{opacity:1\}/);
+ assert.match(svg,/50\.00000%\{opacity:0\}/);
+});
