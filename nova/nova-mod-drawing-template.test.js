@@ -28,3 +28,15 @@ for(const variant of ['chibi','adult']){
   assert.deepEqual(layers,NOVA_LAYERS);
  });
 }
+
+for(const variant of ['chibi','adult']){
+ test(`${variant} drawing guide connects joints with labelled bones without polluting MOD layer groups`,()=>{
+  const {svg}=createNovaModDrawingTemplate(variant);
+  const bones=['root:neck','neck:head','neck:shoulderL','neck:shoulderR','shoulderL:elbowL','elbowL:handL','shoulderR:elbowR','elbowR:handR','root:hipL','root:hipR','hipL:kneeL','kneeL:footL','hipR:kneeR','kneeR:footR'];
+  for(const bone of bones)assert.ok(svg.includes(`data-bone="${bone}"`),bone);
+  for(const name of Object.keys(NOVA_RIGS[variant].joints))assert.ok(svg.includes(`>${name}</text>`),name);
+  assert.equal((svg.match(/data-bone=/g)||[]).length,bones.length);
+  assert.equal((svg.match(/<g id="layer-/g)||[]).length,NOVA_LAYERS.length);
+  assert.ok(svg.indexOf('id="rig-guides"')>svg.indexOf('id="layer-accessory"'));
+ });
+}
