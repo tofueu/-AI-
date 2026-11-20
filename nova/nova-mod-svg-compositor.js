@@ -1,5 +1,6 @@
 import {NOVA_RIGS,NOVA_LAYERS,resolveNovaLayers} from './nova-rig-motion.js';
 const SAFE=/^(?!\/)(?!.*(?:^|\/)\.\.?\/)(?!.*\\)[a-zA-Z0-9_./-]+\.png$/;
+const PAINT_ORDER=['hairBack','body','underwear','bottom','top','neck','head','eyes','mouth','hairFront','hat','accessory'];
 const escapeXml=s=>s.replaceAll('&','&amp;').replaceAll('"','&quot;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll("'",'&apos;');
 // Full-canvas PNG composition; builtin clothing uses rig-aligned fallback shapes.
 export function composeNovaModSvg(variant,mod={},base={}) {
@@ -9,7 +10,8 @@ export function composeNovaModSvg(variant,mod={},base={}) {
  for(const source of [mod,base])for(const key of Object.keys(source))if(!NOVA_LAYERS.includes(key))throw new Error('Unknown layer: '+key);
  const layers=resolveNovaLayers(mod,base),[w,h]=rig.canvas;
  const out=[`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">`],p=rig.joints;
- for(const name of NOVA_LAYERS){
+ // Draw rear hair behind the body and face; keep the public MOD layer schema unchanged.
+ for(const name of PAINT_ORDER){
   const value=layers[name];if(value===null)continue;
   if(value===`builtin:basic-${name}`&&['top','bottom','underwear'].includes(name)){
    const cx=p.root[0],y=name==='top'?p.shoulderL[1]:name==='bottom'?p.hipL[1]:p.root[1]+42;
