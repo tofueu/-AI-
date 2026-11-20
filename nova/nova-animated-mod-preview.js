@@ -30,10 +30,11 @@ export function renderNovaAnimatedModSvg(variant,motion,mod={},base={},options={
  for(let i=0;i<frames;i++){
   const pose=sampleNovaPose(variant,motion,DURATIONS[motion]*i/frames);
   output.push(`<g data-frame="${i}" style="opacity:0;animation:nova-frame-${i} ${durationMs}ms steps(1,end) infinite">`);
-  for(const [,name,markup] of layerMarkup){
+  for(const match of layerMarkup){
+   const name=match[1],markup=match[0];
    const anchor=ANCHORS[name],current=pose.joints[anchor],origin=rig.joints[anchor];
    const dx=Number((current[0]-origin[0]).toFixed(4)),dy=Number((current[1]-origin[1]).toFixed(4));
-   output.push(`<g data-animated-layer="${name}" transform="translate(${dx} ${dy})">${markup[0]}</g>`);
+   output.push(`<g data-animated-layer="${name}" transform="translate(${dx} ${dy})">${markup}</g>`);
   }
   output.push('</g>');
  }
