@@ -33,7 +33,16 @@ export function replaceNovaModSvgLayer(svg,layer,artwork){
  const marker=`<g id="layer-${layer}" data-layer="${layer}">`;
  const start=svg.indexOf(marker);
  if(start<0||svg.indexOf(marker,start+marker.length)>=0)throw new Error('Expected exactly one MOD layer');
- const end=svg.indexOf('</g>',start+marker.length);
+ // Nested <g> artwork is valid; locate the matching closing group instead
+ // of the first </g>, which could belong to an inner artwork group.
+ const groupTags=/<\\/?g(?=[\\s>])[^>]*>/g;
+ groupTags.lastIndex=start+marker.length;
+ let depth=1,end=-1,match;
+ while((match=groupTags.exec(svg))){
+  if(/^<\\/g\\s*>$/.test(match[0])){
+   if(--depth===0){end=match.index;break;}
+  }else if(!/\\/\\s*>$/.test(match[0]))depth++;
+ }
  if(end<0)throw new Error('Unclosed MOD layer');
  return svg.slice(0,start+marker.length)+artwork+svg.slice(end);
 }
