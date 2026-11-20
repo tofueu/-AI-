@@ -47,7 +47,7 @@ export function replaceNovaModSvgLayer(svg,layer,artwork){
   }else if(!/\/\s*>$/.test(match[0])){
    // A sibling MOD layer means the target's closing </g> is missing.
    // Never consume the sibling's closing tag as the target's boundary.
-   if(depth===1&&/^<g\s+[^>]*\bid="layer-[^"]+"/.test(match[0]))
+   if(depth===1&&/^<g(?=[\s>])[^>]*\bdata-layer="[^"]+"[^>]*>/.test(match[0]))
     throw new Error('Unclosed MOD layer before sibling');
    depth++;
   }
