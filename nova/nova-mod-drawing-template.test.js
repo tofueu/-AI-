@@ -1,0 +1,17 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createNovaModDrawingTemplate} from './nova-mod-drawing-template.js';
+import {NOVA_LAYERS,NOVA_RIGS} from './nova-rig-motion.js';
+
+for(const variant of ['chibi','adult']){
+ test(`${variant} drawing template exposes each editable layer and all rig joints`,()=>{
+  const result=createNovaModDrawingTemplate(variant);
+  assert.deepEqual(result.layers,NOVA_LAYERS);
+  assert.deepEqual([result.canvas.width,result.canvas.height],NOVA_RIGS[variant].canvas);
+  for(const layer of NOVA_LAYERS)assert.match(result.svg,new RegExp(`id="layer-${layer}"`));
+  for(const joint of Object.keys(NOVA_RIGS[variant].joints))assert.match(result.svg,new RegExp(`data-joint="${joint}"`));
+  assert.equal((result.svg.match(/<g id="layer-/g)||[]).length,NOVA_LAYERS.length);
+  assert.match(result.svg,/data-export="hide"/);
+ });
+}
+test('unknown template variant is rejected',()=>assert.throws(()=>createNovaModDrawingTemplate('other'),/Unknown NOVA variant/));
