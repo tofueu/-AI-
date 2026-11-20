@@ -8,7 +8,10 @@ export function createNovaModDrawingTemplate(variant){
  const [width,height]=rig.canvas;
  const joints=Object.entries(rig.joints).map(([name,[x,y]])=>
   `<circle data-joint="${name}" cx="${x}" cy="${y}" r="4" fill="#b48ce8"/>`).join('\n');
- const groups=NOVA_LAYERS.map(name=>`<g id="layer-${name}" data-layer="${name}"></g>`).join('\n');
+ // Keep editable groups in the same back-to-front order as the runtime compositor.
+ // NOVA_LAYERS remains the public MOD schema, independent of SVG paint order.
+ const paintOrder=['hairBack',...NOVA_LAYERS.filter(name=>name!=='hairBack')];
+ const groups=paintOrder.map(name=>`<g id="layer-${name}" data-layer="${name}"></g>`).join('\n');
  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" data-nova-variant="${variant}">
 <title>NOVA ${variant} editable MOD template</title>
 ${groups}
