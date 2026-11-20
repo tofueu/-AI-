@@ -63,3 +63,14 @@ for(const variant of ['chibi','adult']){
   assert.ok(replaceNovaModSvgLayer(original,'eyes','<circle r="2"/>').includes('id="layer-hairFront"'));
  });
 }
+
+for(const variant of ['chibi','adult']){
+ test(`${variant}: reject truncated layer even when sibling attributes are reordered`,()=>{
+  const original=createNovaModDrawingTemplate(variant).svg;
+  const broken=original
+   .replace('id="layer-eyes"></g>','id="layer-eyes">')
+   .replace('<g id="layer-hairFront" data-layer="hairFront">','<g data-layer="hairFront" id="layer-hairFront">');
+  assert.notEqual(broken,original);
+  assert.throws(()=>replaceNovaModSvgLayer(broken,'eyes','<circle r="2"/>'),/Unclosed MOD layer/);
+ });
+}
