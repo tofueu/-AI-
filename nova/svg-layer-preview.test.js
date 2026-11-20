@@ -23,3 +23,28 @@ test('dimensions and XML escaping',()=>{
   assert.ok(r.svg.includes('viewBox="0 0 200 300"'));
   assert.throws(()=>renderNovaModSvg(b,{}, {width:0}));
 });
+
+for (const variant of ['chibi','adult']) {
+  test(`${variant} preview includes articulated limb slots and honors hidden limb MODs`, () => {
+    const rig = base(variant);
+    Object.assign(rig.layers, {
+      armL:{path:'limbs/left-arm.png'},
+      armR:{path:'limbs/right-arm.png'},
+      legL:{path:'limbs/left-leg.png'},
+      legR:{path:'limbs/right-leg.png'}
+    });
+    const preview = renderNovaModSvg(rig, {layers:{
+      armL:{path:'mods/replaced-left-arm.png'},
+      armR:null,
+      legR:{path:'mods/hidden-leg.png',visible:false}
+    }});
+    assert.ok(preview.svg.includes('data-slot="armL"'));
+    assert.ok(preview.svg.includes('mods/replaced-left-arm.png'));
+    assert.ok(preview.svg.includes('data-slot="legL"'));
+    assert.ok(!preview.svg.includes('data-slot="armR"'));
+    assert.ok(!preview.svg.includes('data-slot="legR"'));
+    assert.ok(!preview.svg.includes('mods/hidden-leg.png'));
+    assert.ok(preview.svg.indexOf('data-slot="legL"') < preview.svg.indexOf('data-slot="body"'));
+    assert.ok(preview.svg.indexOf('data-slot="outfit"') < preview.svg.indexOf('data-slot="hairFront"'));
+  });
+}
