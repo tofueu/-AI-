@@ -15,3 +15,16 @@ for(const variant of ['chibi','adult']){
  });
 }
 test('unknown template variant is rejected',()=>assert.throws(()=>createNovaModDrawingTemplate('other'),/Unknown NOVA variant/));
+
+for(const variant of ['chibi','adult']){
+ test(`${variant} template draws rear hair behind body and face while retaining schema order`,()=>{
+  const {svg,layers}=createNovaModDrawingTemplate(variant);
+  const index=name=>svg.indexOf(`id="layer-${name}"`);
+  assert.ok(index('hairBack')>=0);
+  assert.ok(index('hairBack')<index('body'));
+  assert.ok(index('body')<index('head'));
+  assert.ok(index('head')<index('eyes'));
+  assert.ok(index('eyes')<index('hairFront'));
+  assert.deepEqual(layers,NOVA_LAYERS);
+ });
+}
