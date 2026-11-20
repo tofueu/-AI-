@@ -44,7 +44,13 @@ export function replaceNovaModSvgLayer(svg,layer,artwork){
  while((match=groupTags.exec(svg))){
   if(/^<\/g\s*>$/.test(match[0])){
    if(--depth===0){end=match.index;break;}
-  }else if(!/\/\s*>$/.test(match[0]))depth++;
+  }else if(!/\/\s*>$/.test(match[0])){
+   // A sibling MOD layer means the target's closing </g> is missing.
+   // Never consume the sibling's closing tag as the target's boundary.
+   if(depth===1&&/^<g\s+[^>]*\bid="layer-[^"]+"/.test(match[0]))
+    throw new Error('Unclosed MOD layer before sibling');
+   depth++;
+  }
  }
  if(end<0)throw new Error('Unclosed MOD layer');
  return svg.slice(0,start+marker.length)+artwork+svg.slice(end);
