@@ -25,3 +25,17 @@ test('reject unknown layers and malformed inputs',()=>{
  assert.throws(()=>replaceNovaModSvgLayer('invalid','eyes',''));
  assert.throws(()=>replaceNovaModSvgLayer(svg,'eyes','<rect width="1">'));
 });
+
+for(const variant of ['chibi','adult']){
+ test(`${variant}: replace nested SVG groups without corrupting sibling layers`,()=>{
+  const original=createNovaModDrawingTemplate(variant).svg;
+  const nested='<g opacity="0.5"><g transform="translate(2 3)"><circle cx="4" cy="5" r="2"/></g></g>';
+  const withNested=replaceNovaModSvgLayer(original,'eyes',nested);
+  const replaced=replaceNovaModSvgLayer(withNested,'eyes','<rect x="1" y="2" width="3" height="4"/>');
+  assert.ok(replaced.includes('<rect x="1"'));
+  assert.ok(!replaced.includes('<circle cx="4"'));
+  assert.ok(replaced.includes('id="layer-hairFront"'));
+  assert.ok(replaced.includes('id="rig-guides"'));
+  assert.equal((replaced.match(/id="layer-eyes"/g)||[]).length,1);
+ });
+}
