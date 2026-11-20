@@ -1,5 +1,7 @@
 import {resolveNovaMod} from './character-mod.js';
-const ORDER = ['body','hairBack','head','eyes','mouth','outfit','hairFront','hat','accessory'];
+// Back limbs first, then torso/clothing, then face and foreground accessories.
+// Keep every slot supported by character-mod.js visible in the exported preview.
+const ORDER = ['legL','legR','armL','body','hairBack','head','eyes','mouth','outfit','armR','hairFront','hat','accessory'];
 const xml = s => s.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/'/g,'&apos;');
 export function renderNovaModSvg(base, mod = {}, options = {}) {
   const {variant,layers,fallbacks} = resolveNovaMod(base,mod);
