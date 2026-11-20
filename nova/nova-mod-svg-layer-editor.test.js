@@ -53,3 +53,13 @@ for(const variant of ['chibi','adult']){
   }
  });
 }
+
+for(const variant of ['chibi','adult']){
+ test(`${variant}: refuse a truncated MOD layer instead of consuming its sibling`,()=>{
+  const original=createNovaModDrawingTemplate(variant).svg;
+  const broken=original.replace('id="layer-eyes"></g>','id="layer-eyes">');
+  assert.notEqual(broken,original,'fixture must remove the closing tag');
+  assert.throws(()=>replaceNovaModSvgLayer(broken,'eyes','<circle r="2"/>'),/Unclosed MOD layer/);
+  assert.ok(replaceNovaModSvgLayer(original,'eyes','<circle r="2"/>').includes('id="layer-hairFront"'));
+ });
+}
