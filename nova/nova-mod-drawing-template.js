@@ -24,3 +24,13 @@ ${groups}
 </svg>`;
  return {variant,canvas:{width,height},layers:[...NOVA_LAYERS],svg};
 }
+
+// Strip only the dedicated guide group for clean artwork exports. Keep all
+// editable MOD groups intact, including empty groups awaiting replacement art.
+export function exportNovaModArtworkSvg(templateSvg){
+ if(typeof templateSvg!=='string'||!templateSvg.includes('data-nova-variant='))throw new TypeError('Expected NOVA SVG template');
+ const guide=/<g id="rig-guides" data-export="hide" opacity="\.5">[\s\S]*?<\/g>/g;
+ const matches=templateSvg.match(guide)||[];
+ if(matches.length!==1)throw new Error('Expected exactly one NOVA rig guide group');
+ return templateSvg.replace(guide,'');
+}
