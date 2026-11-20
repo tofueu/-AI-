@@ -57,5 +57,14 @@ test('clean export rejects missing or duplicate guides',()=>{
  const {svg}=createNovaModDrawingTemplate('chibi');
  assert.throws(()=>exportNovaModArtworkSvg('invalid'),/Expected NOVA SVG/);
  assert.throws(()=>exportNovaModArtworkSvg(exportNovaModArtworkSvg(svg)),/exactly one/);
- assert.throws(()=>exportNovaModArtworkSvg(svg.replace('</svg>',svg.match(/<g id="rig-guides"[\\s\\S]*?<\\/g>/)[0]+'</svg>')),/exactly one/);
+ assert.throws(()=>exportNovaModArtworkSvg(svg.replace('</svg>',svg.match(/<g id="rig-guides"[\s\S]*?<\/g>/)[0]+'</svg>')),/exactly one/);
+});
+
+test('clean export preserves illustrator artwork inside MOD groups',()=>{
+ const {svg}=createNovaModDrawingTemplate('adult');
+ const artwork='<path id="custom-hair" d="M1 2L3 4"/>';
+ const decorated=svg.replace('id="layer-hairFront"></g>',`id="layer-hairFront">${artwork}</g>`);
+ const clean=exportNovaModArtworkSvg(decorated);
+ assert.ok(clean.includes(artwork));
+ assert.ok(!clean.includes('id="rig-guides"'));
 });
