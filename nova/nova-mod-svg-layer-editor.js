@@ -16,7 +16,10 @@ export function validateNovaSvgArtwork(fragment){
   const attrs=m[3];
   const attrPattern=/\s+([\w-]+)\s*=\s*"([^"]*)"/g;
   let remaining=attrs,match;
+  const seenAttrs=new Set();
   while((match=attrPattern.exec(attrs))){
+   if(seenAttrs.has(match[1]))throw new Error('Duplicate SVG attribute');
+   seenAttrs.add(match[1]);
    if(!SAFE_ATTRS.has(match[1])||/[<>&]|url\s*\(|javascript:|data:/i.test(match[2]))throw new Error('Unsafe SVG attribute');
    remaining=remaining.replace(match[0],'');
   }
