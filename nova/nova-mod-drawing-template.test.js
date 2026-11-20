@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createNovaModDrawingTemplate} from './nova-mod-drawing-template.js';
+import {createNovaModDrawingTemplate,exportNovaModArtworkSvg} from './nova-mod-drawing-template.js';
 import {NOVA_LAYERS,NOVA_RIGS} from './nova-rig-motion.js';
 
 for(const variant of ['chibi','adult']){
@@ -40,3 +40,22 @@ for(const variant of ['chibi','adult']){
   assert.ok(svg.indexOf('id="rig-guides"')>svg.indexOf('id="layer-accessory"'));
  });
 }
+
+for(const variant of ['chibi','adult']){
+ test(`${variant} clean export removes rig overlay but retains every editable MOD group`,()=>{
+  const {svg}=createNovaModDrawingTemplate(variant);
+  const clean=exportNovaModArtworkSvg(svg);
+  assert.ok(!clean.includes('id="rig-guides"'));
+  assert.ok(!clean.includes('data-bone='));
+  assert.ok(!clean.includes('data-joint='));
+  assert.match(clean,/<svg /);
+  for(const layer of NOVA_LAYERS)assert.ok(clean.includes(`id="layer-${layer}"`));
+  assert.equal((clean.match(/<g id="layer-/g)||[]).length,NOVA_LAYERS.length);
+ });
+}
+test('clean export rejects missing or duplicate guides',()=>{
+ const {svg}=createNovaModDrawingTemplate('chibi');
+ assert.throws(()=>exportNovaModArtworkSvg('invalid'),/Expected NOVA SVG/);
+ assert.throws(()=>exportNovaModArtworkSvg(exportNovaModArtworkSvg(svg)),/exactly one/);
+ assert.throws(()=>exportNovaModArtworkSvg(svg.replace('</svg>',svg.match(/<g id="rig-guides"[\\s\\S]*?<\\/g>/)[0]+'</svg>')),/exactly one/);
+});
