@@ -39,3 +39,17 @@ for(const variant of ['chibi','adult']){
   assert.equal((replaced.match(/id="layer-eyes"/g)||[]).length,1);
  });
 }
+
+for(const variant of ['chibi','adult']){
+ test(`${variant}: reject duplicate attributes before layer replacement`,()=>{
+  const svg=createNovaModDrawingTemplate(variant).svg;
+  for(const artwork of [
+   '<circle cx="1" cx="2" cy="3" r="4"/>',
+   '<g opacity="0.2" opacity="0.9"><path d="M0 0"/></g>',
+   '<path fill="#fff" fill="#000" d="M0 0"/>'
+  ]){
+   assert.throws(()=>validateNovaSvgArtwork(artwork),/Duplicate SVG attribute/);
+   assert.throws(()=>replaceNovaModSvgLayer(svg,'eyes',artwork),/Duplicate SVG attribute/);
+  }
+ });
+}
