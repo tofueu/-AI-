@@ -6,6 +6,7 @@ Requires: pip install cairosvg
 """
 import argparse
 import copy
+import json
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -68,6 +69,21 @@ def render_layers(source: Path, destination: Path) -> list[Path]:
         path = destination / f'{slot}.png'
         cairosvg.svg2png(bytestring=ET.tostring(isolated, encoding='utf-8'), write_to=str(path))
         results.append(path)
+    # MOD tooling can distinguish deliberately blank template slots from painted art.
+    from PIL import Image
+    manifest = {'schema_version': 1, 'slots': []}
+    for slot, path in zip(SLOTS, results):
+        with Image.open(path) as image:
+            rgba = image.convert('RGBA')
+            manifest['slots'].append({
+                'name': slot,
+                'file': path.name,
+                'width': rgba.width,
+                'height': rgba.height,
+                'empty': rgba.getchannel('A').getbbox() is None,
+            })
+    (destination / 'layers.json').write_text(
+        json.dumps(manifest, indent=2) + '\\n', encoding='utf-8')
     return results
 
 
