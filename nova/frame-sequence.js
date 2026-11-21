@@ -22,8 +22,8 @@ export function renderNovaFrameSequence(base, mod, clip, options={}) {
     const cycle=Math.floor(i/framesPerCycle);
     const localFrame=i%framesPerCycle;
     const timeMs=cycle*clip.durationMs+Math.min(localFrame*1000/fps,clip.durationMs);
-    const frame=renderNovaPoseSvg(base,mod,clip,timeMs,renderOptions);
-    frames.push({index:i,timeMs,svg:frame.svg,fallbacks:frame.fallbacks});
+    // The final frame of a fractional-length cycle must end at the cycle\n    // boundary, rather than holding for a full 1/fps interval.\n    const durationMs=Math.min(1000/fps,clip.durationMs-localFrame*1000/fps);\n    const frame=renderNovaPoseSvg(base,mod,clip,timeMs,renderOptions);
+    frames.push({index:i,timeMs,durationMs,svg:frame.svg,fallbacks:frame.fallbacks});
   }
   return {variant:clip.variant,name:clip.name,fps,cycles,frameCount,frames};
 }
