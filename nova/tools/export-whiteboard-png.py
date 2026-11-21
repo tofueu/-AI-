@@ -5,6 +5,7 @@ Usage: python nova/tools/export-whiteboard-png.py chibi [output_directory]
 Requires: pip install cairosvg
 """
 import argparse
+import copy
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -24,6 +25,7 @@ def render_layers(source: Path, destination: Path) -> list[Path]:
     if root.tag != f'{{{SVG_NS}}}svg':
         raise ValueError('Expected SVG root')
     groups = {}
+    parents = {child: parent for parent in root.iter() for child in parent}
     for group in root.iter(f'{{{SVG_NS}}}g'):
         name = group.get('id')
         if name in SLOTS:
@@ -37,7 +39,22 @@ def render_layers(source: Path, destination: Path) -> list[Path]:
     results = []
     for slot in SLOTS:
         isolated = ET.Element(root.tag, dict(root.attrib))
-        isolated.append(ET.fromstring(ET.tostring(groups[slot], encoding='unicode')))
+        # Preserve SVG definitions and styles referenced by a layer.
+        for child in root:
+            if child.tag in (f'{{{SVG_NS}}}defs', f'{{{SVG_NS}}}style'):
+                isolated.append(copy.deepcopy(child))
+        # Preserve transforms and clipping inherited from ancestor groups.
+        chain = []
+        current = groups[slot]
+        while current is not root:
+            chain.append(current)
+            current = parents[current]
+        container = isolated
+        for ancestor in reversed(chain[1:]):
+            wrapper = ET.Element(ancestor.tag, dict(ancestor.attrib))
+            container.append(wrapper)
+            container = wrapper
+        container.append(copy.deepcopy(groups[slot]))
         path = destination / f'{slot}.png'
         cairosvg.svg2png(bytestring=ET.tostring(isolated, encoding='utf-8'), write_to=str(path))
         results.append(path)
