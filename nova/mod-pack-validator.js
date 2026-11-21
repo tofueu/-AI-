@@ -21,6 +21,9 @@ function validateRgbaPng(bytes,width,height) {
     const length=bytes.readUInt32BE(offset),end=offset+12+length;
     if(end>bytes.length) return false;
     const type=bytes.toString('ascii',offset+4,offset+8);
+    // PNG chunk names must contain four ASCII letters; the reserved third
+    // character must be uppercase. Reject malformed names even with valid CRC.
+    if(!/^[A-Za-z]{2}[A-Z][A-Za-z]$/.test(type)) return false;
     if(crc32(bytes.subarray(offset+4,offset+8+length))!==bytes.readUInt32BE(offset+8+length)) return false;
     if(!seenIHDR){
       if(type!=='IHDR'||length!==13||bytes.readUInt32BE(offset+8)!==width||bytes.readUInt32BE(offset+12)!==height||bytes[offset+16]!==8||bytes[offset+17]!==6||bytes[offset+18]!==0||bytes[offset+19]!==0||bytes[offset+20]!==0) return false;
