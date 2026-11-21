@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>NOVA MOD Studio — experimental</title>
+<style>
+:root{font-family:system-ui,sans-serif;color-scheme:dark}body{margin:0;background:#171724;color:#eee}header,main{padding:18px;max-width:1050px;margin:auto}h1{font-size:1.4rem}p{color:#bbb}button,input,select{font:inherit}button,select,input[type=file]{padding:7px;margin:3px}button{cursor:pointer}main{display:grid;grid-template-columns:minmax(290px,1fr) minmax(250px,1fr);gap:18px}.panel{background:#252538;border-radius:12px;padding:16px}#layers{display:grid;gap:8px}.slot{display:grid;grid-template-columns:100px 1fr;gap:6px;align-items:center}.slot select{width:100%}#stage{position:relative;width:min(100%,350px);margin:auto;aspect-ratio:2/3;background:repeating-conic-gradient(#555 0 25%,#444 0 50%) 0/24px 24px;overflow:hidden}#stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain}#stage.chibi{aspect-ratio:1}#stage .hint{position:absolute;bottom:0;background:#000a;padding:8px;font-size:12px}#status{white-space:pre-wrap;color:#d8d8ff}@media(max-width:700px){main{display:block}.panel{margin-bottom:14px}}
+</style></head><body><header><h1>NOVA MOD Studio <small>實驗版</small></h1><p>只編輯 MOD 清單與本機 PNG 預覽，不會覆寫官方角色素材。預覽是圖層疊放，不代表已綁定骨架或輸出 GIF。</p></header>
+<main><section class="panel"><label>角色 <select id="variant"><option value="chibi">Q 版</option><option value="adult">成人版</option></select></label>
+<label>MOD ID <input id="modid" value="my_nova_mod" pattern="[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}"></label>
+<div><label>匯入 JSON <input type="file" id="json" accept=".json,application/json"></label></div>
+<div><label>載入 PNG（可多選，檔名對應清單 src）<input type="file" id="png" accept="image/png" multiple></label></div>
+<div id="layers"></div><button id="save">匯出 MOD JSON</button><p id="status" role="status" aria-live="polite"></p></section>
+<section class="panel"><h2>圖層預覽</h2><div id="stage" class="chibi"><div class="hint">請載入 PNG；未載入的圖層不顯示。服裝保底須由正式角色素材提供。</div></div><p>「繼承」保留原角色圖層；「隱藏」明確移除；「替換」使用 PNG。未提供 PNG 不會自動產生角色圖。</p></section></main>
+<script type="module">
+import {importNovaModManifest} from './mod-manifest.js';
+import {LAYER_SLOTS} from './mod-layers.js';
+const $=id=>document.getElementById(id);
+const files=new Map();let layers=Object.create(null);
+const status=message=>{$('status').textContent=message};
+const rows=new Map();
+for(const slot of LAYER_SLOTS){
+ const row=document.createElement('div');row.className='slot';
+ const label=document.createElement('label');label.textContent=slot;
+ const control=document.createElement('div');
+ const select=document.createElement('select');
+ for(const [value,title] of [['inherit','繼承'],['hide','隱藏'],['replace','替換']]){const opt=document.createElement('option');opt.value=value;opt.textContent=title;select.append(opt)}
+ const src=document.createElement('input');src.placeholder='例如 hair_front.png';src.setAttribute('aria-label',slot+' PNG 路徑');src.hidden=true;
+ select.addEventListener('change',()=>{src.hidden=select.value!=='replace';refresh()});
+ src.addEventListener('input',refresh);control.append(select,src);row.append(label,control);$('layers').append(row);rows.set(slot,{select,src});
+}
+function manifest(){
+ const entries=Object.create(null);
+ for(const [slot,{select,src}] of rows){
+  const part={operation:select.value};
+  if(select.value==='replace')part.src=src.value;
+  if(select.value!=='inherit')entries[slot]=part;
+ }
+ return {schemaVersion:1,id:$('modid').value,variant:$('variant').value,layers:entries};
+}
+function refresh(){
+ const stage=$('stage');stage.classList.toggle('chibi',$('variant').value==='chibi');
+ stage.querySelectorAll('img').forEach(el=>el.remove());
+ try{
+  const valid=importNovaModManifest(manifest());
+  for(const slot of LAYER_SLOTS){
+   const part=valid.layers[slot];if(part?.operation!=='replace')continue;
+   const file=files.get(part.src);
+   if(!file)continue;
+   const img=document.createElement('img');img.alt=slot;img.src=file;stage.append(img);
+  }
+  status('MOD 清單有效。預覽僅包含已載入且檔名相符的 PNG。');
+ }catch(error){status(error.message)}
+}
+$('png').addEventListener('change',event=>{
+ for(const url of files.values())URL.revokeObjectURL(url);
+ files.clear();
+ for(const file of event.target.files){
+  if(file.type!=='image/png'||!/^[-\w.]+\.png$/i.test(file.name))continue;
+  files.set(file.name,URL.createObjectURL(file));
+ }
+ refresh();
+});
+$('json').addEventListener('change',async event=>{
+ const file=event.target.files[0];if(!file)return;
+ try{
+  if(file.size>1048576)throw Error('JSON 檔案超過 1 MiB');
+  const parsed=JSON.parse(await file.text());
+  const valid=importNovaModManifest(parsed);
+  $('modid').value=valid.id;$('variant').value=valid.variant==='universal'?'chibi':valid.variant;
+  for(const [slot,{select,src}] of rows){const part=valid.layers[slot];select.value=part?.operation||'inherit';src.value=part?.src||'';src.hidden=select.value!=='replace'}
+  refresh();
+  if(valid.variant==='universal')status('已載入 universal MOD；目前編輯器以 Q 版顯示，匯出時會使用所選角色類型。');
+ }catch(error){status('匯入失敗：'+error.message)}
+});
+$('variant').addEventListener('change',refresh);$('modid').addEventListener('input',refresh);
+$('save').addEventListener('click',()=>{
+ try{
+  const data=manifest();importNovaModManifest(data);
+  const blob=new Blob([JSON.stringify(data,null,2)+'\n'],{type:'application/json'});
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=data.id+'.nova-mod.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+  status('已匯出 JSON。PNG 檔案請另外與清單一起保存。');
+ }catch(error){status('無法匯出：'+error.message)}
+});
+refresh();
+</script></body></html>
