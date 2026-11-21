@@ -1,5 +1,6 @@
 """Regression tests for transparent NOVA PNG slot export."""
 import importlib.util
+import json
 from pathlib import Path
 import tempfile
 import unittest
@@ -27,6 +28,24 @@ class PNGExportTests(unittest.TestCase):
                     self.assertEqual(image.size, (32, 32))
                     self.assertEqual(image.mode, 'RGBA')
                     self.assertIsNone(image.getbbox())
+
+    def test_manifest_tracks_blank_and_painted_slots(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / 'template.svg'
+            source.write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">'
+                '<g id="body_base"><rect width="8" height="8" fill="red"/></g>'
+                + ''.join(f'<g id="{slot}"/>' for slot in module.SLOTS if slot != 'body_base')
+                + '</svg>', encoding='utf-8')
+            module.render_layers(source, root / 'png')
+            manifest = json.loads((root / 'png' / 'layers.json').read_text())
+            self.assertEqual(manifest['schema_version'], 1)
+            self.assertEqual([x['name'] for x in manifest['slots']], module.SLOTS)
+            self.assertFalse(manifest['slots'][0]['empty'])
+            self.assertTrue(manifest['slots'][1]['empty'])
+            self.assertEqual(manifest['slots'][0]['width'], 32)
+            self.assertEqual(manifest['slots'][0]['file'], 'body_base.png')
 
     def test_inherited_transform_and_defs_are_preserved(self):
         from PIL import Image
