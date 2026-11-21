@@ -178,3 +178,25 @@ test('rejects invalid PNG chunk type even when checksum is valid',async()=>{
   await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('rejects forbidden RGBA transparency and malformed palette chunks',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-invalid-palette-'));
+ function crc32(data){let crc=0xffffffff;for(const b of data){crc^=b;for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);}return (crc^0xffffffff)>>>0;}
+ function chunk(type,data){const name=Buffer.from(type),size=Buffer.alloc(4),checksum=Buffer.alloc(4);size.writeUInt32BE(data.length);checksum.writeUInt32BE(crc32(Buffer.concat([name,data])));return Buffer.concat([size,name,data,checksum]);}
+ try{
+  await exportNovaBlankPngLayers(dir,'adult',{width:64,height:96});
+  const path=join(dir,'01_body.png'),original=await readFile(path);
+  const palette=chunk('PLTE',Buffer.from([255,0,0]));
+  for(const injected of [
+   chunk('tRNS',Buffer.from([255])),
+   chunk('PLTE',Buffer.alloc(0)),
+   Buffer.concat([palette,palette]),
+  ]){
+   await writeFile(path,Buffer.concat([original.subarray(0,33),injected,original.subarray(33)]));
+   await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
+  }
+  await writeFile(path,Buffer.concat([original.subarray(0,33),palette,original.subarray(33)]));
+  const pack=await validateNovaPngPack(dir);
+  assert.equal(pack.layers[0].hidden,true);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
