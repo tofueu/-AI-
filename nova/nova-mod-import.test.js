@@ -19,3 +19,9 @@ test('rejects missing archive entries, invalid JSON, and invalid paths', () => {
  assert.throws(()=>importNovaModJson(json,'parts/head.png'),/Expected NOVA asset name list/);
  assert.throws(()=>importNovaModJson(' '.repeat(1024*1024+1),[]),/Invalid NOVA MOD manifest size/);
 });
+
+test('enforces UTF-8 byte limit for non-ASCII manifests', () => {
+ const json=JSON.stringify({schemaVersion:1,variant:'chibi',layers:{},note:'紫'.repeat(350000)});
+ assert.ok(json.length < 1024*1024);
+ assert.throws(()=>importNovaModJson(json,[]),/Invalid NOVA MOD manifest size/);
+});
