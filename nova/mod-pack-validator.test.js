@@ -157,3 +157,24 @@ test('rejects oversized MOD manifest before parsing JSON',async()=>{
   await assert.rejects(()=>validateNovaPngPack(dir),/MOD manifest exceeds size limit/);
  }finally{await rm(dir,{recursive:true,force:true});}
 });
+
+test('rejects invalid PNG chunk type even when checksum is valid',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'nova-invalid-chunk-'));
+ try{
+  await exportNovaBlankPngLayers(dir,'chibi',{width:64,height:96});
+  const path=join(dir,'01_body.png');
+  const bytes=await readFile(path);
+  const offset=33; // first IDAT follows the 25-byte IHDR chunk
+  assert.equal(bytes.toString('ascii',offset+4,offset+8),'IDAT');
+  bytes.write('IDaT',offset+4,'ascii'); // reserved third letter must be uppercase
+  const size=bytes.readUInt32BE(offset);
+  let crc=0xffffffff;
+  for(const b of bytes.subarray(offset+4,offset+8+size)){
+   crc^=b;
+   for(let i=0;i<8;i++)crc=(crc>>>1)^((crc&1)?0xedb88320:0);
+  }
+  bytes.writeUInt32BE((crc^0xffffffff)>>>0,offset+8+size);
+  await writeFile(path,bytes);
+  await assert.rejects(()=>validateNovaPngPack(dir),/Invalid RGBA PNG layer: body/);
+ }finally{await rm(dir,{recursive:true,force:true});}
+});
