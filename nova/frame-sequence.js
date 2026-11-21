@@ -17,8 +17,11 @@ export function renderNovaFrameSequence(base, mod, clip, options={}) {
   if (frameCount>600) throw new Error('Frame sequence exceeds 600 frames');
   const frames=[];
   for(let i=0;i<frameCount;i++){
-    // Clamp the final partial interval of non-looping clips; do not extrapolate.
-    const timeMs=clip.loop ? i*1000/fps : Math.min(i*1000/fps,clip.durationMs);
+    // Restart each cycle at the exact clip boundary, even when duration is
+    // not a whole number of frame intervals.
+    const cycle=Math.floor(i/framesPerCycle);
+    const localFrame=i%framesPerCycle;
+    const timeMs=cycle*clip.durationMs+Math.min(localFrame*1000/fps,clip.durationMs);
     const frame=renderNovaPoseSvg(base,mod,clip,timeMs,renderOptions);
     frames.push({index:i,timeMs,svg:frame.svg,fallbacks:frame.fallbacks});
   }
