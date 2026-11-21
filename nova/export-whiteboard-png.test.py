@@ -28,6 +28,26 @@ class PNGExportTests(unittest.TestCase):
                     self.assertEqual(image.mode, 'RGBA')
                     self.assertIsNone(image.getbbox())
 
+    def test_inherited_transform_and_defs_are_preserved(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / 'template.svg'
+            source.write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">'
+                '<defs><clipPath id="clip"><rect x="0" y="0" width="5" height="5"/></clipPath></defs>'
+                '<g transform="translate(10,0)">'
+                '<g id="body_base" clip-path="url(#clip)">'
+                '<rect x="0" y="0" width="20" height="20" fill="red"/>'
+                '</g></g>'
+                + ''.join(f'<g id="{slot}"/>' for slot in module.SLOTS if slot != 'body_base')
+                + '</svg>', encoding='utf-8')
+            files = module.render_layers(source, root / 'png')
+            with Image.open(files[0]) as image:
+                self.assertEqual(image.getpixel((12, 2)), (255, 0, 0, 255))
+                self.assertEqual(image.getpixel((2, 2))[3], 0)
+                self.assertEqual(image.getpixel((17, 2))[3], 0)
+
     def test_missing_layer_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
