@@ -67,6 +67,26 @@ class PNGExportTests(unittest.TestCase):
                 self.assertEqual(image.getpixel((2, 2)), (255, 0, 0, 255))
                 self.assertEqual(image.getpixel((10, 10))[3], 0)
 
+    def test_nested_slots_export_separately(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / 'template.svg'
+            source.write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">'
+                '<g id="body_base"><rect width="8" height="8" fill="red"/>'
+                '<g id="eyes"><rect x="16" width="8" height="8" fill="blue"/></g></g>'
+                + ''.join(f'<g id="{slot}"/>' for slot in module.SLOTS
+                          if slot not in ('body_base', 'eyes'))
+                + '</svg>', encoding='utf-8')
+            files = module.render_layers(source, root / 'png')
+            with Image.open(files[0]) as body:
+                self.assertEqual(body.getpixel((2, 2)), (255, 0, 0, 255))
+                self.assertEqual(body.getpixel((18, 2))[3], 0)
+            with Image.open(root / 'png' / 'eyes.png') as eyes:
+                self.assertEqual(eyes.getpixel((18, 2)), (0, 0, 255, 255))
+                self.assertEqual(eyes.getpixel((2, 2))[3], 0)
+
     def test_missing_layer_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
