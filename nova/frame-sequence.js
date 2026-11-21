@@ -12,11 +12,13 @@ export function renderNovaFrameSequence(base, mod, clip, options={}) {
   if (!Number.isInteger(cycles) || cycles<1 || cycles>10) throw new Error('cycles must be an integer from 1 to 10');
   if (!clip || !Number.isFinite(clip.durationMs) || clip.durationMs<=0) throw new Error('Invalid clip duration');
   if (cycles>1 && clip.loop!==true) throw new Error('Multiple cycles require a looping clip');
-  const frameCount=Math.ceil(clip.durationMs*fps/1000)*cycles;
+  const framesPerCycle=Math.ceil(clip.durationMs*fps/1000);
+  const frameCount=framesPerCycle*cycles;
   if (frameCount>600) throw new Error('Frame sequence exceeds 600 frames');
   const frames=[];
   for(let i=0;i<frameCount;i++){
-    const timeMs=i*1000/fps;
+    // Clamp the final partial interval of non-looping clips; do not extrapolate.
+    const timeMs=clip.loop ? i*1000/fps : Math.min(i*1000/fps,clip.durationMs);
     const frame=renderNovaPoseSvg(base,mod,clip,timeMs,renderOptions);
     frames.push({index:i,timeMs,svg:frame.svg,fallbacks:frame.fallbacks});
   }
