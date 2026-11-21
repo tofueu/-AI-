@@ -83,7 +83,7 @@ def render_layers(source: Path, destination: Path) -> list[Path]:
                 'empty': rgba.getchannel('A').getbbox() is None,
             })
     (destination / 'layers.json').write_text(
-        json.dumps(manifest, indent=2) + '\\n', encoding='utf-8')
+        json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     return results
 
 
