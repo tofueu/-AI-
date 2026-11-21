@@ -5,7 +5,7 @@ function plainRecord(value) {
     (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
 }
 export function importNovaModPackage(json, {base, variant} = {}) {
-  if (typeof json !== 'string' || Buffer.byteLength(json, 'utf8') > MAX_BYTES) throw new Error('Invalid MOD package size');
+  if (typeof json !== 'string' || new TextEncoder().encode(json).length > MAX_BYTES) throw new Error('Invalid MOD package size');
   let manifest;
   try { manifest = JSON.parse(json); } catch { throw new Error('Invalid MOD package JSON'); }
   if (!plainRecord(manifest) || manifest.schemaVersion !== 1 || !['chibi','adult'].includes(manifest.variant)) throw new Error('Invalid MOD manifest');
