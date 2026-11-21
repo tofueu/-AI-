@@ -39,8 +39,9 @@ def render_layers(source: Path, destination: Path) -> list[Path]:
     results = []
     for slot in SLOTS:
         isolated = ET.Element(root.tag, dict(root.attrib))
-        # Preserve SVG definitions and styles referenced by a layer.
-        for child in root:
+        # Definitions and styles can live inside nested groups, not only at root.
+        # Copy them before the selected layer so url(#id) references resolve.
+        for child in root.iter():
             if child.tag in (f'{{{SVG_NS}}}defs', f'{{{SVG_NS}}}style'):
                 isolated.append(copy.deepcopy(child))
         # Preserve transforms and clipping inherited from ancestor groups.
