@@ -55,7 +55,16 @@ def render_layers(source: Path, destination: Path) -> list[Path]:
             wrapper = ET.Element(ancestor.tag, dict(ancestor.attrib))
             container.append(wrapper)
             container = wrapper
-        container.append(copy.deepcopy(groups[slot]))
+        selected = copy.deepcopy(groups[slot])
+        # A nested slot belongs to its own PNG, not its parent's output.
+        def remove_other_slots(node):
+            for child in list(node):
+                if child.tag == f'{{{SVG_NS}}}g' and child.get('id') in SLOTS:
+                    node.remove(child)
+                else:
+                    remove_other_slots(child)
+        remove_other_slots(selected)
+        container.append(selected)
         path = destination / f'{slot}.png'
         cairosvg.svg2png(bytestring=ET.tostring(isolated, encoding='utf-8'), write_to=str(path))
         results.append(path)
