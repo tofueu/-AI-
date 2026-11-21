@@ -1,36 +1,46 @@
-// Deterministic joint pose interpolation for both NOVA rigs; no artwork is modified.
-export const RIG_VARIANTS=Object.freeze(['chibi','adult']);
-export const RIG_JOINTS=Object.freeze(['root','head','hair_back','hair_front','hat','torso','arm_l','arm_r','hand_l','hand_r','leg_l','leg_r','foot_l','foot_r','accessory']);
-const finite=n=>typeof n==='number'&&Number.isFinite(n);
-export function sampleNovaMotion({variant,frames,timeMs,loop=true}) {
- if(!RIG_VARIANTS.includes(variant)) throw new Error('Unsupported NOVA variant');
- if(!Array.isArray(frames)||!frames.length||!finite(timeMs)) throw new Error('Invalid motion timeline');
- let previous=-1;
- for(const frame of frames){
-  if(!frame||!finite(frame.atMs)||frame.atMs<0||frame.atMs<=previous||!frame.pose||typeof frame.pose!=='object'||Array.isArray(frame.pose)) throw new Error('Invalid motion frame');
-  for(const [joint,transform] of Object.entries(frame.pose)){
-   if(!RIG_JOINTS.includes(joint)||!transform||typeof transform!=='object'||Array.isArray(transform)) throw new Error('Invalid joint');
-   for(const [axis,value] of Object.entries(transform))
-    if(!['x','y','rotation','scaleX','scaleY'].includes(axis)||!finite(value)||(axis.startsWith('scale')&&value<=0)) throw new Error('Invalid transform');
+export const NOVA_VARIANTS = Object.freeze(['chibi','adult']);
+const neutral = {x:0,y:0,rotation:0,scaleX:1,scaleY:1};
+export function normalizePose(pose={}) {
+  if (!pose || typeof pose!=='object' || Array.isArray(pose)) throw new TypeError('Invalid pose');
+  const result={};
+  for (const [joint,channels] of Object.entries(pose)) {
+    if (!/^[a-z][a-z0-9_]*$/i.test(joint) || !channels || typeof channels!=='object' || Array.isArray(channels)) throw new TypeError('Invalid joint');
+    for (const key of Object.keys(channels)) if (!(key in neutral)) throw new TypeError('Unknown channel');
+    result[joint]={};
+    for (const [key,value] of Object.entries(neutral)) {
+      const n=channels[key]??value;
+      if (typeof n!=='number'||!Number.isFinite(n)) throw new TypeError('Nonfinite transform');
+      result[joint][key]=n;
+    }
   }
-  previous=frame.atMs;
- }
- const duration=previous;
- const t=loop&&duration>0?((timeMs%duration)+duration)%duration:Math.max(0,Math.min(duration,timeMs));
- let upper=frames.findIndex(f=>f.atMs>=t);
- if(upper<0) upper=frames.length-1;
- const a=frames[Math.max(0,upper-1)],b=frames[upper];
- const blend=a===b?0:(t-a.atMs)/(b.atMs-a.atMs);
- const pose={};
- for(const joint of RIG_JOINTS){
-  if(!Object.hasOwn(a.pose,joint)&&!Object.hasOwn(b.pose,joint)) continue;
-  const start=a.pose[joint]||{},end=b.pose[joint]||{},transform={};
-  for(const axis of ['x','y','rotation','scaleX','scaleY']){
-   const fallback=axis.startsWith('scale')?1:0;
-   const v0=start[axis]??fallback,v1=end[axis]??fallback;
-   transform[axis]=v0+(v1-v0)*blend;
+  return result;
+}
+export function interpolatePose(from,to,progress) {
+  if (!Number.isFinite(progress)) throw new TypeError('Invalid progress');
+  const t=Math.max(0,Math.min(1,progress)),a=normalizePose(from),b=normalizePose(to),out={};
+  for (const joint of new Set([...Object.keys(a),...Object.keys(b)])) {
+    out[joint]={};
+    for (const key of Object.keys(neutral)) {
+      const start=(a[joint]??neutral)[key],end=(b[joint]??neutral)[key];
+      const delta=key==='rotation'?((end-start+540)%360)-180:end-start;
+      out[joint][key]=start+delta*t;
+    }
   }
-  pose[joint]=transform;
- }
- return {variant,timeMs:t,pose};
+  return out;
+}
+export function sampleAnimation({variant,frames,durationMs,loop=true},timeMs) {
+  if (!NOVA_VARIANTS.includes(variant)) throw new TypeError('Invalid variant');
+  if (!Number.isFinite(durationMs)||durationMs<=0||!Number.isFinite(timeMs)) throw new TypeError('Invalid time');
+  if (!Array.isArray(frames)||frames.length<2) throw new TypeError('Need two frames');
+  const timeline=frames.map(frame=>{
+    if (!frame||!Number.isFinite(frame.at)||frame.at<0||frame.at>1) throw new TypeError('Invalid frame');
+    return {at:frame.at,pose:normalizePose(frame.pose)};
+  }).sort((a,b)=>a.at-b.at);
+  if (timeline[0].at!==0||timeline.at(-1).at!==1) throw new RangeError('Timeline must cover 0 to 1');
+  for(let i=1;i<timeline.length;i++) if(timeline[i].at===timeline[i-1].at) throw new RangeError('Duplicate frame');
+  const elapsed=loop?((timeMs%durationMs)+durationMs)%durationMs:Math.max(0,Math.min(durationMs,timeMs));
+  const position=elapsed/durationMs,index=timeline.findIndex(frame=>frame.at>=position);
+  if(index===0)return timeline[0].pose;
+  const start=timeline[index-1],end=timeline[index];
+  return interpolatePose(start.pose,end.pose,(position-start.at)/(end.at-start.at));
 }
