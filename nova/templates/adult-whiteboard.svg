@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" width="1024" height="1536" viewBox="0 0 1024 1536">
+<title>NOVA adult MOD whiteboard</title>
+<desc>Transparent editable guide. Replace each named group with transparent art; guides are hidden by default. This is not finished character artwork.</desc>
+<g id="guides" style="display:none" fill="none" stroke="#aa88ff" stroke-width="5" stroke-dasharray="12 10">
+<rect x="2" y="2" width="1020" height="1532"/>
+<circle cx="512" cy="340" r="170"/>
+<path d="M 512 170 V 1506 M 150 820 H 874"/>
+<circle cx="327" cy="820" r="20"/><circle cx="697" cy="820" r="20"/>
+</g>
+<g id="body_base"/>
+<g id="legs_back"/>
+<g id="shoes"/>
+<g id="clothes_base"/>
+<g id="clothes_outer"/>
+<g id="arms_back"/>
+<g id="head_base"/>
+<g id="ears"/>
+<g id="eyes"/>
+<g id="eyebrows"/>
+<g id="nose"/>
+<g id="mouth"/>
+<g id="hair_back"/>
+<g id="hair_front"/>
+<g id="hat"/>
+<g id="arms_front"/>
+<g id="accessory"/>
+</svg>
