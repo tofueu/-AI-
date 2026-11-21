@@ -15,7 +15,7 @@ function crc32(data) {
 // Validate the entire PNG stream, not only the IHDR header. Prevent decompression bombs.
 function validateRgbaPng(bytes,width,height) {
   if(bytes.length<57 || bytes.subarray(0,8).toString('hex')!=='89504e470d0a1a0a') return false;
-  let offset=8,seenIHDR=false,seenIEND=false,seenIDAT=false,idatClosed=false,compressedSize=0;
+  let offset=8,seenIHDR=false,seenIEND=false,seenIDAT=false,idatClosed=false,seenPLTE=false,compressedSize=0;
   const compressed=[];
   while(offset+12<=bytes.length){
     const length=bytes.readUInt32BE(offset),end=offset+12+length;
@@ -37,7 +37,7 @@ function validateRgbaPng(bytes,width,height) {
       seenIDAT=true;compressed.push(bytes.subarray(offset+8,offset+8+length));
     }else if(seenIDAT){idatClosed=true;}
     if(type==='IEND'){if(length!==0||!seenIDAT||end!==bytes.length)return false;seenIEND=true;break;}
-    if(type==='PLTE' && seenIDAT)return false;
+    // RGBA images may have a palette hint, but only once and before IDAT.\n    // Transparency palettes (tRNS) are illegal for RGBA images with alpha.\n    if(type==='PLTE'){\n      if(seenPLTE||seenIDAT||length===0||length>768||length%3!==0)return false;\n      seenPLTE=true;\n    }\n    if(type==='tRNS')return false;
     if(!['IHDR','IDAT','IEND'].includes(type) && type[0]===type[0].toUpperCase())return false;
     offset=end;
   }
