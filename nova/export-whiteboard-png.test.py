@@ -87,6 +87,28 @@ class PNGExportTests(unittest.TestCase):
                 self.assertEqual(eyes.getpixel((18, 2)), (0, 0, 255, 255))
                 self.assertEqual(eyes.getpixel((2, 2))[3], 0)
 
+    def test_duplicate_layer_rejected_without_writing_pngs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / 'duplicate.svg'
+            source.write_text(
+                '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32">'
+                + ''.join(f'<g id="{slot}"/>' for slot in module.SLOTS)
+                + '<g id="eyes"/></svg>', encoding='utf-8')
+            destination = root / 'png'
+            with self.assertRaisesRegex(ValueError, 'Duplicate layer: eyes'):
+                module.render_layers(source, destination)
+            self.assertFalse(destination.exists())
+
+    def test_invalid_root_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / 'invalid.svg'
+            source.write_text('<html xmlns="http://www.w3.org/1999/xhtml"/>',
+                              encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'Expected SVG root'):
+                module.render_layers(source, root / 'png')
+
     def test_missing_layer_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
