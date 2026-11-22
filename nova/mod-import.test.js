@@ -24,9 +24,9 @@ test('rejects unknown slots and invalid operation combinations',()=>{
  assert.throws(()=>importNovaModManifest({schemaVersion:1,variant:'adult',layers:{hat:{operation:'hide',src:'hat.png'}}}),/Non-replacement/);
 });
 
-for(const src of ['hair/new\\nline.png','hair/tab\\tname.png','hair/del\\u007fname.png']) {
+for(const src of ['hair/new\nline.png','hair/tab\tname.png','hair/del\u007fname.png']) {
  test('rejects control characters in MOD paths',()=>assert.throws(()=>importNovaModManifest({schemaVersion:1,variant:'chibi',layers:{hair_front:{src}}}),/Invalid MOD PNG path/));
 }
 test('rejects control characters in MOD asset root',()=>{
- assert.throws(()=>importNovaModManifest({schemaVersion:1,variant:'adult',layers:{head:{src:'head.png'}}},{assetRoot:'mods/\\nunsafe'}),/Invalid MOD asset root/);
+ assert.throws(()=>importNovaModManifest({schemaVersion:1,variant:'adult',layers:{head:{src:'head.png'}}},{assetRoot:'mods/\nunsafe'}),/Invalid MOD asset root/);
 });
