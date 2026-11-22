@@ -16,7 +16,7 @@ for (const variant of ['chibi', 'adult']) {
     const result = renderNovaAnimationSequence(base, animation(variant));
     assert.equal(result.frames.length, 3);
     assert.deepEqual(result.timestamps, [0, 0.5, 1]);
-    assert.match(result.frames[1], /translate\\(10 0\\)/);
+    assert.match(result.frames[1], /translate\(10 0\)/);
     assert.match(result.frames[1], /opacity="0.75"/);
     assert.equal(base.layers[0].transform.x, 0);
   });
