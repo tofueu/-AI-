@@ -17,7 +17,7 @@ export function renderLayerFrameSvg({layers,width,height,background='none'}) {
     if (!Array.isArray(rawPivot) && (!rawPivot || typeof rawPivot!=='object')) throw new TypeError('Invalid pivot');
     const pivot=Array.isArray(rawPivot)?{x:rawPivot[0],y:rawPivot[1]}:rawPivot;
     const {src,transform={}} = layer;
-    if (typeof src !== 'string' || !src.trim() || /[\x00-\x1f]/.test(src) || /^(?:javascript|https?):/i.test(src)) throw new TypeError('Invalid image source');
+    if (typeof src !== 'string' || !src.trim() || src !== src.trim() || /[\x00-\x1f\x7f\\?#]/.test(src) || src.startsWith('/') || /^[a-z][a-z\d+.-]*:/i.test(src) || !src.split('/').every(part => part && part !== '.' && part !== '..') || !/\.png$/i.test(src)) throw new TypeError('Invalid image source');
     const x=finite(transform.x??0,'x'),y=finite(transform.y??0,'y');
     const r=finite(transform.rotation??0,'rotation');
     const sx=finite(transform.scaleX??1,'scaleX'),sy=finite(transform.scaleY??1,'scaleY');
