@@ -34,3 +34,14 @@ test('rejects invalid geometry and excessive frame count',()=>{
   assert.throws(()=>renderLayerFrameSvg({width:100,height:100,layers:[{src:'a.png',transform:{rotation:NaN}}]}),/rotation/);
   assert.throws(()=>renderAnimationSvgFrames({width:100,height:100,frames:[]}),/frames/);
 });
+
+test('rejects remote, traversal, non-PNG and ambiguous SVG image paths', () => {
+  const rejected = ['../secret.png', 'a/../secret.png', './a.png', '//cdn.example/a.png',
+    '/absolute/a.png', 'data:image/png;base64,AAAA', 'file:///tmp/a.png',
+    'assets\\\\a.png', 'assets/a.png?x=1', 'assets/a.png#fragment',
+    'assets//a.png', 'assets/a.svg', 'assets/a.png\\n'];
+  for (const src of rejected) {
+    assert.throws(() => renderLayerFrameSvg({width:32,height:32,layers:[{src}]}), /source/, src);
+  }
+  assert.match(renderLayerFrameSvg({width:32,height:32,layers:[{src:'assets/ok.PNG'}]}), /ok.PNG/);
+});
