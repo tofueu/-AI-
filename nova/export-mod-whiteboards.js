@@ -3,6 +3,22 @@ import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createNovaLayerWhiteboard, createNovaWhiteboardManifest } from './mod-layer-whiteboard.js';
 
+// Refuse directory symlinks: otherwise a pre-existing chibi/adult link can
+// redirect all generated files outside the selected export directory.
+async function ensureSafeVariantDirectory(root, variant) {
+  await mkdir(root, { recursive: true });
+  const rootStat = await lstat(root);
+  if (rootStat.isSymbolicLink() || !rootStat.isDirectory()) throw new Error('Unsafe export root');
+  const target = resolve(root, variant);
+  try {
+    const stat = await lstat(target);
+    if (stat.isSymbolicLink() || !stat.isDirectory()) throw new Error('Unsafe variant directory');
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+    await mkdir(target);
+  }
+}
+
 // Export all 56 transparent, editable SVG drawing templates without overwriting artist work.
 export async function exportNovaWhiteboards(directory, { overwrite = false } = {}) {
   if (typeof directory !== 'string' || !directory.trim()) throw new TypeError('Output directory required');
@@ -14,7 +30,7 @@ export async function exportNovaWhiteboards(directory, { overwrite = false } = {
     for (const entry of manifest.slots) {
       const target = resolve(root, entry.filename);
       if (!target.startsWith(root + sep)) throw new Error('Unsafe template path');
-      await mkdir(resolve(root, variant), { recursive: true });
+      await ensureSafeVariantDirectory(root, variant);
       if (!overwrite) {
         try { const stat = await lstat(target); if (stat.isSymbolicLink()) throw new Error('Refusing symbolic-link template'); result.skipped.push(entry.filename); continue; }
         catch (error) { if (error.code !== 'ENOENT') throw error; }
