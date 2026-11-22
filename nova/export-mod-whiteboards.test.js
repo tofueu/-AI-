@@ -35,3 +35,26 @@ test('rejects invalid destination and overwrite flag', async () => {
   await assert.rejects(exportNovaWhiteboards(''), /directory/i);
   await assert.rejects(exportNovaWhiteboards('/tmp/nova', { overwrite: 'yes' }), /overwrite/i);
 });
+
+test('refuses symbolic-link overwrite to protect artist files outside export root', async t => {
+  const { symlink } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'nova-symlink-'));
+  const outside = await mkdtemp(join(tmpdir(), 'nova-artist-'));
+  try {
+    await exportNovaWhiteboards(dir);
+    const target = join(dir, 'chibi', 'hair_front.svg');
+    const artist = join(outside, 'artist.svg');
+    await writeFile(artist, 'ORIGINAL ART');
+    await rm(target);
+    try { await symlink(artist, target); }
+    catch (error) {
+      if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) { t.skip('symlinks unavailable'); return; }
+      throw error;
+    }
+    await assert.rejects(exportNovaWhiteboards(dir, { overwrite: true }), /symbolic-link/);
+    assert.equal(await readFile(artist, 'utf8'), 'ORIGINAL ART');
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
