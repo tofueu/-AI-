@@ -22,3 +22,10 @@ test('rejects invalid dimensions, layouts and image sources',()=>{
  assert.throws(()=>renderAnimationContactSheet({frames,width:0,height:64}),/Invalid canvas size/);
  assert.throws(()=>renderAnimationContactSheet({frames:[{layers:[{src:'javascript:bad'}]}],width:64,height:64}),/Invalid image source/);
 });
+
+test('does not allocate blank columns when frame count is smaller than requested columns',()=>{
+ const svg=renderAnimationContactSheet({frames:[frames[0],frames[1]],width:100,height:80,columns:4,gap:10});
+ assert.match(svg,/width="210" height="80"/);
+ assert.match(svg,/translate\(110 0\)/);
+ assert.doesNotMatch(svg,/translate\(220 0\)/);
+});
