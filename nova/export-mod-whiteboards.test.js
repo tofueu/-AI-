@@ -58,3 +58,26 @@ test('refuses symbolic-link overwrite to protect artist files outside export roo
     await rm(outside, { recursive: true, force: true });
   }
 });
+
+test('rejects symlinked variant directory without touching external artist work', async t => {
+  const { symlink, mkdir } = await import('node:fs/promises');
+  const dir = await mkdtemp(join(tmpdir(), 'nova-dir-link-'));
+  const outside = await mkdtemp(join(tmpdir(), 'nova-outside-'));
+  try {
+    await mkdir(join(outside, 'art'));
+    await writeFile(join(outside, 'art', 'keep.txt'), 'ORIGINAL');
+    try { await symlink(join(outside, 'art'), join(dir, 'chibi'), 'dir'); }
+    catch (error) {
+      if (['EPERM', 'EACCES', 'ENOTSUP'].includes(error.code)) { t.skip('symlinks unavailable'); return; }
+      throw error;
+    }
+    await assert.rejects(exportNovaWhiteboards(dir), /Unsafe variant directory/);
+    await assert.rejects(exportNovaWhiteboards(dir, { overwrite: true }), /Unsafe variant directory/);
+    assert.equal(await readFile(join(outside, 'art', 'keep.txt'), 'utf8'), 'ORIGINAL');
+    const { readdir } = await import('node:fs/promises');
+    assert.deepEqual(await readdir(join(outside, 'art')), ['keep.txt']);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  }
+});
