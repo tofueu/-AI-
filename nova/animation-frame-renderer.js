@@ -30,6 +30,16 @@ export function renderNovaAnimationFrame(basePose, sampledFrame, options = {}) {
         transform[field] = (transform[field] ?? 1) * delta[field];
       }
     }
+    if (delta.opacity !== undefined) {
+      if (!Number.isFinite(delta.opacity) || delta.opacity < 0 || delta.opacity > 1) {
+        throw new RangeError('Invalid animation opacity');
+      }
+      const baseOpacity = transform.opacity ?? 1;
+      if (!Number.isFinite(baseOpacity) || baseOpacity < 0 || baseOpacity > 1) {
+        throw new RangeError('Invalid base opacity');
+      }
+      transform.opacity = baseOpacity * delta.opacity;
+    }
     return { ...layer, transform };
   });
   return renderNovaSvg({ variant: basePose.variant, layers }, options);
