@@ -3,7 +3,7 @@
 const SLOTS = new Set(['body','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail','leg_l','leg_r','shoes_l','shoes_r','arm_l','arm_r','hand_l','hand_r','outer','face']);
 const VARIANTS = new Set(['chibi','adult','universal']);
 function safePath(value) {
-  if(typeof value!=='string' || !value.trim() || value!==value.trim() || value.includes('\\') || value.startsWith('/') || value.includes('?') || value.includes('#') || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(value)) return false;
+  if(typeof value!=='string' || !value.trim() || value!==value.trim() || value.includes('\\') || value.startsWith('/') || /[\u0000-\u001f\u007f]/.test(value) || value.includes('?') || value.includes('#') || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(value)) return false;
   return value.split('/').every(part=>part && part!=='.' && part!=='..' && !part.includes('\0')) && /\.png$/i.test(value);
 }
 export function importNovaModManifest(manifest,{assetRoot=''}={}) {
