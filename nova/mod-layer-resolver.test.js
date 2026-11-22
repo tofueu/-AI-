@@ -22,3 +22,26 @@ for (const variant of ['chibi', 'adult']) {
 test('rejects mismatched rigs', () => assert.throws(() => resolveNovaModLayers({ variant: 'chibi', layers: [] }, { variant: 'adult', layers: {} }), /Invalid MOD/));
 test('rejects traversal in replacement paths', () => assert.throws(() => resolveNovaModLayers({ variant: 'chibi', layers: [{ slot: 'hat', src: 'hat.png', transform: {} }] }, { variant: 'chibi', layers: { hat: { operation: 'replace', src: '../private.png' } } }), /Unsafe/));
 test('rejects unknown slots', () => assert.throws(() => resolveNovaModLayers({ variant: 'adult', layers: [] }, { variant: 'adult', layers: { unknown: { operation: 'hide' } } }), /Unknown/));
+
+for (const variant of ['chibi', 'adult']) {
+  test(variant + ' rejects duplicate base slots', () => {
+    const base = { variant, layers: [{ slot: 'hat', src: 'a.png' }, { slot: 'hat', src: 'b.png' }] };
+    assert.throws(() => resolveNovaModLayers(base, { variant, layers: {} }), /Invalid base layer/);
+  });
+  test(variant + ' isolates nested transform data', () => {
+    const base = { variant, layers: [{ slot: 'head', src: 'head.png', transform: { pivot: { x: 1 } } }] };
+    const resolved = resolveNovaModLayers(base, { variant, layers: {} });
+    resolved.layers[0].transform.pivot.x = 99;
+    assert.equal(base.layers[0].transform.pivot.x, 1);
+  });
+  for (const src of ['mods//hair.png', 'mods/./hair.png', 'mods/../hair.png', './hair.png', 'mods\\\\hair.png', 'mods/hair.PNG/other.png', 'https://example.com/a.png', 'mods/hair.svg', 'mods/hair.png?x=1']) {
+    test(variant + ' rejects non-normalized MOD path: ' + src, () => {
+      const base = { variant, layers: [{ slot: 'hat', src: 'hat.png' }] };
+      assert.throws(() => resolveNovaModLayers(base, { variant, layers: { hat: { operation: 'replace', src } } }), /Unsafe MOD asset/);
+    });
+  }
+  test(variant + ' permits normalized PNG asset path', () => {
+    const base = { variant, layers: [{ slot: 'hat', src: 'hat.png' }] };
+    assert.equal(resolveNovaModLayers(base, { variant, layers: { hat: { operation: 'replace', src: 'mods/hat_01.PNG' } } }).layers[0].src, 'mods/hat_01.PNG');
+  });
+}
