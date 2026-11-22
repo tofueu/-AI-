@@ -1,4 +1,4 @@
-import { mkdir, writeFile, access } from 'node:fs/promises';
+import { mkdir, writeFile, lstat } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createNovaLayerWhiteboard, createNovaWhiteboardManifest } from './mod-layer-whiteboard.js';
@@ -16,19 +16,29 @@ export async function exportNovaWhiteboards(directory, { overwrite = false } = {
       if (!target.startsWith(root + sep)) throw new Error('Unsafe template path');
       await mkdir(resolve(root, variant), { recursive: true });
       if (!overwrite) {
-        try { await access(target); result.skipped.push(entry.filename); continue; }
+        try { const stat = await lstat(target); if (stat.isSymbolicLink()) throw new Error('Refusing symbolic-link template'); result.skipped.push(entry.filename); continue; }
         catch (error) { if (error.code !== 'ENOENT') throw error; }
       }
       const svg = createNovaLayerWhiteboard({ variant, slot: entry.slot });
-      await writeFile(target, svg, { flag: overwrite ? 'w' : 'wx' });
+      if (overwrite) {
+        try { if ((await lstat(target)).isSymbolicLink()) throw new Error('Refusing symbolic-link template'); }
+        catch (error) { if (error.code !== 'ENOENT') throw error; }
+      }
+      try { await writeFile(target, svg, { flag: overwrite ? 'w' : 'wx' }); }
+      catch (error) { if (!overwrite && error.code === 'EEXIST') { result.skipped.push(entry.filename); continue; } throw error; }
       result.written.push(entry.filename);
     }
     const manifestPath = join(root, variant, 'manifest.json');
     if (!overwrite) {
-      try { await access(manifestPath); result.skipped.push(variant + '/manifest.json'); continue; }
+      try { const stat = await lstat(manifestPath); if (stat.isSymbolicLink()) throw new Error('Refusing symbolic-link manifest'); result.skipped.push(variant + '/manifest.json'); continue; }
       catch (error) { if (error.code !== 'ENOENT') throw error; }
     }
-    await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n', { flag: overwrite ? 'w' : 'wx' });
+    if (overwrite) {
+      try { if ((await lstat(manifestPath)).isSymbolicLink()) throw new Error('Refusing symbolic-link manifest'); }
+      catch (error) { if (error.code !== 'ENOENT') throw error; }
+    }
+    try { await writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n', { flag: overwrite ? 'w' : 'wx' }); }
+    catch (error) { if (!overwrite && error.code === 'EEXIST') { result.skipped.push(variant + '/manifest.json'); continue; } throw error; }
     result.written.push(variant + '/manifest.json');
   }
   return result;
