@@ -1,6 +1,6 @@
 // Convert a user-authored MOD manifest into resolver-compatible layers.
 // Keep original manifests immutable and reject remote or escaping asset paths.
-const SLOTS = new Set(['body','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail','leg_l','leg_r','shoes_l','shoes_r','arm_l','arm_r','hand_l','hand_r','outer','face']);
+const SLOTS = new Set(['body','outfit','head','eyes','brows','nose','mouth','hair_back','hair_front','hair_side','hat','top','bottom','dress','shoes','accessory','wings','tail','leg_l','leg_r','shoes_l','shoes_r','arm_l','arm_r','hand_l','hand_r','outer','face']);
 const VARIANTS = new Set(['chibi','adult','universal']);
 function safePath(value) {
   if(typeof value!=='string' || !value.trim() || value!==value.trim() || value.includes('\\') || value.startsWith('/') || /[\u0000-\u001f\u007f]/.test(value) || value.includes('?') || value.includes('#') || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(value)) return false;
