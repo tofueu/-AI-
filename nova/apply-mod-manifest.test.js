@@ -47,3 +47,21 @@ test('rejects wrong variant and unsafe MOD paths', () => {
     manifest: manifest('adult', { hat: { src: '../escape.png' } })
   }), /Invalid MOD PNG path/);
 });
+
+test('outfit slot supports replacement and retains safe fallback for both variants', () => {
+  for (const variant of ['chibi', 'adult']) {
+    const baseOutfit = [{slot:'outfit',src:'base/outfit.png',pivot:[4,8]}];
+    const replace = applyNovaModManifest({
+      baseLayers:baseOutfit, variant,
+      manifest:manifest(variant,{outfit:{src:'clothes/new.png'}})
+    });
+    assert.equal(replace[0].src,'clothes/new.png');
+    assert.deepEqual(replace[0].pivot,[4,8]);
+    const hide = applyNovaModManifest({
+      baseLayers:baseOutfit, variant,
+      manifest:manifest(variant,{outfit:{operation:'hide'}})
+    });
+    assert.equal(hide[0].src,'base/outfit.png');
+    assert.equal(hide[0].hidden,false);
+  }
+});
