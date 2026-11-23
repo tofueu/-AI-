@@ -18,7 +18,8 @@ export function resolveNovaModLayers(basePose, mod) {
     const spec = operations.get(layer.slot) ?? { operation: 'inherit' };
     if (!spec || !['inherit', 'hide', 'replace'].includes(spec.operation)) throw new TypeError('Invalid MOD operation');
     if (spec.operation === 'hide' && !required.has(layer.slot)) continue;
-    const resolved = { ...layer, transform: layer.transform == null ? layer.transform : structuredClone(layer.transform) };
+    // Isolate all artist metadata (anchors, masks, joints), not just transforms.
+    const resolved = structuredClone(layer);
     if (spec.operation === 'replace') {
       // Only normalized, relative PNG paths inside the MOD asset root are accepted.
       if (typeof spec.src !== 'string' || !/^[a-zA-Z0-9_-]+(?:\/[a-zA-Z0-9_-]+)*\.png$/i.test(spec.src)) throw new TypeError('Unsafe MOD asset');
