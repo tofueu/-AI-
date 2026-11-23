@@ -72,3 +72,13 @@ for (const variant of ['chibi', 'adult']) {
     }
   });
 }
+
+for (const variant of ['chibi', 'adult']) {
+  test(variant + ' rejects malformed inherit on absent pose slots', () => {
+    const base = { variant, layers: [{ slot: 'body', src: 'body.png' }] };
+    for (const spec of [null, {}, { operation: 'invalid' }, { operation: 'replace', src: 'hat.png' }]) {
+      assert.throws(() => resolveNovaModLayers(base, { variant, layers: { hat: spec } }), /Missing base layer/);
+    }
+    assert.deepEqual(base.layers, [{ slot: 'body', src: 'body.png' }]);
+  });
+}
