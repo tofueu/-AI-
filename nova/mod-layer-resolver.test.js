@@ -98,3 +98,13 @@ for (const variant of ['chibi', 'adult']) {
     assert.equal(resolved.layers[1].src, 'mods/newhat.png');
   });
 }
+
+for (const variant of ['chibi', 'adult']) {
+  test(variant + ' rejects array operations and non-plain MOD maps', () => {
+    const base = { variant, layers: [{ slot: 'hat', src: 'hat.png' }] };
+    assert.throws(() => resolveNovaModLayers(base, { variant, layers: { hat: ['hide'] } }), /Invalid MOD operation/);
+    const inherited = Object.create({ hat: { operation: 'hide' } });
+    assert.throws(() => resolveNovaModLayers(base, { variant, layers: inherited }), /Invalid MOD layers map/);
+    assert.deepEqual(base.layers, [{ slot: 'hat', src: 'hat.png' }]);
+  });
+}
