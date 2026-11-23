@@ -18,6 +18,10 @@ test('exports distinct playable chibi and adult SVG rig previews', async () => {
       assert.match(svgs[i], new RegExp(`NOVA ${outputs[i].variant} animated rig`));
     }
     assert.notEqual(svgs[0], svgs[1]);
+    const gallery = await readFile(join(dir, 'nested', 'index.html'), 'utf8');
+    assert.match(gallery, /nova-chibi-typing-rig\\.svg/);
+    assert.match(gallery, /nova-adult-typing-rig\\.svg/);
+    assert.match(gallery, /非正式角色美術/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
