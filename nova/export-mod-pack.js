@@ -9,6 +9,12 @@ export async function exportNovaModPack(manifestPath, outputDirectory) {
   validateNovaModPack(manifest);
   const output = resolve(outputDirectory);
   const sourceRoot = await realpath(dirname(resolve(manifestPath)));
+  // Never export over a source pack (or into it): this could overwrite original PNGs.
+  const fromSource = relative(sourceRoot, output);
+  const fromOutput = relative(output, sourceRoot);
+  const inside = path => path === '' || (path !== '..' && !path.startsWith('..' + sep) && !isAbsolute(path));
+  if (inside(fromSource) || inside(fromOutput))
+    throw new Error('MOD output must not overlap source pack directory');
   const paths = new Set();
   for (const definition of Object.values(manifest.variants)) {
     for (const asset of [...Object.values(definition.layers ?? {}), definition.fullCharacter]) {
