@@ -63,3 +63,35 @@ test('refuses output inside or above source pack to protect original assets', as
   assert.equal(await readFile(manifest, 'utf8'),
     JSON.stringify(makeNovaModWhiteboardManifest()));
 });
+
+test('rejects output symlink redirecting writes into source pack', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'nova-output-link-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const packDir = join(root, 'pack');
+  await mkdir(packDir);
+  const manifest = join(packDir, 'manifest.json');
+  const original = JSON.stringify(makeNovaModWhiteboardManifest());
+  await writeFile(manifest, original);
+  await symlink(packDir, join(root, 'output'));
+  await assert.rejects(exportNovaModPack(manifest, join(root, 'output')), /symbolic link/);
+  assert.equal(await readFile(manifest, 'utf8'), original);
+});
+
+test('rejects existing symlink at an output asset destination', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'nova-output-asset-link-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const packDir = join(root, 'pack');
+  const output = join(root, 'output');
+  await mkdir(packDir);
+  await mkdir(output);
+  await writeFile(join(packDir, 'hair.png'), 'fixture');
+  const protectedFile = join(root, 'protected.txt');
+  await writeFile(protectedFile, 'unchanged');
+  await symlink(protectedFile, join(output, 'hair.png'));
+  const pack = makeNovaModWhiteboardManifest();
+  pack.variants.chibi.layers.hair = 'hair.png';
+  const manifest = join(packDir, 'manifest.json');
+  await writeFile(manifest, JSON.stringify(pack));
+  await assert.rejects(exportNovaModPack(manifest, output), /symbolic link/);
+  assert.equal(await readFile(protectedFile, 'utf8'), 'unchanged');
+});
