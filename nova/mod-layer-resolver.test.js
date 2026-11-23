@@ -55,3 +55,20 @@ for (const variant of ['chibi', 'adult']) {
     assert.deepEqual(base.layers, [{ slot: 'body', src: 'body.png' }]);
   });
 }
+
+for (const variant of ['chibi', 'adult']) {
+  test(variant + ' accepts full blank MOD template for sparse pose', async () => {
+    const { createNovaModTemplate } = await import('./mod-slot-template.js');
+    const base = { variant, layers: [{ slot: 'body', src: 'body.png' }, { slot: 'outfit', src: 'outfit.png' }] };
+    const original = structuredClone(base);
+    const result = resolveNovaModLayers(base, createNovaModTemplate(variant));
+    assert.deepEqual(result.layers, base.layers);
+    assert.deepEqual(base, original);
+  });
+  test(variant + ' rejects non-inherit edits for absent pose slots', () => {
+    const base = { variant, layers: [{ slot: 'body', src: 'body.png' }] };
+    for (const spec of [{ operation: 'hide' }, { operation: 'replace', src: 'hat.png' }]) {
+      assert.throws(() => resolveNovaModLayers(base, { variant, layers: { hat: spec } }), /Missing base layer/);
+    }
+  });
+}
