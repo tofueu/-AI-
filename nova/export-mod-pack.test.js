@@ -95,3 +95,25 @@ test('rejects existing symlink at an output asset destination', async t => {
   await assert.rejects(exportNovaModPack(manifest, output), /symbolic link/);
   assert.equal(await readFile(protectedFile, 'utf8'), 'unchanged');
 });
+
+test('preflight rejects later unsafe destination before copying earlier PNG', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'nova-preflight-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const packDir = join(root, 'pack');
+  const output = join(root, 'output');
+  await mkdir(packDir);
+  await mkdir(output);
+  await writeFile(join(packDir, 'first.png'), 'first fixture');
+  await writeFile(join(packDir, 'second.png'), 'second fixture');
+  const protectedFile = join(root, 'protected.txt');
+  await writeFile(protectedFile, 'protected');
+  await symlink(protectedFile, join(output, 'second.png'));
+  const pack = makeNovaModWhiteboardManifest();
+  pack.variants.chibi.layers.hair = 'first.png';
+  pack.variants.adult.layers.hair = 'second.png';
+  const manifest = join(packDir, 'manifest.json');
+  await writeFile(manifest, JSON.stringify(pack));
+  await assert.rejects(exportNovaModPack(manifest, output), /symbolic link/);
+  await assert.rejects(readFile(join(output, 'first.png')), /ENOENT/);
+  assert.equal(await readFile(protectedFile, 'utf8'), 'protected');
+});
