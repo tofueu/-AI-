@@ -108,3 +108,13 @@ for (const variant of ['chibi', 'adult']) {
     assert.deepEqual(base.layers, [{ slot: 'hat', src: 'hat.png' }]);
   });
 }
+
+for (const variant of ['chibi', 'adult']) {
+  test(variant + ' validates malformed operations even for absent slots', () => {
+    const base = { variant, layers: [{ slot: 'body', src: 'body.png' }] };
+    for (const spec of [[], 'inherit', { operation: 'bogus' }, { operation: 'replace', src: '../unsafe.png' }]) {
+      assert.throws(() => resolveNovaModLayers(base, { variant, layers: { hat: spec } }), /Invalid MOD operation|Unsafe MOD asset/);
+    }
+    assert.deepEqual(base.layers, [{ slot: 'body', src: 'body.png' }]);
+  });
+}
