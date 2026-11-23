@@ -7,6 +7,7 @@ import { buildRigFrameSequence } from './rig-frame-sequence.js';
 import { NOVA_TYPING_CLIPS } from './typing-clips.js';
 import { renderAnimatedRigSvg } from './rig-animated-svg.js';
 import { renderRigPreviewGallery } from './rig-preview-gallery.js';
+import { buildPreviewManifest } from './preview-manifest.js';
 
 export async function exportRigPreviews(outputDirectory) {
   if (typeof outputDirectory !== 'string' || !outputDirectory.trim()) {
@@ -15,14 +16,18 @@ export async function exportRigPreviews(outputDirectory) {
   const target = resolve(outputDirectory);
   await mkdir(target, { recursive: true });
   const results = [];
+  const assets = [];
   for (const variant of ['chibi', 'adult']) {
     const sequence = buildRigFrameSequence(NOVA_TYPING_CLIPS[variant], { fps: 20 });
     const svg = renderAnimatedRigSvg(sequence);
-    const path = join(target, `nova-${variant}-typing-rig.svg`);
+    const filename = `nova-${variant}-typing-rig.svg`;
+    const path = join(target, filename);
     await writeFile(path, svg, 'utf8');
     results.push({ variant, path, frames: sequence.frames.length });
+    assets.push({ variant, filename, svg, frames: sequence.frames.length });
   }
   await writeFile(join(target, 'index.html'), renderRigPreviewGallery(), 'utf8');
+  await writeFile(join(target, 'manifest.json'), JSON.stringify(buildPreviewManifest(assets), null, 2) + '\n', 'utf8');
   return results;
 }
 
