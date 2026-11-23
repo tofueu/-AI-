@@ -26,5 +26,9 @@ export function resolveNovaModLayers(basePose, mod) {
     }
     result.push(resolved);
   }
+  // A MOD must not silently discard edits targeting layers absent from this pose.
+  for (const [slot, spec] of operations) {
+    if (!seen.has(slot)) throw new TypeError('Missing base layer for MOD slot: ' + slot);
+  }
   return { variant: basePose.variant, layers: result };
 }
