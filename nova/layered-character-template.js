@@ -1,12 +1,20 @@
 // Layered SVG MOD whiteboard. Placeholder art, not an official character render.
 export const NOVA_MOD_SLOTS = Object.freeze(['body','head','eyes','mouth','hair','outfit','hat','accessory']);
-export function renderLayeredCharacterTemplate({variant='chibi',layers={}}={}) {
+function validateFullCharacterPath(path) {
+  if (typeof path !== 'string' || !/^[\\w./-]+$/.test(path) || path.startsWith('/') || path.split('/').includes('..') || !/\\.png$/i.test(path)) throw new TypeError('Invalid MOD PNG path: fullCharacter');
+}
+export function renderLayeredCharacterTemplate({variant='chibi',layers={},fullCharacter=null}={}) {
   if (!['chibi','adult'].includes(variant)) throw new RangeError('Invalid NOVA variant');
   if (!layers || typeof layers !== 'object' || Array.isArray(layers)) throw new TypeError('Invalid layers');
   for (const [slot,path] of Object.entries(layers)) {
     if (!NOVA_MOD_SLOTS.includes(slot)) throw new RangeError('Unknown MOD slot: '+slot);
     if (path !== null && typeof path !== 'string') throw new TypeError('Invalid MOD layer: '+slot);
     if (typeof path === 'string' && (!/^[\w./-]+$/.test(path) || path.startsWith('/') || path.split('/').includes('..') || !/\.png$/i.test(path))) throw new TypeError('Invalid MOD PNG path: '+slot);
+  }
+  if (fullCharacter !== null) {
+    validateFullCharacterPath(fullCharacter);
+    if (Object.values(layers).some(Boolean)) throw new TypeError('Full-character MOD cannot mix with individual layers');
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 340" width="320" height="340" role="img" aria-label="NOVA ${variant} full-character MOD" data-variant="${variant}">\n<g id="nova-full-character"><image href="${fullCharacter}" x="0" y="0" width="320" height="340" preserveAspectRatio="xMidYMid meet"/></g>\n</svg>\n`;
   }
   const headY=variant==='chibi'?93:72, headR=variant==='chibi'?55:37;
   const fallback={
