@@ -82,3 +82,19 @@ for (const variant of ['chibi', 'adult']) {
     assert.deepEqual(base.layers, [{ slot: 'body', src: 'body.png' }]);
   });
 }
+
+for (const variant of ['chibi', 'adult']) {
+  test(variant + ' isolates joint, mask and artist metadata for inherited and replaced layers', () => {
+    const base = { variant, layers: [
+      { slot: 'body', src: 'body.png', joints: [{ pivot: { x: 1 } }], mask: { opacity: 0.5 } },
+      { slot: 'hat', src: 'hat.png', metadata: { tags: ['original'] } }
+    ] };
+    const before = structuredClone(base);
+    const resolved = resolveNovaModLayers(base, { variant, layers: { hat: { operation: 'replace', src: 'mods/newhat.png' } } });
+    resolved.layers[0].joints[0].pivot.x = 100;
+    resolved.layers[0].mask.opacity = 0;
+    resolved.layers[1].metadata.tags.push('modified');
+    assert.deepEqual(base, before);
+    assert.equal(resolved.layers[1].src, 'mods/newhat.png');
+  });
+}
