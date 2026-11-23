@@ -10,6 +10,14 @@ export function resolveNovaModLayers(basePose, mod) {
   const slots = new Set(NOVA_MOD_SLOTS);
   const entries = Object.entries(mod.layers);
   for (const [slot] of entries) if (!slots.has(slot)) throw new TypeError('Unknown MOD slot');
+  // Validate every operation, including slots absent from a sparse pose.
+  // Otherwise a malformed manifest can bypass validation through an absent slot.
+  for (const [, spec] of entries) {
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec) ||
+        !['inherit', 'hide', 'replace'].includes(spec.operation)) throw new TypeError('Invalid MOD operation');
+    if (spec.operation === 'replace' &&
+        (typeof spec.src !== 'string' || !/^[a-zA-Z0-9_-]+(?:\\/[a-zA-Z0-9_-]+)*\\.png$/i.test(spec.src))) throw new TypeError('Unsafe MOD asset');
+  }
   const operations = new Map(entries);
   const required = new Set(['body', 'outfit']);
   const seen = new Set();
