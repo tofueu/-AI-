@@ -29,7 +29,9 @@ test('rejects missing PNGs without creating output', async t => {
   t.after(() => rm(root, { recursive: true, force: true }));
   const pack = makeNovaModWhiteboardManifest();
   pack.variants.chibi.layers.hair = 'missing.png';
-  const manifest = join(root, 'manifest.json');
+  const packDir = join(root, 'pack');
+  await mkdir(packDir);
+  const manifest = join(packDir, 'manifest.json');
   await writeFile(manifest, JSON.stringify(pack));
   await assert.rejects(exportNovaModPack(manifest, join(root, 'out')), /ENOENT/);
 });
