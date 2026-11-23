@@ -45,3 +45,13 @@ for (const variant of ['chibi', 'adult']) {
     assert.equal(resolveNovaModLayers(base, { variant, layers: { hat: { operation: 'replace', src: 'mods/hat_01.PNG' } } }).layers[0].src, 'mods/hat_01.PNG');
   });
 }
+
+for (const variant of ['chibi', 'adult']) {
+  test(variant + ' rejects edits to slots absent from the current pose', () => {
+    const base = { variant, layers: [{ slot: 'body', src: 'body.png' }] };
+    for (const operation of [{ operation: 'hide' }, { operation: 'replace', src: 'mods/hat.png' }]) {
+      assert.throws(() => resolveNovaModLayers(base, { variant, layers: { hat: operation } }), /Missing base layer/);
+    }
+    assert.deepEqual(base.layers, [{ slot: 'body', src: 'body.png' }]);
+  });
+}
