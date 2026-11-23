@@ -117,3 +117,20 @@ test('preflight rejects later unsafe destination before copying earlier PNG', as
   await assert.rejects(readFile(join(output, 'first.png')), /ENOENT/);
   assert.equal(await readFile(protectedFile, 'utf8'), 'protected');
 });
+
+test('rejects directory disguised as PNG before copying any assets', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'nova-directory-asset-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const packDir = join(root, 'pack');
+  const output = join(root, 'output');
+  await mkdir(packDir);
+  await writeFile(join(packDir, 'valid.png'), 'valid fixture');
+  await mkdir(join(packDir, 'directory.png'));
+  const pack = makeNovaModWhiteboardManifest();
+  pack.variants.chibi.layers.hair = 'valid.png';
+  pack.variants.adult.layers.hair = 'directory.png';
+  const manifest = join(packDir, 'manifest.json');
+  await writeFile(manifest, JSON.stringify(pack));
+  await assert.rejects(exportNovaModPack(manifest, output), /must be a regular file/);
+  await assert.rejects(readFile(join(output, 'valid.png')), /ENOENT/);
+});
