@@ -1,7 +1,7 @@
 // Layered SVG MOD whiteboard. Placeholder art, not an official character render.
 export const NOVA_MOD_SLOTS = Object.freeze(['body','head','eyes','mouth','hair','outfit','hat','accessory']);
 function validateFullCharacterPath(path) {
-  if (typeof path !== 'string' || /^[\w./-]+$/.test(path) || path.startsWith('/') || path.split('/').includes('..') || !/\.png$/i.test(path))) throw new TypeError('Invalid MOD PNG path: fullCharacter');
+  if (typeof path !== 'string' || !/^[\w./-]+$/.test(path) || path.startsWith('/') || path.split('/').includes('..') || !/\.png$/i.test(path))) throw new TypeError('Invalid MOD PNG path: fullCharacter');
 }
 export function renderLayeredCharacterTemplate({variant='chibi',layers={},fullCharacter=null}={}) {
   if (!['chibi','adult'].includes(variant)) throw new RangeError('Invalid NOVA variant');
