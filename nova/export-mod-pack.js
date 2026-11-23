@@ -44,6 +44,12 @@ export async function exportNovaModPack(manifestPath, outputDirectory) {
       throw new Error('MOD asset escapes pack directory: ' + asset);
     assets.push([source, join(output, asset)]);
   }
+  // Preflight every destination before the first write, so an unsafe later
+  // path cannot leave earlier assets partially exported.
+  for (const [, destination] of assets) await assertNoOutputSymlinks(destination);
+  for (const variant of Object.keys(manifest.variants))
+    await assertNoOutputSymlinks(join(output, `nova-${variant}-mod.svg`));
+  await assertNoOutputSymlinks(join(output, 'mod-pack.json'));
   await mkdir(output, { recursive: true });
   await assertNoOutputSymlinks(output);
   for (const [source, destination] of assets) {
