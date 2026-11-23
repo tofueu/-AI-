@@ -5,6 +5,8 @@ import { NOVA_MOD_SLOTS } from './mod-slot-template.js';
 export function resolveNovaModLayers(basePose, mod) {
   if (!basePose || !['chibi', 'adult'].includes(basePose.variant) || !Array.isArray(basePose.layers)) throw new TypeError('Invalid base pose');
   if (!mod || mod.variant !== basePose.variant || !mod.layers || typeof mod.layers !== 'object' || Array.isArray(mod.layers)) throw new TypeError('Invalid MOD');
+  // Only plain JSON-like maps are valid MOD manifests; reject inherited operations.
+  if (Object.getPrototypeOf(mod.layers) !== Object.prototype && Object.getPrototypeOf(mod.layers) !== null) throw new TypeError('Invalid MOD layers map');
   const slots = new Set(NOVA_MOD_SLOTS);
   const entries = Object.entries(mod.layers);
   for (const [slot] of entries) if (!slots.has(slot)) throw new TypeError('Unknown MOD slot');
@@ -16,7 +18,7 @@ export function resolveNovaModLayers(basePose, mod) {
     if (!layer || !slots.has(layer.slot) || seen.has(layer.slot) || typeof layer.src !== 'string') throw new TypeError('Invalid base layer');
     seen.add(layer.slot);
     const spec = operations.get(layer.slot) ?? { operation: 'inherit' };
-    if (!spec || !['inherit', 'hide', 'replace'].includes(spec.operation)) throw new TypeError('Invalid MOD operation');
+    if (!spec || typeof spec !== 'object' || Array.isArray(spec) || !['inherit', 'hide', 'replace'].includes(spec.operation)) throw new TypeError('Invalid MOD operation');
     if (spec.operation === 'hide' && !required.has(layer.slot)) continue;
     // Isolate all artist metadata (anchors, masks, joints), not just transforms.
     const resolved = structuredClone(layer);
