@@ -1,4 +1,4 @@
-import { copyFile, lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
+import { copyFile, lstat, stat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
 import { resolve, join, dirname, relative, isAbsolute, sep } from 'node:path';
 import { renderNovaModPack, validateNovaModPack } from './mod-pack.js';
 
@@ -42,6 +42,8 @@ export async function exportNovaModPack(manifestPath, outputDirectory) {
     const rel = relative(sourceRoot, source);
     if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel))
       throw new Error('MOD asset escapes pack directory: ' + asset);
+    const info = await stat(source);
+    if (!info.isFile()) throw new Error('MOD asset must be a regular file: ' + asset);
     assets.push([source, join(output, asset)]);
   }
   // Preflight every destination before the first write, so an unsafe later
