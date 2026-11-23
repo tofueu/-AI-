@@ -1,5 +1,5 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { resolve, join } from 'node:path';
+import { copyFile, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
+import { resolve, join, dirname, relative, isAbsolute, sep } from 'node:path';
 import { renderNovaModPack, validateNovaModPack } from './mod-pack.js';
 
 // Export a portable, inspectable SVG whiteboard for every supplied character variant.
@@ -8,7 +8,27 @@ export async function exportNovaModPack(manifestPath, outputDirectory) {
   const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
   validateNovaModPack(manifest);
   const output = resolve(outputDirectory);
+  const sourceRoot = await realpath(dirname(resolve(manifestPath)));
+  const paths = new Set();
+  for (const definition of Object.values(manifest.variants)) {
+    for (const asset of [...Object.values(definition.layers ?? {}), definition.fullCharacter]) {
+      if (asset) paths.add(asset);
+    }
+  }
+  const assets = [];
+  for (const asset of paths) {
+    const source = await realpath(resolve(sourceRoot, asset));
+    const rel = relative(sourceRoot, source);
+    if (rel === '..' || rel.startsWith('..' + sep) || isAbsolute(rel))
+      throw new Error('MOD asset escapes pack directory: ' + asset);
+    assets.push([source, join(output, asset)]);
+  }
   await mkdir(output, { recursive: true });
+  for (const [source, destination] of assets) {
+    if (source === destination) continue;
+    await mkdir(dirname(destination), { recursive: true });
+    await copyFile(source, destination);
+  }
   const exported = [];
   for (const variant of Object.keys(manifest.variants)) {
     const filename = `nova-${variant}-mod.svg`;
