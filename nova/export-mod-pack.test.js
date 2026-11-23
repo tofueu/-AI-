@@ -47,3 +47,17 @@ test('rejects PNG symlinks escaping the MOD directory', async t => {
   await writeFile(manifest, JSON.stringify(pack));
   await assert.rejects(exportNovaModPack(manifest, join(root, 'out')), /escapes pack directory/);
 });
+
+test('refuses output inside or above source pack to protect original assets', async t => {
+  const root = await mkdtemp(join(tmpdir(), 'nova-overlap-'));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const packDir = join(root, 'pack');
+  await mkdir(packDir);
+  const manifest = join(packDir, 'manifest.json');
+  await writeFile(manifest, JSON.stringify(makeNovaModWhiteboardManifest()));
+  for (const output of [packDir, join(packDir, 'nested'), root]) {
+    await assert.rejects(exportNovaModPack(manifest, output), /must not overlap/);
+  }
+  assert.equal(await readFile(manifest, 'utf8'),
+    JSON.stringify(makeNovaModWhiteboardManifest()));
+});
