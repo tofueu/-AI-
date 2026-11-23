@@ -6,6 +6,7 @@ import { pathToFileURL } from 'node:url';
 import { buildRigFrameSequence } from './rig-frame-sequence.js';
 import { NOVA_TYPING_CLIPS } from './typing-clips.js';
 import { renderAnimatedRigSvg } from './rig-animated-svg.js';
+import { renderRigPreviewGallery } from './rig-preview-gallery.js';
 
 export async function exportRigPreviews(outputDirectory) {
   if (typeof outputDirectory !== 'string' || !outputDirectory.trim()) {
@@ -21,6 +22,7 @@ export async function exportRigPreviews(outputDirectory) {
     await writeFile(path, svg, 'utf8');
     results.push({ variant, path, frames: sequence.frames.length });
   }
+  await writeFile(join(target, 'index.html'), renderRigPreviewGallery(), 'utf8');
   return results;
 }
 
